@@ -18,12 +18,12 @@
 #' Gaussian process.
 #'
 #' We use the fast and accurate approximation for fully Bayesian Gaussian
-#' Processes proposed by Solin and Särkkä [1], using basis function
+#' Processes proposed by Solin and Särkkä (1), using basis function
 #'  approximations based on approximation
 #' via Laplace eigenfunctions for stationary covariance functions.
-#' See [1] and [2] for complete details. The approximation is a linear sum
-#' of `m` eigenfunctions with the boundary conditions in each dimension [-L,L].
-#' Coordinates in each dimension are scaled to [-1,1], so L represents the
+#' See references (1) and (2) for complete details. The approximation is a linear sum
+#' of `m` eigenfunctions with the boundary conditions in each dimension `[-L,L]`.
+#' Coordinates in each dimension are scaled to `[-1,1]`, so L represents the
 #' proportionate extension of the analysis area.
 #'
 #' *Priors*
@@ -46,11 +46,11 @@
 #' `prior_linpred_mean` should be the vector `(a_1,a_2,...,a_Q)` and
 #' `prior_linpred_sd` should be `(b_1,b_2,...,b_Q)`.
 #' @references
-#' [1] Solin A, Särkkä S. Hilbert space methods for reduced-rank Gaussian
+#' (1) Solin A, Särkkä S. Hilbert space methods for reduced-rank Gaussian
 #' process regression. Stat Comput. 2020;30:419–46.
 #' doi:10.1007/s11222-019-09886-w.
 #'
-#' [2] Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
+#' (2) Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
 #' Practical Hilbert space approximate Bayesian Gaussian processes for
 #' probabilistic programming. 2020. http://arxiv.org/abs/2004.11408.
 #' @param grid_data sf object. A regular grid covering the area of interest (see
@@ -72,11 +72,13 @@
 #' @param parallel_chains integer. Number of parallel chains
 #' @param priors list. See Details
 #' @param verbose logical. Provide feedback on progress
+#' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
+#' instead of rstan.
 #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
 #' @return A \link[rstan]{stanfit} or a \link[cmdstanr]{CmdStanMCMC} object
 #' @examples
 #' \dontrun{
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -96,6 +98,7 @@
 #' res <- lgcp_fit(g1,
 #'                 popdens="cov")
 #' }
+#' @importFrom utils stack capture.output
 #' @export
 lgcp_fit <- function(grid_data,
                      popdens,
@@ -223,15 +226,15 @@ lgcp_fit <- function(grid_data,
 
 #' Returns scale conversion factor
 #'
-#' Coordinates are scaled to [-1,1] for \link[rts2]{lgcp_fit}. This function
+#' Coordinates are scaled to `[-1,1]` for \link[rts2]{lgcp_fit}. This function
 #' returns the scaling factor for this conversion.
 #'
 #' @param grid_data sf object. See \link[rts2]{create_grid}
 #' @return numeric
 #' @examples
-#' b1 = st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
-#' scale_coversion_factor(g1)
+#' scale_conversion_factor(g1)
 #' @export
 scale_conversion_factor <- function(grid_data){
   x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(sf::st_centroid(grid_data))))

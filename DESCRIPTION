@@ -1,14 +1,17 @@
 Package: rts2
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Real-time disease surveillance
+Version: 0.0.1
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Sam",
+           family = "Watson",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_gpl3_license()` 
+           email = "s.i.watson@bham.ac.uk",
+           comment = c(ORCID = "0000-0002-8972-769X"))
+Description: Supports modelling real-time case data to facilitate the real-time
+    surveillance of infectious disease. An approximate log-Gaussian Cox Process 
+    model is fit using 'rstan' or 'cmdstanr' and provides output and analysis
+    as 'sf' objects for simple visualisation.
+License: CC BY-SA 4.0 
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
@@ -25,7 +28,8 @@ Imports:
     sf,
     lubridate
 Suggests:
-    cmdstanr (>= 0.4.0)
+    cmdstanr (>= 0.4.0),
+    testthat
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),

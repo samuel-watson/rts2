@@ -9,7 +9,7 @@
 #' @param cellsize The dimension of the grid cells
 #' @return A sf object describing a set of square cells tiled over the area of the boundary
 #' @examples
-#' b1 = st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' create_grid(b1,0.5)
 #' @export
 create_grid <- function(boundary,
@@ -99,7 +99,7 @@ create_points <- function(data,
 #' @return An sf object identical to `grid_data` but with additional columns with the
 #' case count and date of each period
 #' @examples
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -135,9 +135,9 @@ points_to_grid <- function(grid_data,
 
   tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
 
-  if(st_crs(point_data)!=st_crs(grid_data)){
+  if(sf::st_crs(point_data)!=sf::st_crs(grid_data)){
     warning("CRS not equal. Setting st_crs(point_data)==st_crs(grid_data)")
-    st_crs(point_data) <- st_crs(grid_data)
+    sf::st_crs(point_data) <- sf::st_crs(grid_data)
   }
 
   for(i in 1:length(tuniq)){
@@ -160,12 +160,13 @@ points_to_grid <- function(grid_data,
 #'@param grid_data sf object with columns `t[0-9]` and `date[0-9]`. See \link[rts2]{points_to_grid}
 #'@return data.frame with columns `t`, `day`, and `dayMon` to `daySun`
 #'@examples
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 #' g1 <- points_to_grid(g1, dp, laglength=5)
 #' get_dow(g1)
+#' @importFrom stats model.matrix
 #' @export
 get_dow <- function(grid_data){
   if(!is(grid_data,"sf"))stop("grid_data not sf")
@@ -230,7 +231,7 @@ get_dow <- function(grid_data){
 #' this time label should be appended to the column name. See details.
 #' @return sf object identical to grid_data but with additional columns added with covariate data. See details.
 #' @examples
-#' b1 <-  st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <-  sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' cov1 <- create_grid(b1,0.8)
 #' cov1$cov <- runif(nrow(cov1))
@@ -238,6 +239,7 @@ get_dow <- function(grid_data){
 #'                      cov1,
 #'                      zcols="cov",
 #'                     verbose = FALSE)
+#' @importFrom stats weighted.mean
 #' @export
 add_covariates <- function(grid_data,
                            cov_data,

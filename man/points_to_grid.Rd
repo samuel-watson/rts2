@@ -43,7 +43,7 @@ will be named \code{t1}, \code{t2},... up to the lag length, where the highest n
 is the most recent period.
 }
 \examples{
-b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- create_grid(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')

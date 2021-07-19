@@ -53,6 +53,9 @@ the individual column names for each time period (e.g. \code{dayMon} and not \co
 
 \item{verbose}{logical. Provide feedback on progress}
 
+\item{use_cmdstanr}{logical. Defaults to false. If true then cmdstanr will be used
+instead of rstan.}
+
 \item{...}{additional options to pass to `$sample()``, see \link[cmdstanr]{sample}}
 }
 \value{
@@ -77,12 +80,12 @@ latent field, with spatial innovation in each field specified as a spatial
 Gaussian process.
 
 We use the fast and accurate approximation for fully Bayesian Gaussian
-Processes proposed by Solin and Särkkä \link{1}, using basis function
+Processes proposed by Solin and Särkkä (1), using basis function
 approximations based on approximation
 via Laplace eigenfunctions for stationary covariance functions.
-See \link{1} and \link{2} for complete details. The approximation is a linear sum
-of \code{m} eigenfunctions with the boundary conditions in each dimension \link{-L,L}.
-Coordinates in each dimension are scaled to \link{-1,1}, so L represents the
+See references (1) and (2) for complete details. The approximation is a linear sum
+of \code{m} eigenfunctions with the boundary conditions in each dimension \verb{[-L,L]}.
+Coordinates in each dimension are scaled to \verb{[-1,1]}, so L represents the
 proportionate extension of the analysis area.
 
 \emph{Priors}
@@ -106,7 +109,7 @@ then the linear prediction contains the term \eqn{X'\gamma}. Each parameter in \
 }
 \examples{
 \dontrun{
-b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- create_grid(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -128,11 +131,11 @@ res <- lgcp_fit(g1,
 }
 }
 \references{
-\link{1} Solin A, Särkkä S. Hilbert space methods for reduced-rank Gaussian
+(1) Solin A, Särkkä S. Hilbert space methods for reduced-rank Gaussian
 process regression. Stat Comput. 2020;30:419–46.
 doi:10.1007/s11222-019-09886-w.
 
-\link{2} Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
+(2) Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
 Practical Hilbert space approximate Bayesian Gaussian processes for
 probabilistic programming. 2020. http://arxiv.org/abs/2004.11408.
 }

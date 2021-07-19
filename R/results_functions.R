@@ -39,7 +39,7 @@
 #' prior.
 #' @examples
 #' \dontrun{
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -63,6 +63,7 @@
 #'                     type=c("pred","rr"),
 #'                     popdens="cov")
 #' }
+#' @importFrom stats sd
 #' @export
 extract_preds <- function(grid_data,
                           stan_fit,
@@ -170,7 +171,7 @@ extract_preds <- function(grid_data,
 #' probabilities each polygon is a hotspot
 #' @examples
 #' \dontrun{
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -274,7 +275,7 @@ hotspots <- function(grid_data,
 #' variables specified in `zcols`
 #' @examples
 #' \dontrun{
-#' b1 <- st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+#' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 #' g1 <- create_grid(b1,0.5)
 #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
@@ -301,6 +302,7 @@ hotspots <- function(grid_data,
 #'                          cov1,
 #'                          zcols="rr")
 #' }
+#' @importFrom stats weighted.mean
 #' @export
 aggregate_output <- function(grid_data,
                              new_geom,
@@ -351,4 +353,39 @@ aggregate_output <- function(grid_data,
 
   return(new_geom)
 
+}
+
+#' Generate priors from previous model fit
+#'
+#' Generate prior distributions from posterior distributions of previous model
+#' fit by `lgcp_fit`
+#'
+#' @param stan_fit A \link[rstan]{stanfit} or \link[cmdstanr]{CmdStanMCMC} object.
+#' Output of \link[rts2]{lgcp_fit}
+#' @return list
+#' @importFrom stats sd
+#' @export
+extract_priors <- function(stan_fit){
+  if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")))stop("stan fit required")
+
+
+  if(is(stan_fit,"stanfit")){
+    sig <- rstan::extract(stan_fit,"sigma")
+    gam <- rstan::extract(stan_fit,"gamma")
+    phi <- rstan::extract(stan_fit,"phi")
+  } else if(is(stan_fit,"CmdStanMCMC")){
+    if(requireNamespace("cmdstanr")){
+      ypred <- stan_fit$draws("y_grid_predict")
+      f <- stan_fit$draws("f")
+    }
+  }
+
+  out <- list(
+    prior_lscale=c(mean(phi$phi),sd(phi$phi)),
+    prior_var=c(mean(sig$sig),sd(sig$sigma)),
+    prior_linpred_mean=apply(gam$gamma,2,mean),
+    prior_linpred_sd=apply(gam$gamma,2,sd)
+  )
+
+  return(out)
 }

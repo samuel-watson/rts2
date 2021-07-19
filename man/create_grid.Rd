@@ -22,6 +22,6 @@ Given a contiguous boundary describing an area of interest, returns an sf
 object of a regular grid within the limits of the boundary.
 }
 \examples{
-b1 = st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 create_grid(b1,0.5)
 }

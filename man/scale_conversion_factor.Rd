@@ -13,11 +13,11 @@ scale_conversion_factor(grid_data)
 numeric
 }
 \description{
-Coordinates are scaled to \link{-1,1} for \link[rts2]{lgcp_fit}. This function
+Coordinates are scaled to \verb{[-1,1]} for \link[rts2]{lgcp_fit}. This function
 returns the scaling factor for this conversion.
 }
 \examples{
-b1 = st_sf(st_sfc(st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- create_grid(b1,0.5)
-scale_coversion_factor(g1)
+scale_conversion_factor(g1)
 }

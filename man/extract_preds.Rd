@@ -61,3 +61,30 @@ is in days then setting \code{irr_lag} to 7 and leaving \code{t_lag=0} then the 
 is the relative change in incidence in the present period compared to a week
 prior.
 }
+\examples{
+\dontrun{
+b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+g1 <- create_grid(b1,0.5)
+dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
+dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
+cov1 <- create_grid(b1,0.8)
+cov1$cov <- runif(nrow(cov1))
+g1 <- add_covariates(g1,
+                     cov1,
+                     zcols="cov",
+                    verbose = FALSE)
+g1 <- points_to_grid(g1, dp, laglength=5)
+priors <- list(
+  prior_lscale=c(0,0.5),
+  prior_var=c(0,0.5),
+  prior_linpred_mean=c(0),
+  prior_linpred_sd=c(5)
+  )
+res <- lgcp_fit(g1,
+                popdens="cov")
+o1 <- extract_preds(g1,
+                    res,
+                    type=c("pred","rr"),
+                    popdens="cov")
+}
+}

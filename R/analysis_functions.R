@@ -161,6 +161,10 @@ lgcp_fit <- function(grid_data,
     Q <- 1
   }
 
+  if(length(priors$prior_linpred_mean)!=Q|length(priors$prior_linpred_sd)!=Q)
+    stop("Prior mean or sd vector for linear predictior is not equal to number of covariates")
+  if(length(priors$prior_lscale)!=2|length(prior_var)!=2)
+    stop("prior_lscale or prior_var not of length 2")
   if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
 
   datlist <- list(

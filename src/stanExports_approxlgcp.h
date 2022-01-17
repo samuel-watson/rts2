@@ -33,7 +33,7 @@ static int current_statement_begin__;
 stan::io::program_reader prog_reader__() {
     stan::io::program_reader reader;
     reader.add_event(0, 0, "start", "model_approxlgcp");
-    reader.add_event(105, 103, "end", "model_approxlgcp");
+    reader.add_event(111, 109, "end", "model_approxlgcp");
     return reader;
 }
 template <typename T0__>
@@ -621,17 +621,26 @@ public:
                 current_statement_begin__ = 77;
                 stan::math::assign(SPD_beta, elt_multiply(diagSPD, stan::model::rvalue(beta, stan::model::cons_list(stan::model::index_omni(), stan::model::cons_list(stan::model::index_uni(t), stan::model::nil_index_list())), "beta")));
                 current_statement_begin__ = 78;
-                if (as_bool(logical_eq(t, 1))) {
+                if (as_bool(logical_gt(nT, 1))) {
                     current_statement_begin__ = 79;
+                    if (as_bool(logical_eq(t, 1))) {
+                        current_statement_begin__ = 80;
+                        stan::model::assign(f, 
+                                    stan::model::cons_list(stan::model::index_min_max(1, Nsample), stan::model::nil_index_list()), 
+                                    multiply(multiply((1 / (1 - pow(ar, 2))), PHI), SPD_beta), 
+                                    "assigning variable f");
+                    } else {
+                        current_statement_begin__ = 82;
+                        stan::model::assign(f, 
+                                    stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 1)) + 1), (t * Nsample)), stan::model::nil_index_list()), 
+                                    stan::model::deep_copy(add(multiply(ar, stan::model::rvalue(f, stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 2)) + 1), ((t - 1) * Nsample)), stan::model::nil_index_list()), "f")), multiply(PHI, SPD_beta))), 
+                                    "assigning variable f");
+                    }
+                } else {
+                    current_statement_begin__ = 85;
                     stan::model::assign(f, 
                                 stan::model::cons_list(stan::model::index_min_max(1, Nsample), stan::model::nil_index_list()), 
-                                multiply(multiply((1 / (1 - pow(ar, 2))), PHI), SPD_beta), 
-                                "assigning variable f");
-                } else {
-                    current_statement_begin__ = 81;
-                    stan::model::assign(f, 
-                                stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 1)) + 1), (t * Nsample)), stan::model::nil_index_list()), 
-                                stan::model::deep_copy(add(multiply(ar, stan::model::rvalue(f, stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 2)) + 1), ((t - 1) * Nsample)), stan::model::nil_index_list()), "f")), multiply(PHI, SPD_beta))), 
+                                multiply(PHI, SPD_beta), 
                                 "assigning variable f");
                 }
             }
@@ -666,20 +675,20 @@ public:
                 }
             }
             // model body
-            current_statement_begin__ = 86;
+            current_statement_begin__ = 92;
             lp_accum__.add(normal_log<propto__>(to_vector(beta), 0, 1));
-            current_statement_begin__ = 87;
+            current_statement_begin__ = 93;
             lp_accum__.add(normal_log<propto__>(phi, get_base1(prior_lscale, 1, "prior_lscale", 1), get_base1(prior_lscale, 2, "prior_lscale", 1)));
-            current_statement_begin__ = 88;
+            current_statement_begin__ = 94;
             lp_accum__.add(normal_log<propto__>(sigma, get_base1(prior_var, 1, "prior_var", 1), get_base1(prior_var, 2, "prior_var", 1)));
-            current_statement_begin__ = 89;
+            current_statement_begin__ = 95;
             lp_accum__.add(normal_log<propto__>(ar, 0, 1));
-            current_statement_begin__ = 90;
+            current_statement_begin__ = 96;
             for (int q = 1; q <= Q; ++q) {
-                current_statement_begin__ = 91;
+                current_statement_begin__ = 97;
                 lp_accum__.add(normal_log<propto__>(get_base1(gamma, q, "gamma", 1), get_base1(prior_linpred_mean, q, "prior_linpred_mean", 1), get_base1(prior_linpred_sd, q, "prior_linpred_sd", 1)));
             }
-            current_statement_begin__ = 94;
+            current_statement_begin__ = 100;
             lp_accum__.add(poisson_log_log<propto__>(y, add(add(multiply(X, gamma), logpopdens), f)));
         } catch (const std::exception& e) {
             stan::lang::rethrow_located(e, current_statement_begin__, prog_reader__());
@@ -814,17 +823,26 @@ public:
                 current_statement_begin__ = 77;
                 stan::math::assign(SPD_beta, elt_multiply(diagSPD, stan::model::rvalue(beta, stan::model::cons_list(stan::model::index_omni(), stan::model::cons_list(stan::model::index_uni(t), stan::model::nil_index_list())), "beta")));
                 current_statement_begin__ = 78;
-                if (as_bool(logical_eq(t, 1))) {
+                if (as_bool(logical_gt(nT, 1))) {
                     current_statement_begin__ = 79;
+                    if (as_bool(logical_eq(t, 1))) {
+                        current_statement_begin__ = 80;
+                        stan::model::assign(f, 
+                                    stan::model::cons_list(stan::model::index_min_max(1, Nsample), stan::model::nil_index_list()), 
+                                    multiply(multiply((1 / (1 - pow(ar, 2))), PHI), SPD_beta), 
+                                    "assigning variable f");
+                    } else {
+                        current_statement_begin__ = 82;
+                        stan::model::assign(f, 
+                                    stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 1)) + 1), (t * Nsample)), stan::model::nil_index_list()), 
+                                    stan::model::deep_copy(add(multiply(ar, stan::model::rvalue(f, stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 2)) + 1), ((t - 1) * Nsample)), stan::model::nil_index_list()), "f")), multiply(PHI, SPD_beta))), 
+                                    "assigning variable f");
+                    }
+                } else {
+                    current_statement_begin__ = 85;
                     stan::model::assign(f, 
                                 stan::model::cons_list(stan::model::index_min_max(1, Nsample), stan::model::nil_index_list()), 
-                                multiply(multiply((1 / (1 - pow(ar, 2))), PHI), SPD_beta), 
-                                "assigning variable f");
-                } else {
-                    current_statement_begin__ = 81;
-                    stan::model::assign(f, 
-                                stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 1)) + 1), (t * Nsample)), stan::model::nil_index_list()), 
-                                stan::model::deep_copy(add(multiply(ar, stan::model::rvalue(f, stan::model::cons_list(stan::model::index_min_max(((Nsample * (t - 2)) + 1), ((t - 1) * Nsample)), stan::model::nil_index_list()), "f")), multiply(PHI, SPD_beta))), 
+                                multiply(PHI, SPD_beta), 
                                 "assigning variable f");
                 }
             }
@@ -849,22 +867,22 @@ public:
             }
             if (!include_gqs__) return;
             // declare and define generated quantities
-            current_statement_begin__ = 98;
+            current_statement_begin__ = 104;
             validate_non_negative_index("y_grid_predict", "(Nsample * nT)", (Nsample * nT));
             Eigen::Matrix<double, Eigen::Dynamic, 1> y_grid_predict((Nsample * nT));
             stan::math::initialize(y_grid_predict, DUMMY_VAR__);
             stan::math::fill(y_grid_predict, DUMMY_VAR__);
             // generated quantities statements
-            current_statement_begin__ = 100;
+            current_statement_begin__ = 106;
             for (int i = 1; i <= (Nsample * nT); ++i) {
-                current_statement_begin__ = 101;
+                current_statement_begin__ = 107;
                 stan::model::assign(y_grid_predict, 
                             stan::model::cons_list(stan::model::index_uni(i), stan::model::nil_index_list()), 
                             stan::math::exp(((multiply(stan::model::rvalue(X, stan::model::cons_list(stan::model::index_uni(i), stan::model::cons_list(stan::model::index_omni(), stan::model::nil_index_list())), "X"), gamma) + get_base1(logpopdens, i, "logpopdens", 1)) + get_base1(f, i, "f", 1))), 
                             "assigning variable y_grid_predict");
             }
             // validate, write generated quantities
-            current_statement_begin__ = 98;
+            current_statement_begin__ = 104;
             size_t y_grid_predict_j_1_max__ = (Nsample * nT);
             for (size_t j_1__ = 0; j_1__ < y_grid_predict_j_1_max__; ++j_1__) {
                 vars__.push_back(y_grid_predict(j_1__));

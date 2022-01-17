@@ -11,7 +11,7 @@
 #'
 #' \deqn{\lambda(s,t) = r(s,t)exp(X(s,t)'\gamma + Z(s,t))}
 #'
-#' where r(s,t) is a spatially or spatio-temporally varying Poisson offset.
+#' where r(s,t) is a spatio-temporally varying Poisson offset.
 #' X(s,t) is a length Q vector of covariates including an intercept and
 #' Z(s,t) is a latent field. We use an auto-regressive specification for the
 #' latent field, with spatial innovation in each field specified as a spatial
@@ -123,6 +123,13 @@ lgcp_fit <- function(grid_data,
 
   ind <- as.matrix(expand.grid(1:m,1:m))
   nT <- sum(grepl("\\bt[0-9]",colnames(grid_data)))
+  if(nT==0){
+    if("y"%in%colnames(grid_data)){
+      nT <- 1
+    } else {
+      stop("case counts not defined in data")
+    }
+  }
   nCell <- nrow(grid_data)
 
   x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
@@ -138,7 +145,12 @@ lgcp_fit <- function(grid_data,
   x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
   x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
 
-  y <- stack(as.data.frame(grid_data)[,paste0("t",1:nT)])[,1]
+  if(nT > 1){
+    y <- stack(as.data.frame(grid_data)[,paste0("t",1:nT)])[,1]
+  } else {
+    y <- as.data.frame(grid_data)[,"y"]
+  }
+
 
   #add covariates
   if(!is.null(covs)){
@@ -152,7 +164,11 @@ lgcp_fit <- function(grid_data,
       } else if(nColV==0){
         stop(paste0(covs[i]," not found"))
       } else {
-        X[,i+1] <- stack(as.data.frame(grid_data)[,paste0(covs[i],1:nT)])[,1]
+        if(nT>1){
+          X[,i+1] <- stack(as.data.frame(grid_data)[,paste0(covs[i],1:nT)])[,1]
+        } else {
+          X[,i+1] <- as.data.frame(grid_data)[,covs[i]]
+        }
       }
       Q <- nQ+1
     }
@@ -227,6 +243,7 @@ lgcp_fit <- function(grid_data,
   #save output
   return(res)
 }
+
 
 #' Returns scale conversion factor
 #'

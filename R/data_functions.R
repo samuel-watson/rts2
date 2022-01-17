@@ -41,7 +41,8 @@ create_grid <- function(boundary,
 #' of the case.
 #' @param pos_vars vector of length two with the names of the columns
 #' containing the y and x coordinates, respectively.
-#' @param t_var character string with the name of the column with the date of the case
+#' @param t_var character string with the name of the column with the date of the case. If single-period
+#' analysis then set t_var to NULL.
 #' @param format character string with the format of the date specified by t_var. See
 #' \link[base]{strptime}
 #' @param verbose Logical indicating whether to print information
@@ -59,14 +60,21 @@ create_points <- function(data,
   if(verbose)message(paste0("Using ",pos_vars[1]," as y-coordinate and ",pos_vars[2]," as x-coordinate."))
   if(!is(data,"data.frame"))stop("data not data.frame")
   if(any(!pos_vars%in%colnames(data)))stop("pos_vars not in colnames(data)")
-  if(!t_var%in%colnames(data))stop("t_var not in colnames(data)")
-  if(any(is.na(data[,t_var]))|any(is.na(as.Date(data[,t_var], format=format))))
-    stop(paste0(t_var," does not contain date in ",format," format"))
+
+  if(!is.null(t_var))
+  {
+    if(!t_var%in%colnames(data))stop("t_var not in colnames(data)")
+    if(any(is.na(data[,t_var]))|any(is.na(as.Date(data[,t_var], format=format))))
+      stop(paste0(t_var," does not contain date in ",format," format"))
+  }
+
+
 
   out <- lapply(1:nrow(data),function(i)sf::st_point(c(data[i,pos_vars[2]],data[i,pos_vars[1]])))
   dp <- sf::st_sfc(out)
   dp <- sf::st_sf(dp, data.frame(t=data[,t_var]))
-  dp$t <- as.Date(dp$t, format=format)
+
+  if(!is.null(t_var)) dp$t <- as.Date(dp$t, format=format)
   return(dp)
 }
 
@@ -112,41 +120,54 @@ points_to_grid <- function(grid_data,
 
   if(!is(grid_data,"sf"))stop("grid not sf")
   if(!is(point_data,"sf"))stop("points not sf")
-  if(!t_win%in%c("day","week","month"))stop("t_win not day, week, or month")
 
-  #get unique time values to summarise over
-  tvals <- c(as.Date(min(point_data$t)),as.Date(max(point_data$t)))
-  yvals <- lubridate::year(tvals[1]):lubridate::year(tvals[2])
-  tuniq <- tvals[1]:tvals[2]
-  tuniq <- as.Date(tuniq,origin=as.Date("1970-01-01"))
-
-  if(t_win=="day"){
-    tdat <- paste0(lubridate::yday(point_data$t),".",lubridate::year(point_data$t))
-    tuniq <- paste0(lubridate::yday(tuniq),".",lubridate::year(tuniq))
-  }
-  if(t_win=="week"){
-    tdat <- paste0(lubridate::week(point_data$t),".",lubridate::year(point_data$t))
-    tuniq <- paste0(lubridate::week(tuniq),".",lubridate::year(tuniq))
-  }
-  if(t_win=="month"){
-    tdat <- paste0(lubridate::month(point_data$t),".",lubridate::year(point_data$t))
-    tuniq <- paste0(lubridate::month(tuniq),".",lubridate::year(tuniq))
-  }
-
-  tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
 
   if(sf::st_crs(point_data)!=sf::st_crs(grid_data)){
     warning("CRS not equal. Setting st_crs(point_data)==st_crs(grid_data)")
     sf::st_crs(point_data) <- sf::st_crs(grid_data)
   }
 
-  for(i in 1:length(tuniq)){
+  if("t"%in%colnames(point_data)){
+
+    if(!t_win%in%c("day","week","month"))stop("t_win not day, week, or month")
+
+    #get unique time values to summarise over
+    tvals <- c(as.Date(min(point_data$t)),as.Date(max(point_data$t)))
+    yvals <- lubridate::year(tvals[1]):lubridate::year(tvals[2])
+    tuniq <- tvals[1]:tvals[2]
+    tuniq <- as.Date(tuniq,origin=as.Date("1970-01-01"))
+
+    if(t_win=="day"){
+      tdat <- paste0(lubridate::yday(point_data$t),".",lubridate::year(point_data$t))
+      tuniq <- paste0(lubridate::yday(tuniq),".",lubridate::year(tuniq))
+    }
+    if(t_win=="week"){
+      tdat <- paste0(lubridate::week(point_data$t),".",lubridate::year(point_data$t))
+      tuniq <- paste0(lubridate::week(tuniq),".",lubridate::year(tuniq))
+    }
+    if(t_win=="month"){
+      tdat <- paste0(lubridate::month(point_data$t),".",lubridate::year(point_data$t))
+      tuniq <- paste0(lubridate::month(tuniq),".",lubridate::year(tuniq))
+    }
+
+    tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
+
+
+
+    for(i in 1:length(tuniq))
+    {
+      grid_data$y <-  lengths(sf::st_intersects(grid_data,
+                                                point_data[tdat==tuniq[i],]))
+      colnames(grid_data)[length(colnames(grid_data))] <- paste0("t",i)
+      grid_data$d <- min(point_data[tdat==tuniq[i],]$t)
+      colnames(grid_data)[length(colnames(grid_data))] <- paste0("date",i)
+    }
+  } else {
     grid_data$y <-  lengths(sf::st_intersects(grid_data,
-                                              point_data[tdat==tuniq[i],]))
-    colnames(grid_data)[length(colnames(grid_data))] <- paste0("t",i)
-    grid_data$d <- min(point_data[tdat==tuniq[i],]$t)
-    colnames(grid_data)[length(colnames(grid_data))] <- paste0("date",i)
+                                              point_data))
   }
+
+
 
   return(grid_data)
 }

@@ -97,48 +97,85 @@ extract_preds <- function(grid_data,
   #print(nT)
   #print(nCells)
 
-  if("pred"%in%type){
-    if(!cmdst){
-      fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(grid_data)[,popdens]
-      grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean)
-      grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd)
-      grid_data$pred_mean_pp <- apply(fmu,2,mean)
-      grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
-    } else {
-      fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(grid_data)[,popdens]
-      grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean)
-      grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd)
-      grid_data$pred_mean_pp <- apply(fmu,3,mean)
-      grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+  if(nT>1){
+    if("pred"%in%type){
+      if(!cmdst){
+        fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(grid_data)[,popdens]
+        grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean)
+        grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd)
+        grid_data$pred_mean_pp <- apply(fmu,2,mean)
+        grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+      } else {
+        fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(grid_data)[,popdens]
+        grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean)
+        grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd)
+        grid_data$pred_mean_pp <- apply(fmu,3,mean)
+        grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+      }
+
     }
+
+    if("rr"%in%type){
+      if(!cmdst){
+        grid_data$rr <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean))
+        grid_data$rr_sd <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd))
+      } else {
+        grid_data$rr <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean))
+        grid_data$rr_sd <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd))
+      }
+
+    }
+
+    if("irr"%in%type){
+      if(!cmdst){
+        grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
+                                 ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,mean)
+        grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
+                                    ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,sd)
+      } else {
+        grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
+                                 ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,mean)
+        grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
+                                    ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,sd)
+      }
+
+    }
+  } else {
+
+    if("irr"%in%type)stop("cannot estimate irr as only one time period")
+
+    if("pred"%in%type){
+      if(!cmdst){
+        fmu <- ypred/as.data.frame(grid_data)[,popdens]
+        grid_data$pred_mean_total <- apply(ypred,2,mean)
+        grid_data$pred_mean_total_sd <- apply(ypred,2,sd)
+        grid_data$pred_mean_pp <- apply(fmu,2,mean)
+        grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+      } else {
+        fmu <- ypred/as.data.frame(grid_data)[,popdens]
+        grid_data$pred_mean_total <- apply(ypred,3,mean)
+        grid_data$pred_mean_total_sd <- apply(ypred,3,sd)
+        grid_data$pred_mean_pp <- apply(fmu,3,mean)
+        grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+      }
+
+    }
+
+    if("rr"%in%type){
+      if(!cmdst){
+        grid_data$rr <- exp(apply(f,2,mean))
+        grid_data$rr_sd <- exp(apply(f,2,sd))
+      } else {
+        grid_data$rr <- exp(apply(f,3,mean))
+        grid_data$rr_sd <- exp(apply(f,3,sd))
+      }
+
+    }
+
 
   }
 
-  if("rr"%in%type){
-    if(!cmdst){
-      grid_data$rr <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean))
-      grid_data$rr_sd <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd))
-    } else {
-      grid_data$rr <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean))
-      grid_data$rr_sd <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd))
-    }
 
-  }
-
-  if("irr"%in%type){
-    if(!cmdst){
-      grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                               ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,mean)
-      grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                  ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,sd)
-    } else {
-      grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                               ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,mean)
-      grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                  ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,sd)
-    }
-
-  }
   return(grid_data)
 }
 
@@ -237,8 +274,11 @@ hotspots <- function(grid_data,
   }
 
   if(!is.null(irr.threshold)){
-    inc1 <- inc1 + I(ypred[,,((nT-1)*nCells+1):(nT*nCells)]/
-                       ypred[,,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells)] > irr.threshold)*1
+    if(nT==1)stop("cannot estimate irr as only one time period") else {
+      inc1 <- inc1 + I(ypred[,,((nT-1)*nCells+1):(nT*nCells)]/
+                         ypred[,,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells)] > irr.threshold)*1
+    }
+
   }
 
   if(!is.null(rr.threshold)){

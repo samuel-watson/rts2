@@ -73,7 +73,7 @@ We specify a log-linear model for the intensity:
 
 \deqn{\lambda(s,t) = r(s,t)exp(X(s,t)'\gamma + Z(s,t))}
 
-where r(s,t) is a spatially or spatio-temporally varying Poisson offset.
+where r(s,t) is a spatio-temporally varying Poisson offset.
 X(s,t) is a length Q vector of covariates including an intercept and
 Z(s,t) is a latent field. We use an auto-regressive specification for the
 latent field, with spatial innovation in each field specified as a spatial

@@ -19,7 +19,8 @@ of the case.}
 \item{pos_vars}{vector of length two with the names of the columns
 containing the y and x coordinates, respectively.}
 
-\item{t_var}{character string with the name of the column with the date of the case}
+\item{t_var}{character string with the name of the column with the date of the case. If single-period
+analysis then set t_var to NULL.}
 
 \item{format}{character string with the format of the date specified by t_var. See
 \link[base]{strptime}}

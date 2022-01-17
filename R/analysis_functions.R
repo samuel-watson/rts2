@@ -177,10 +177,24 @@ lgcp_fit <- function(grid_data,
     Q <- 1
   }
 
-  if(length(priors$prior_linpred_mean)!=Q|length(priors$prior_linpred_sd)!=Q)
-    stop("Prior mean or sd vector for linear predictior is not equal to number of covariates")
-  if(length(priors$prior_lscale)!=2|length(prior_var)!=2)
-    stop("prior_lscale or prior_var not of length 2")
+  if(!is.null(priors)){
+    if(length(priors$prior_linpred_mean)!=Q|length(priors$prior_linpred_sd)!=Q)
+      stop("Prior mean or sd vector for linear predictior is not equal to number of covariates")
+    if(length(priors$prior_lscale)!=2|length(prior_var)!=2)
+      stop("prior_lscale or prior_var not of length 2")
+  } else {
+    priors <- list(
+      prior_lscale = c(0,0.5),
+      prior_var = c(0,0.5),
+      prior_linpred_mean = rep(0,Q),
+      prior_linpred_sd = rep(5,Q)
+    )
+  }
+
+
+
+
+
   if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
 
   datlist <- list(
@@ -205,7 +219,7 @@ lgcp_fit <- function(grid_data,
   if(use_cmdstanr){
     if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
     model_file <- system.file("stan",
-                              "approx_lgcp.stan",
+                              "approxlgcp.stan",
                               package = "rts2",
                               mustWork = TRUE)
     model <- cmdstanr::cmdstan_model(model_file)

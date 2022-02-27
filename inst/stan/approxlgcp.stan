@@ -77,9 +77,9 @@ transformed parameters{
     SPD_beta = diagSPD .* beta[,t];
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = PHI * SPD_beta;
+        f[1:Nsample] = (1/(1-ar^2))*PHI * SPD_beta;
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + sqrt((1-ar^2))*PHI * SPD_beta;
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + PHI * SPD_beta;
       }
     } else {
       f[1:Nsample] = PHI * SPD_beta;

@@ -1,6 +1,6 @@
 Package: rts2
 Title: Real-time disease surveillance
-Version: 0.2
+Version: 0.3
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -21,6 +21,7 @@ Depends:
     R (>= 3.4.0)
 Imports: 
     methods,
+    R6,
     Rcpp (>= 0.12.0),
     RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),

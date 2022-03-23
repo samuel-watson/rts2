@@ -1,5 +1,5 @@
-[![Build Status](https://travis-ci.org/ypan1988/roptim.svg?branch=master)](https://travis-ci.org/ypan1988/roptim)
-[![cran version](http://www.r-pkg.org/badges/version/roptim)](https://cran.r-project.org/web/packages/roptim)
+[![Build Status](https://travis-ci.org/samuel-watson/rts2.svg?branch=master)](https://travis-ci.org/samuel-watson/rts2)
+[![cran version](http://www.r-pkg.org/badges/version/rts2)](https://cran.r-project.org/web/packages/rts2)
 
 # rts2
 

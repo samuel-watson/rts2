@@ -1,3 +1,6 @@
+[![Build Status](https://travis-ci.org/ypan1988/roptim.svg?branch=master)](https://travis-ci.org/ypan1988/roptim)
+[![cran version](http://www.r-pkg.org/badges/version/roptim)](https://cran.r-project.org/web/packages/roptim)
+
 # rts2
 
 There are a wide variety of sources of case data that are finely spatially-resolved and time stamped to monitor disease epidemiology in real-time. 

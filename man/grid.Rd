@@ -74,13 +74,15 @@ Coordinates in each dimension are scaled to \verb{[-1,1]}, so L represents the
 proportionate extension of the analysis area.
 
 \emph{Priors}
-The priors should be provided as a list to the griddata object:\preformatted{griddata$priors <- list(
+The priors should be provided as a list to the griddata object:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{griddata$priors <- list(
   prior_lscale=c(0,0.5),
   prior_var=c(0,0.5),
   prior_linpred_mean=c(-5,rep(0,7)),
   prior_linpred_sd=c(3,rep(1,7))
 )
-}
+}\if{html}{\out{</div>}}
 
 where these refer to the priors:
 \code{prior_lscale}: the length scale parameter has a half-normal prior \eqn{N(a,b^2)I[0,\infty)}. The vector is \code{c(a,b)}.
@@ -306,23 +308,23 @@ points_to_grid, add_covariates
 \section{Methods}{
 \subsection{Public methods}{
 \itemize{
-\item \href{#method-new}{\code{grid$new()}}
-\item \href{#method-print}{\code{grid$print()}}
-\item \href{#method-plot}{\code{grid$plot()}}
-\item \href{#method-points_to_grid}{\code{grid$points_to_grid()}}
-\item \href{#method-add_covariates}{\code{grid$add_covariates()}}
-\item \href{#method-get_dow}{\code{grid$get_dow()}}
-\item \href{#method-lgcp_fit}{\code{grid$lgcp_fit()}}
-\item \href{#method-extract_preds}{\code{grid$extract_preds()}}
-\item \href{#method-hotspots}{\code{grid$hotspots()}}
-\item \href{#method-aggregate_output}{\code{grid$aggregate_output()}}
-\item \href{#method-scale_conversion_factor}{\code{grid$scale_conversion_factor()}}
-\item \href{#method-clone}{\code{grid$clone()}}
+\item \href{#method-grid-new}{\code{grid$new()}}
+\item \href{#method-grid-print}{\code{grid$print()}}
+\item \href{#method-grid-plot}{\code{grid$plot()}}
+\item \href{#method-grid-points_to_grid}{\code{grid$points_to_grid()}}
+\item \href{#method-grid-add_covariates}{\code{grid$add_covariates()}}
+\item \href{#method-grid-get_dow}{\code{grid$get_dow()}}
+\item \href{#method-grid-lgcp_fit}{\code{grid$lgcp_fit()}}
+\item \href{#method-grid-extract_preds}{\code{grid$extract_preds()}}
+\item \href{#method-grid-hotspots}{\code{grid$hotspots()}}
+\item \href{#method-grid-aggregate_output}{\code{grid$aggregate_output()}}
+\item \href{#method-grid-scale_conversion_factor}{\code{grid$scale_conversion_factor()}}
+\item \href{#method-grid-clone}{\code{grid$clone()}}
 }
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-new"></a>}}
-\if{latex}{\out{\hypertarget{method-new}{}}}
+\if{html}{\out{<a id="method-grid-new"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-new}{}}}
 \subsection{Method \code{new()}}{
 Create a new griddata object
 
@@ -358,8 +360,8 @@ g1 <- grid$new(b1,0.5)
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-print"></a>}}
-\if{latex}{\out{\hypertarget{method-print}{}}}
+\if{html}{\out{<a id="method-grid-print"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-print}{}}}
 \subsection{Method \code{print()}}{
 Prints the $grid_data sf object
 \subsection{Usage}{
@@ -368,8 +370,8 @@ Prints the $grid_data sf object
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-plot"></a>}}
-\if{latex}{\out{\hypertarget{method-plot}{}}}
+\if{html}{\out{<a id="method-grid-plot"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-plot}{}}}
 \subsection{Method \code{plot()}}{
 Plots the grid data
 \subsection{Usage}{
@@ -398,8 +400,8 @@ g1$plot()
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-points_to_grid"></a>}}
-\if{latex}{\out{\hypertarget{method-points_to_grid}{}}}
+\if{html}{\out{<a id="method-grid-points_to_grid"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-points_to_grid}{}}}
 \subsection{Method \code{points_to_grid()}}{
 Generates case counts of points over the grid
 
@@ -450,8 +452,8 @@ g1$points_to_grid(dp, laglength=5)
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-add_covariates"></a>}}
-\if{latex}{\out{\hypertarget{method-add_covariates}{}}}
+\if{html}{\out{<a id="method-grid-add_covariates"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-add_covariates}{}}}
 \subsection{Method \code{add_covariates()}}{
 Adds covariate data to the grid
 
@@ -507,8 +509,8 @@ g1$add_covariates(cov1$grid_data,
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-get_dow"></a>}}
-\if{latex}{\out{\hypertarget{method-get_dow}{}}}
+\if{html}{\out{<a id="method-grid-get_dow"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-get_dow}{}}}
 \subsection{Method \code{get_dow()}}{
 Generate day of week data
 
@@ -538,8 +540,8 @@ g1$get_dow()
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-lgcp_fit"></a>}}
-\if{latex}{\out{\hypertarget{method-lgcp_fit}{}}}
+\if{html}{\out{<a id="method-grid-lgcp_fit"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-lgcp_fit}{}}}
 \subsection{Method \code{lgcp_fit()}}{
 Fit an approximate log-Gaussian Cox Process model
 
@@ -548,6 +550,7 @@ Fit an approximate log-Gaussian Cox Process model
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit(
   popdens,
   covs = NULL,
+  approx = "nngp",
   m = 10,
   L = 1.5,
   dir = NULL,
@@ -571,9 +574,13 @@ include. For temporally-varying covariates only the stem is required and not
 the individual column names for each time period (e.g. \code{dayMon} and not \code{dayMon1},
 \code{dayMon2}, etc.)}
 
-\item{\code{m}}{integer. Number of basis functions. See Details.}
+\item{\code{approx}}{Either "rank" for reduced rank approximation, or "nngp" for nearest
+neighbour Gaussian process.}
 
-\item{\code{L}}{integer. Boundary condition as proportionate extension of area, e.g.
+\item{\code{m}}{integer. Number of basis functions for reduced rank approximation, or
+number of nearest neighbours for nearest neighbour Gaussian process. See Details.}
+
+\item{\code{L}}{integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
 \code{L=2} is a doubling of the analysis area. See Details.}
 
 \item{\code{dir}}{character string. Directory to save ouptut.}
@@ -628,8 +635,8 @@ res <- g1$lgcp_fit(popdens="cov")
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-extract_preds"></a>}}
-\if{latex}{\out{\hypertarget{method-extract_preds}{}}}
+\if{html}{\out{<a id="method-grid-extract_preds"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-extract_preds}{}}}
 \subsection{Method \code{extract_preds()}}{
 Extract predictions
 
@@ -698,8 +705,8 @@ g1$extract_preds(res,
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-hotspots"></a>}}
-\if{latex}{\out{\hypertarget{method-hotspots}{}}}
+\if{html}{\out{<a id="method-grid-hotspots"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-hotspots}{}}}
 \subsection{Method \code{hotspots()}}{
 Hotspots
 
@@ -782,8 +789,8 @@ g1$hotspots(res,
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-aggregate_output"></a>}}
-\if{latex}{\out{\hypertarget{method-aggregate_output}{}}}
+\if{html}{\out{<a id="method-grid-aggregate_output"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-aggregate_output}{}}}
 \subsection{Method \code{aggregate_output()}}{
 Aggregate output
 
@@ -853,8 +860,8 @@ new1 <- g1$aggregate_output(cov1,
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-scale_conversion_factor"></a>}}
-\if{latex}{\out{\hypertarget{method-scale_conversion_factor}{}}}
+\if{html}{\out{<a id="method-grid-scale_conversion_factor"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-scale_conversion_factor}{}}}
 \subsection{Method \code{scale_conversion_factor()}}{
 Returns scale conversion factor
 
@@ -879,8 +886,8 @@ g1$scale_conversion_factor()
 
 }
 \if{html}{\out{<hr>}}
-\if{html}{\out{<a id="method-clone"></a>}}
-\if{latex}{\out{\hypertarget{method-clone}{}}}
+\if{html}{\out{<a id="method-grid-clone"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-clone}{}}}
 \subsection{Method \code{clone()}}{
 The objects of this class are cloneable with this method.
 \subsection{Usage}{

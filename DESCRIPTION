@@ -1,6 +1,6 @@
 Package: rts2
-Title: Real-time disease surveillance
-Version: 0.3
+Title: Real-Time Disease Surveillance
+Version: 0.4
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -8,14 +8,17 @@ Authors@R:
            email = "s.i.watson@bham.ac.uk",
            comment = c(ORCID = "0000-0002-8972-769X"))
 Description: Supports modelling real-time case data to facilitate the real-time
-    surveillance of infectious disease. An approximate log-Gaussian Cox Process 
-    model is fit using 'rstan' or 'cmdstanr' and provides output and analysis
-    as 'sf' objects for simple visualisation.
+    surveillance of infectious disease. A simple grid class structure is provided to generate a computational grid over
+    an area of interest with methods to map covariates between geographies. An approximate log-Gaussian Cox Process 
+    model is fit using 'rstan' or 'cmdstanr' and provides output and analysis as 'sf' objects for simple visualisation.
+    'cmdstanr' can be downloaded at <https://mc-stan.org/cmdstanr/>. Log-Gaussian Cox Processes are described by 
+    Diggle et al. (2013) <doi:10.1214/13-STS441> and we use the low-rank approximation  for Gaussian processes 
+    described by Solin and Särkkä (2020) <doi:10.1007/s11222-019-09886-w> and Riutort-Mayol (2020) <arXiv:2004.11408>.
 License: CC BY-SA 4.0 
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.1
 Biarch: true
 Depends: 
     R (>= 3.4.0)
@@ -26,7 +29,7 @@ Imports:
     RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),
     rstantools (>= 2.1.1),
-    sf,
+    sf (>= 1.0-5),
     lubridate
 Suggests:
     cmdstanr (>= 0.4.0),
@@ -39,3 +42,4 @@ LinkingTo:
     rstan (>= 2.18.1),
     StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make
+URL: http://www.sam-watson.xyz/vignette.html

@@ -1,6 +1,6 @@
 functions {
   real nngp_lpdf(vector u, real alpha, real theta, 
-                 matrix x, int[,] NN){
+                 matrix x, int[,] NN, int mod){
     int n = rows(x);
     int M = size(NN);
     matrix[M,n] A = rep_matrix(0,M,n);
@@ -27,8 +27,14 @@ functions {
           for(k in (j+1):idxlim){
             dist = sqrt((x[NN[j,i],1] - x[NN[k,i],1]) * (x[NN[j,i],1] - x[NN[k,i],1]) +
               (x[NN[j,i],2] - x[NN[k,i],2]) * (x[NN[j,i],2] - x[NN[k,i],2]));
-            smat[j,k] = alpha * exp(-dist/theta);
-            smat[k,j] = alpha * exp(-dist/theta);
+            if(mod == 0){
+              smat[j,k] = alpha * exp(-(dist*dist)/(theta*theta));
+              smat[k,j] = alpha * exp(-(dist*dist)/(theta*theta));
+            } else {
+              smat[j,k] = alpha * exp(-dist/theta);
+              smat[k,j] = alpha * exp(-dist/theta);
+            }
+            
           }        
         }
       }
@@ -60,7 +66,7 @@ data {
   int<lower=1> M; // number of nearest neighbours
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int NN[M,Nsample*nT];
+  int NN[M,Nsample];
   int y[Nsample*nT]; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[Nsample*nT] popdens; //population density
@@ -69,6 +75,7 @@ data {
   real prior_var[2];
   real prior_linpred_mean[Q];
   real prior_linpred_sd[Q];
+  int mod;
 }
 
 transformed data {
@@ -110,12 +117,12 @@ model{
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f_raw[1:Nsample] ~ nngp(sigma, phi, x_grid[1:Nsample,], NN[,1:Nsample]);
+        f_raw[1:Nsample] ~ nngp(sigma, phi, x_grid, NN, mod);
       } else {
-        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(sigma, phi, x_grid[(Nsample*(t-1)+1):(t*Nsample),], NN[,(Nsample*(t-1)+1):(t*Nsample)]);
+        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(sigma, phi, x_grid, NN, mod);
       }
     } else {
-      f_raw ~ nngp(sigma, phi, x_grid, NN);
+      f_raw ~ nngp(sigma, phi, x_grid, NN, mod);
     }
 
   }

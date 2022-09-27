@@ -45,6 +45,7 @@ grid <- R6::R6Class("grid",
 
                              #class(bgrid) <- c(class(bgrid),"rts_grid")
                              self$boundary <- boundary
+                             bgrid <- bgrid[!duplicated(sf::st_coordinates(sf::st_centroid(bgrid))),]
                              self$grid_data <- bgrid
                            },
                            #' @description
@@ -416,6 +417,7 @@ grid <- R6::R6Class("grid",
                                                approx = "nngp",
                                                m=10,
                                                L=1.5,
+                                               model = "exp",
                                                dir=NULL,
                                                iter_warmup=500,
                                                iter_sampling=500,
@@ -427,8 +429,13 @@ grid <- R6::R6Class("grid",
 
                              if(verbose)if(is.null(dir))message("dir not set, files will be lost after session restart")
                              if(m<1)stop("m must be positive")
-                             if(m >25)warning("m is very large, sampling may take a very long time.")
-
+                             if(m >25)warning("m is large, sampling may take a very long time.")
+                             mod <- NA
+                             if(model == "exp"){
+                               mod <- 1
+                             } else if(model=="sqexp"){
+                               mod <- 0
+                             }
                              #prepare data for model fit
 
                              ind <- as.matrix(expand.grid(1:m,1:m))
@@ -520,7 +527,8 @@ grid <- R6::R6Class("grid",
                                  prior_lscale=self$priors$prior_lscale,
                                  prior_var=self$priors$prior_var,
                                  prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
-                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd)
+                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
+                                 mod = mod
                                )
                                file <- "approxlgcp.stan"
                                fname <- "approxlgcp"
@@ -541,7 +549,8 @@ grid <- R6::R6Class("grid",
                                  prior_lscale=self$priors$prior_lscale,
                                  prior_var=self$priors$prior_var,
                                  prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
-                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd)
+                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
+                                 mod = mod
                                )
                                file <- "approxlgcp_nngp.stan"
                                fname <- "approxlgcp_nngp"

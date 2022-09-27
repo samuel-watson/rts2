@@ -6,9 +6,22 @@ functions {
 
     return lam;
   }
-  real spd_nD(real sigma, row_vector phi, vector w, int D) {
+  real spd_nD(real sigma, row_vector phi, vector w, int D, int mod) {
     real S;
-    S = sigma^2 * sqrt(2*pi())^D * prod(phi) * exp(-0.5*((phi .* phi) * (w .* w)));
+    real S1;
+    vector[2] phisq; 
+    vector[2] wsq;
+    phisq = (phi .* phi)';
+    wsq = w .* w;
+    
+    if(mod == 0){
+      // squared exponential
+      S = sigma^2 * sqrt(2*pi())^D * prod(phi) * exp(-0.5*((phi .* phi) * (w .* w)));
+    } else {
+      // exponential
+      S1 = sigma^2 * 4 * pi() * tgamma(1.5)/tgamma(0.5);
+      S = S1 * prod(phi) * (1 + phisq' * wsq)^(-2);
+    }
 
     return S;
   }
@@ -45,6 +58,7 @@ data {
   real prior_var[2];
   real prior_linpred_mean[Q];
   real prior_linpred_sd[Q];
+  int mod;
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
@@ -70,7 +84,7 @@ transformed parameters{
   vector[M_nD] SPD_beta;
 
   for(m in 1:M_nD){
-    diagSPD[m] =  sqrt(spd_nD(sigma, phi, sqrt(lambda_nD(L, indices[m,], D)), D));
+    diagSPD[m] =  sqrt(spd_nD(sigma, phi, sqrt(lambda_nD(L, indices[m,], D)), D, mod));
   }
 
   for(t in 1:nT){

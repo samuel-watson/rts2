@@ -830,17 +830,23 @@ grid <- R6::R6Class("grid",
                              if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")))stop("stan fit required")
 
                              nCells <- nrow(self$grid_data)
+                             nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                             if(nT > 0)nT <- 1
                              if(is(stan_fit,"stanfit")){
-                               ypred <- rstan::extract(stan_fit,"y_grid_predict")
-                               f <- rstan::extract(stan_fit,"f")
+                               ypred <- rstan::extract(stan_fit,"y_grid_predict")$y_grid_predict
+                               f <- rstan::extract(stan_fit,"f")$f
+                               f <- f[,((nT-1)*nCells+1):(nT*nCells)]
                              } else if(is(stan_fit,"CmdStanMCMC")){
                                if(requireNamespace("cmdstanr")){
                                  ypred <- stan_fit$draws("y_grid_predict")
+                                 ypred <- matrix(ypred, prod(dim(ypred)[1:2]), dim(ypred)[3])
                                  f <- stan_fit$draws("f")
+                                 f <- f[,,((nT-1)*nCells+1):(nT*nCells)]
+                                 f <- matrix(f, prod(dim(f)[1:2]), dim(f)[3])
                                }
                              }
-                             nT <- dim(ypred)[3]/nCells
-                             f <- f[,,((nT-1)*nCells+1):(nT*nCells)]
+                             
+                             #nT <- dim(ypred)[3]/nCells
 
                              nCr <- sum(c(!is.null(incidence.threshold),
                                           !is.null(irr.threshold),
@@ -850,15 +856,15 @@ grid <- R6::R6Class("grid",
                              inc1 <- array(0,dim(f))
 
                              if(!is.null(incidence.threshold)){
-                               fmu <- ypred[,,((nT-1)*nCells+1):(nT*nCells)]/as.data.frame(self$grid_data)[,popdens]
+                               fmu <- ypred[,((nT-1)*nCells+1):(nT*nCells)]/as.data.frame(self$grid_data)[,popdens]
                                inc1 <- inc1 + I(fmu > incidence.threshold)*1
 
                              }
 
                              if(!is.null(irr.threshold)){
                                if(nT==1)stop("cannot estimate irr as only one time period") else {
-                                 inc1 <- inc1 + I(ypred[,,((nT-1)*nCells+1):(nT*nCells)]/
-                                                    ypred[,,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells)] > irr.threshold)*1
+                                 inc1 <- inc1 + I(ypred[,((nT-1)*nCells+1):(nT*nCells)]/
+                                                    ypred[,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells)] > irr.threshold)*1
                                }
 
                              }

@@ -553,6 +553,7 @@ Fit an approximate log-Gaussian Cox Process model
   approx = "nngp",
   m = 10,
   L = 1.5,
+  model = "exp",
   dir = NULL,
   iter_warmup = 500,
   iter_sampling = 500,
@@ -582,6 +583,9 @@ number of nearest neighbours for nearest neighbour Gaussian process. See Details
 
 \item{\code{L}}{integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
 \code{L=2} is a doubling of the analysis area. See Details.}
+
+\item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
+covariance function}
 
 \item{\code{dir}}{character string. Directory to save ouptut.}
 

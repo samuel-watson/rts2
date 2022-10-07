@@ -380,6 +380,8 @@ grid <- R6::R6Class("grid",
                            #' number of nearest neighbours for nearest neighbour Gaussian process. See Details.
                            #' @param L integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
                            #' `L=2` is a doubling of the analysis area. See Details.
+                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
+                           #' covariance function
                            #' @param dir character string. Directory to save ouptut.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations

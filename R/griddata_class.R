@@ -426,11 +426,13 @@ grid <- R6::R6Class("grid",
                                                chains=3,
                                                parallel_chains=3,
                                                verbose=TRUE,
+                                               vb = FALSE,
                                                use_cmdstanr = FALSE,
                                                ...){
 
                              if(verbose)if(is.null(dir))message("dir not set, files will be lost after session restart")
                              if(m<1)stop("m must be positive")
+                             if(!approx%in%c('nngp','hsgp','none'))stop("approx must be one of nngp, hsgp, or none")
                              if(m >25)warning("m is large, sampling may take a very long time.")
                              mod <- NA
                              if(model == "exp"){
@@ -455,14 +457,16 @@ grid <- R6::R6Class("grid",
                                sf::st_centroid(self$grid_data))))
 
                              popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
-
-                             # scale to -1,1 in all dimensions
-                             xrange <- range(x_grid[,1])
-                             yrange <- range(x_grid[,2])
-                             std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
-
-                             x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
-                             x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
+                             if(approx=="hsgp"){
+                               # scale to -1,1 in all dimensions
+                               xrange <- range(x_grid[,1])
+                               yrange <- range(x_grid[,2])
+                               std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
+                               
+                               x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
+                               x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
+                             }
+                             
 
                              if(nT > 1){
                                y <- stack(as.data.frame(self$grid_data)[,paste0("t",1:nT)])[,1]
@@ -512,7 +516,7 @@ grid <- R6::R6Class("grid",
                              }
 
                              if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
-                             if(approx == "rank"){
+                             if(approx == "hsgp"){
                                datlist <- list(
                                  D = 2,
                                  Q = Q,
@@ -534,7 +538,7 @@ grid <- R6::R6Class("grid",
                                )
                                file <- "approxlgcp.stan"
                                fname <- "approxlgcp"
-                             } else {
+                             } else if(approx == "nngp"){
                                NN <- genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m)
                                NN <- NN+1
                                datlist <- list(
@@ -556,6 +560,24 @@ grid <- R6::R6Class("grid",
                                )
                                file <- "approxlgcp_nngp.stan"
                                fname <- "approxlgcp_nngp"
+                             } else {
+                               datlist <- list(
+                                 D = 2,
+                                 Q = Q,
+                                 Nsample = nCell,
+                                 nT = nT,
+                                 y = y,
+                                 x_grid = x_grid[,1:2],
+                                 popdens = popd,
+                                 X = X,
+                                 prior_lscale=self$priors$prior_lscale,
+                                 prior_var=self$priors$prior_var,
+                                 prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
+                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
+                                 mod = mod
+                               )
+                               file <- "lgcp.stan"
+                               fname <- "lgcp"
                              }
                              
 
@@ -578,20 +600,32 @@ grid <- R6::R6Class("grid",
                                )
                              } else {
                                if(!verbose){
-                                 capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[fname]],
-                                                                                         data=datlist,
-                                                                                         chains=chains,
-                                                                                         iter = iter_warmup+iter_sampling,
-                                                                                         warmup = iter_warmup,
-                                                                                         cores = parallel_chains,
-                                                                                         refresh = 0)), file=tempfile())
+                                 if(!vb){
+                                   capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[fname]],
+                                                                                           data=datlist,
+                                                                                           chains=chains,
+                                                                                           iter = iter_warmup+iter_sampling,
+                                                                                           warmup = iter_warmup,
+                                                                                           cores = parallel_chains,
+                                                                                           refresh = 0)), file=tempfile())
+                                 } else {
+                                   capture.output(suppressWarnings( res <- rstan::vb(stanmodels[[fname]],
+                                                                                           data=datlist)), file=tempfile())
+                                 }
+                                 
                                } else {
-                                 res <- rstan::sampling(stanmodels[[fname]],
-                                                        data=datlist,
-                                                        chains=chains,
-                                                        iter = iter_warmup+iter_sampling,
-                                                        warmup = iter_warmup,
-                                                        cores = parallel_chains)
+                                 if(!vb){
+                                   res <- rstan::sampling(stanmodels[[fname]],
+                                                          data=datlist,
+                                                          chains=chains,
+                                                          iter = iter_warmup+iter_sampling,
+                                                          warmup = iter_warmup,
+                                                          cores = parallel_chains)
+                                 } else {
+                                   res <- rstan::vb(stanmodels[[fname]],
+                                                    data=datlist)
+                                 }
+                                 
                                }
 
                              }
@@ -778,7 +812,8 @@ grid <- R6::R6Class("grid",
                            #' Given a definition of a hotspot in terms of threshold(s) for incidence,
                            #' relative risk, and/or incidence rate ratio, returns the probabilities
                            #' each area is a "hotspot". See Details of `extract_preds`. Columns
-                           #' will be added to `grid_data`
+                           #' will be added to `grid_data`. Note that for incidence threshold, the threshold should
+                           #' be specified as the per individual incidence.
                            #'
                            #' @param stan_fit A \link[rstan]{stanfit} or \link[cmdstanr]{CmdStanMCMC} object.
                            #' Output of `lgcp_fit()`
@@ -879,7 +914,6 @@ grid <- R6::R6Class("grid",
                              }
 
                              inc1 <- I(inc1 == nCr)*1
-                              inc <<- inc1
                              self$grid_data$hotspot_prob <- apply(inc1,2,mean)
 
                              if(!is.null(col_label)){

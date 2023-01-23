@@ -8,8 +8,12 @@
 #' @export
 grid <- R6::R6Class("grid",
                          public = list(
-                           #' @field grid_data sf object with the grid data
+                           #' @field grid_data sf object specifying the computational grid for the analysis
                            grid_data = NULL,
+                           #' @field region_data sf object specifying an irregular lattice, such as census areas, 
+                           #' within which case counts are aggregated. Only used if polygon data are provided on
+                           #' class initialisation.
+                           region_data = NULL,
                            #' @field priors list of prior distributions for the analysis
                            priors = NULL,
                            #' @field boundary sf object showing the boundary of the area of interest
@@ -23,30 +27,72 @@ grid <- R6::R6Class("grid",
                            #' object of a regular grid within the limits of the boundary at `$grid_data`. The boundary
                            #' is also stored in the object as `$boundary`
                            #'
-                           #' @param boundary An sf object containing one polygon describing the area of interest
+                           #' @param poly An sf object containing one polygon describing the area of interest
                            #' @param cellsize The dimension of the grid cells
+                           #' @param verbose Logical indicating whether to provide feedback to the console.
                            #' @return NULL
                            #' @examples
                            #' b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
                            #' g1 <- grid$new(b1,0.5)
-                           initialize = function(boundary,
-                                                 cellsize){
+                           initialize = function(poly,
+                                                 cellsize,
+                                                 verbose = TRUE){
 
-                             if(!is(boundary,"sf"))stop("boundary not sf")
-                             if(nrow(boundary)!=1)stop("boundary should only contain one polygon")
+                             if(!is(poly,"sf"))stop("boundary not sf")
                              if(!is(cellsize,"numeric"))stop("cellsize not numeric")
-
-                             bgrid <- sf::st_make_grid(boundary,cellsize = cellsize)
-                             bgrid <- sf::st_sf(bgrid)
-                             idx1<- sf::st_contains(y=bgrid,x=boundary)
-                             idx2<- sf::st_intersects(y=bgrid,x=boundary)
-                             idx <- c(unlist( sapply( idx1, `[`) ),unlist( sapply( idx2, `[`) ))
-                             bgrid <- bgrid[idx,]
-
-                             #class(bgrid) <- c(class(bgrid),"rts_grid")
-                             self$boundary <- boundary
-                             bgrid <- bgrid[!duplicated(sf::st_coordinates(sf::st_centroid(bgrid))),]
-                             self$grid_data <- bgrid
+                             if(nrow(poly)>1 & verbose)message("Multiple polygons in data. Assuming analysis uses counts aggregated to an irregular 
+                                                     lattice and not point data. To change this behaviour please provide only a single polygon 
+                                                     representing the area boundary.")
+                             #if(nrow(boundary)!=1)stop("boundary should only contain one polygon")
+                             
+                             if(nrow(poly)==1){
+                               bgrid <- sf::st_make_grid(boundary,cellsize = cellsize)
+                               bgrid <- sf::st_sf(bgrid)
+                               idx1<- sf::st_contains(y=bgrid,x=boundary)
+                               idx2<- sf::st_intersects(y=bgrid,x=boundary)
+                               idx <- c(unlist( sapply( idx1, `[`) ),unlist( sapply( idx2, `[`) ))
+                               bgrid <- bgrid[idx,]
+                               
+                               #class(bgrid) <- c(class(bgrid),"rts_grid")
+                               self$boundary <- boundary
+                               bgrid <- bgrid[!duplicated(sf::st_coordinates(sf::st_centroid(bgrid))),]
+                               self$grid_data <- bgrid
+                             } else if(nrow(poly)>1){
+                               boundary <- sf::st_union(poly)
+                               boundary <- sf::st_sfc(boundary)
+                               self$boundary <- sf::st_sf(boundary)
+                               
+                               bgrid <- sf::st_make_grid(self$boundary,cellsize = cellsize)
+                               bgrid <- sf::st_sf(bgrid)
+                               idx1<- sf::st_contains(y=bgrid,x=self$boundary)
+                               idx2<- sf::st_intersects(y=bgrid,x=self$boundary)
+                               idx <- c(unlist( sapply( idx1, `[`) ),unlist( sapply( idx2, `[`) ))
+                               bgrid <- bgrid[idx,]
+                               bgrid <- bgrid[!duplicated(sf::st_coordinates(sf::st_centroid(bgrid))),]
+                               self$grid_data <- bgrid
+                               
+                               sf::st_agr(poly) = "constant"
+                               sf::st_agr(self$grid_data) = "constant"
+                               self$grid_data$grid_id <- 1:nrow(self$grid_data)
+                               poly$region_id <- 1:nrow(poly)
+                               tmp <- suppressWarnings(sf::st_intersection(g1$grid_data[,"grid_id"],msoa[,"region_id"]))
+                               n_Q <- nrow(tmp)
+                               rID <- poly$region_id
+                               tmp$area <- as.numeric(sf::st_area(tmp))
+                               a1 <-rep(aggregate(tmp$area,list(tmp$region_id),sum)$x,unname(table(tmp$region_id)))
+                               tmp$w <- tmp$area/a1
+                               
+                               self$region_data <- poly
+                               private$intersection_data <- tmp
+                             }
+                             if(verbose){
+                               msg <- paste0("Created grid with ",nrow(self$grid_data)," cells.")
+                               if(!is.null(self$region_data)){
+                                 msg <- paste0(msg," Region data has ",nrow(self$region_data)," areas.",
+                                               "There are ",nrow(private$intersection_data)," intersection areas.")
+                               }
+                               message(msg)
+                             }
                            },
                            #' @description
                            #' Prints the $grid_data sf object
@@ -433,7 +479,8 @@ grid <- R6::R6Class("grid",
                              if(verbose)if(is.null(dir))message("dir not set, files will be lost after session restart")
                              if(m<1)stop("m must be positive")
                              if(!approx%in%c('nngp','hsgp','none'))stop("approx must be one of nngp, hsgp, or none")
-                             if(m >25)warning("m is large, sampling may take a very long time.")
+                             if(m >25 & verbose)warning("m is large, sampling may take a long time.")
+                             if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              mod <- NA
                              if(model == "exp"){
                                mod <- 1
@@ -456,7 +503,7 @@ grid <- R6::R6Class("grid",
                              x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
                                sf::st_centroid(self$grid_data))))
 
-                             popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
+                             
                              if(approx=="hsgp"){
                                # scale to -1,1 in all dimensions
                                xrange <- range(x_grid[,1])
@@ -468,37 +515,104 @@ grid <- R6::R6Class("grid",
                              }
                              
 
-                             if(nT > 1){
-                               y <- stack(as.data.frame(self$grid_data)[,paste0("t",1:nT)])[,1]
-                             } else {
-                               y <- as.data.frame(self$grid_data)[,"y"]
-                             }
-
-
-                             #add covariates
-                             if(!is.null(covs)){
-                               nQ <- length(covs)
-                               X <- matrix(NA,nrow=length(y),ncol=nQ+1)
-                               X[,1] <- 1
-                               for(i in 1:nQ){
-                                 nColV <- sum(grepl(covs[i],colnames(self$grid_data)))
-                                 if(nColV==1){
-                                   X[,i+1] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
-                                 } else if(nColV==0){
-                                   stop(paste0(covs[i]," not found"))
+                             
+                             
+                             
+                              
+                             if(is.null(self$region_data)){
+                               # outcome data
+                               if(nT > 1){
+                                 y <- stack(as.data.frame(self$grid_data)[,paste0("t",1:nT)])[,1]
+                               } else {
+                                 y <- as.data.frame(self$grid_data)[,"y"]
+                               }
+                               
+                               #population density
+                               nColP <- sum(grepl(popdens,colnames(self$grid_data)))
+                               if(nColP==1){
+                                 popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
+                               } else if(nColP==0){
+                                 stop("popdens variable not found in grid data")
+                               } else {
+                                 if(nT>1){
+                                   popd <- stack(as.data.frame(self$grid_data)[,paste0(popdens,1:nT)])[,1]
                                  } else {
-                                   if(nT>1){
-                                     X[,i+1] <- stack(as.data.frame(self$grid_data)[,paste0(covs[i],1:nT)])[,1]
-                                   } else {
-                                     X[,i+1] <- as.data.frame(self$grid_data)[,covs[i]]
-                                   }
+                                   popd <- as.data.frame(self$grid_data)[,popdens]
                                  }
-                                 Q <- nQ+1
+                               }
+                               
+                               #add covariates
+                               if(!is.null(covs)){
+                                 nQ <- length(covs)
+                                 X <- matrix(NA,nrow=length(y),ncol=nQ+1)
+                                 X[,1] <- 1
+                                 for(i in 1:nQ){
+                                   nColV <- sum(grepl(covs[i],colnames(self$grid_data)))
+                                   if(nColV==1){
+                                     X[,i+1] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
+                                   } else if(nColV==0){
+                                     stop(paste0(covs[i]," not found in grid data"))
+                                   } else {
+                                     if(nT>1){
+                                       X[,i+1] <- stack(as.data.frame(self$grid_data)[,paste0(covs[i],1:nT)])[,1]
+                                     } else {
+                                       X[,i+1] <- as.data.frame(self$grid_data)[,covs[i]]
+                                     }
+                                   }
+                                   Q <- nQ+1
+                                 }
+                               } else {
+                                 X <- matrix(1,nrow=length(y),ncol=1)
+                                 Q <- 1
                                }
                              } else {
-                               X <- matrix(1,nrow=length(y),ncol=1)
-                               Q <- 1
+                               #outcomes
+                               if(nT > 1){
+                                 y <- stack(as.data.frame(self$region_data)[,paste0("t",1:nT)])[,1]
+                               } else {
+                                 y <- as.data.frame(self$region_data)[,"y"]
+                               }
+                               
+                               #population density
+                               nColP <- sum(grepl(popdens,colnames(self$region_data)))
+                               if(nColP==1){
+                                 popd <- rep(as.data.frame(self$region_data)[,popdens],nT)
+                               } else if(nColP==0){
+                                 stop("popdens variable not found in region data")
+                               } else {
+                                 if(nT>1){
+                                   popd <- stack(as.data.frame(self$region_data)[,paste0(popdens,1:nT)])[,1]
+                                 } else {
+                                   popd <- as.data.frame(self$region_data)[,popdens]
+                                 }
+                               }
+                               
+                               #add covariates
+                               if(!is.null(covs)){
+                                 nQ <- length(covs)
+                                 X <- matrix(NA,nrow=length(y),ncol=nQ+1)
+                                 X[,1] <- 1
+                                 for(i in 1:nQ){
+                                   nColV <- sum(grepl(covs[i],colnames(self$region_data)))
+                                   if(nColV==1){
+                                     X[,i+1] <- rep(as.data.frame(self$region_data)[,covs[i]],nT)
+                                   } else if(nColV==0){
+                                     stop(paste0(covs[i]," not found in region data"))
+                                   } else {
+                                     if(nT>1){
+                                       X[,i+1] <- stack(as.data.frame(self$region_data)[,paste0(covs[i],1:nT)])[,1]
+                                     } else {
+                                       X[,i+1] <- as.data.frame(self$region_data)[,covs[i]]
+                                     }
+                                   }
+                                   Q <- nQ+1
+                                 }
+                               } else {
+                                 X <- matrix(1,nrow=length(y),ncol=1)
+                                 Q <- 1
+                               }
                              }
+                             
 
                              if(!is.null(self$priors)){
                                if(length(self$priors$prior_linpred_mean)!=Q|length(self$priors$prior_linpred_sd)!=Q)
@@ -536,8 +650,23 @@ grid <- R6::R6Class("grid",
                                  prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
                                  mod = mod
                                )
-                               file <- "approxlgcp.stan"
-                               fname <- "approxlgcp"
+                               
+                               if(!is.null(self$region_data)){
+                                 datlist <- append(datlist,list(
+                                   n_region = nrow(self$region_data),
+                                   n_Q = nrow(private$intersection_data),
+                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   cell_id = private$intersection_data$grid_id,
+                                   q_weights = private$intersection_data$w
+                                 ))
+                                 file <- "approxlgcp_region_cmd.stan"
+                                 fname <- "approxlgcp_region"
+                               } else {
+                                 file <- "approxlgcp.stan"
+                                 fname <- "approxlgcp"
+                               }
+                               
+                               
                              } else if(approx == "nngp"){
                                NN <- genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m)
                                NN <- NN+1
@@ -558,8 +687,22 @@ grid <- R6::R6Class("grid",
                                  prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
                                  mod = mod
                                )
-                               file <- "approxlgcp_nngp.stan"
-                               fname <- "approxlgcp_nngp"
+                               if(!is.null(self$region_data)){
+                                 datlist <- append(datlist,list(
+                                   n_region = nrow(self$region_data),
+                                   n_Q = nrow(private$intersection_data),
+                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   cell_id = private$intersection_data$grid_id,
+                                   q_weights = private$intersection_data$w
+                                 ))
+                                 file <- "approxlgcp_nngp_region_cmd.stan"
+                                 fname <- "approxlgcp_nngp_region"
+                               } else {
+                                 file <- "approxlgcp_nngp.stan"
+                                 fname <- "approxlgcp_nngp"
+                               }
+                               
+                               
                              } else {
                                datlist <- list(
                                  D = 2,
@@ -576,8 +719,23 @@ grid <- R6::R6Class("grid",
                                  prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
                                  mod = mod
                                )
-                               file <- "lgcp.stan"
-                               fname <- "lgcp"
+                               
+                               if(!is.null(self$region_data)){
+                                 datlist <- append(datlist,list(
+                                   n_region = nrow(self$region_data),
+                                   n_Q = nrow(private$intersection_data),
+                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   cell_id = private$intersection_data$grid_id,
+                                   q_weights = private$intersection_data$w
+                                 ))
+                                 file <- "lgcp_region.stan"
+                                 fname <- "lgcp_region"
+                               } else {
+                                 file <- "lgcp.stan"
+                                 fname <- "lgcp"
+                               }
+                               
+                               
                              }
                              
 
@@ -1028,5 +1186,8 @@ grid <- R6::R6Class("grid",
                              std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
                              return(std_val)
                            }
-                         ))
+                         ),
+                    private = list(
+                      intersection_data = NULL
+                    ))
 

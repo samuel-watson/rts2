@@ -52,7 +52,7 @@ data {
   int nT; //number of time periods
   int n_region; // number of regions
   int n_Q; // number of intersections
-  int<lower=1> n_cell[n_region]; //number of cells intersecting region  
+  int<lower=1> n_cell[n_region+1]; //number of cells intersecting region  
   int<lower=1> cell_id[n_Q]; // IDs of the cells intersecting the region
   vector[n_Q] q_weights; // proportionate weights
   
@@ -72,7 +72,6 @@ data {
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
-  vector[Nsample*nT] logpopdens = log(popdens);
 
   for (m in 1:M_nD){
     PHI[,m] = phi_nD(L, indices[m,], x_grid);
@@ -114,6 +113,7 @@ transformed parameters{
 }
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
+  int l_total;
   to_vector(beta) ~ normal(0,1);
   phi ~ normal(prior_lscale[1],prior_lscale[2]);
   sigma ~ normal(prior_var[1],prior_var[2]);
@@ -124,13 +124,16 @@ model{
   
   for(r in 1:n_region){
     for(t in 1:nT){
+      // l_total = n_cell[r+1]-n_cell[r];
+      // lambda_r[r+(t-1)*nT] = popdens[r+(t-1)*nT]*exp(X[r+(t-1)*nT,]*gamma) * 
+      // (q_weights[(n_cell[r]):(l_total+n_cell[r]-1)]' * exp(f[cell_id[(n_cell[r]):(l_total+n_cell[r]-1)] + (t-1)*nT]));
       for(l in 1:(n_cell[r+1]-n_cell[r])){
-        lambda_r[r+(t-1)*nT] += popdens[r+(t-1)*nT]*exp(X[r+(t-1)*nT,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*nT]);
+        lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
+          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
       }
     }
   }
-
+ 
   y ~ poisson(lambda_r);
 }
 
@@ -145,8 +148,8 @@ generated quantities{
   for(r in 1:n_region){
     for(t in 1:nT){
       for(l in 1:(n_cell[r+1]-n_cell[r])){
-        region_predict[r+(t-1)*nT] += popdens[r+(t-1)*nT]*exp(X[r+(t-1)*nT,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*nT]);
+        region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
+          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
       }
     }
   }

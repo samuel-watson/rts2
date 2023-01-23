@@ -40,9 +40,7 @@ grid <- R6::R6Class("grid",
 
                              if(!is(poly,"sf"))stop("boundary not sf")
                              if(!is(cellsize,"numeric"))stop("cellsize not numeric")
-                             if(nrow(poly)>1 & verbose)message("Multiple polygons in data. Assuming analysis uses counts aggregated to an irregular 
-                                                     lattice and not point data. To change this behaviour please provide only a single polygon 
-                                                     representing the area boundary.")
+                             if(nrow(poly)>1 & verbose)message("Multiple polygons in data. Assuming analysis uses counts aggregated to an irregular lattice and not point data.")
                              #if(nrow(boundary)!=1)stop("boundary should only contain one polygon")
                              
                              if(nrow(poly)==1){
@@ -75,7 +73,7 @@ grid <- R6::R6Class("grid",
                                sf::st_agr(self$grid_data) = "constant"
                                self$grid_data$grid_id <- 1:nrow(self$grid_data)
                                poly$region_id <- 1:nrow(poly)
-                               tmp <- suppressWarnings(sf::st_intersection(g1$grid_data[,"grid_id"],msoa[,"region_id"]))
+                               tmp <- suppressWarnings(sf::st_intersection(self$grid_data[,"grid_id"],poly[,"region_id"]))
                                n_Q <- nrow(tmp)
                                rID <- poly$region_id
                                tmp$area <- as.numeric(sf::st_area(tmp))
@@ -490,14 +488,26 @@ grid <- R6::R6Class("grid",
                              #prepare data for model fit
 
                              ind <- as.matrix(expand.grid(1:m,1:m))
-                             nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
-                             if(nT==0){
-                               if("y"%in%colnames(self$grid_data)){
-                                 nT <- 1
-                               } else {
-                                 stop("case counts not defined in data")
+                             if(is.null(self$region_data)){
+                               nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                               if(nT==0){
+                                 if("y"%in%colnames(self$grid_data)){
+                                   nT <- 1
+                                 } else {
+                                   stop("case counts not defined in data")
+                                 }
+                               }
+                             } else {
+                               nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
+                               if(nT==0){
+                                 if("y"%in%colnames(self$region_data)){
+                                   nT <- 1
+                                 } else {
+                                   stop("case counts not defined in data")
+                                 }
                                }
                              }
+                             
                              nCell <- nrow(self$grid_data)
 
                              x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
@@ -515,10 +525,6 @@ grid <- R6::R6Class("grid",
                              }
                              
 
-                             
-                             
-                             
-                              
                              if(is.null(self$region_data)){
                                # outcome data
                                if(nT > 1){
@@ -652,17 +658,19 @@ grid <- R6::R6Class("grid",
                                )
                                
                                if(!is.null(self$region_data)){
+                                 ncell <- unname(table(private$intersection_data$region_id))
+                                 ncell <- c(1, cumsum(ncell)+1)
                                  datlist <- append(datlist,list(
                                    n_region = nrow(self$region_data),
                                    n_Q = nrow(private$intersection_data),
-                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   n_cell = ncell,
                                    cell_id = private$intersection_data$grid_id,
                                    q_weights = private$intersection_data$w
                                  ))
-                                 file <- "approxlgcp_region_cmd.stan"
+                                 filen <- "approxlgcp_region_cmd.stan"
                                  fname <- "approxlgcp_region"
                                } else {
-                                 file <- "approxlgcp.stan"
+                                 filen <- "approxlgcp.stan"
                                  fname <- "approxlgcp"
                                }
                                
@@ -688,17 +696,19 @@ grid <- R6::R6Class("grid",
                                  mod = mod
                                )
                                if(!is.null(self$region_data)){
+                                 ncell <- unname(table(private$intersection_data$region_id))
+                                 ncell <- c(1,cumsum(ncell)+1)
                                  datlist <- append(datlist,list(
                                    n_region = nrow(self$region_data),
                                    n_Q = nrow(private$intersection_data),
-                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   n_cell = ncell,
                                    cell_id = private$intersection_data$grid_id,
                                    q_weights = private$intersection_data$w
                                  ))
-                                 file <- "approxlgcp_nngp_region_cmd.stan"
+                                 filen <- "approxlgcp_nngp_region_cmd.stan"
                                  fname <- "approxlgcp_nngp_region"
                                } else {
-                                 file <- "approxlgcp_nngp.stan"
+                                 filen <- "approxlgcp_nngp.stan"
                                  fname <- "approxlgcp_nngp"
                                }
                                
@@ -721,28 +731,32 @@ grid <- R6::R6Class("grid",
                                )
                                
                                if(!is.null(self$region_data)){
+                                 ncell <- unname(table(private$intersection_data$region_id))
+                                 ncell <- c(1,cumsum(ncell)+1)
                                  datlist <- append(datlist,list(
                                    n_region = nrow(self$region_data),
                                    n_Q = nrow(private$intersection_data),
-                                   n_cell = unname(table(private$intersection_data$region_id)),
+                                   n_cell = ncell,
                                    cell_id = private$intersection_data$grid_id,
                                    q_weights = private$intersection_data$w
                                  ))
-                                 file <- "lgcp_region.stan"
+                                 filen <- "lgcp_region.stan"
                                  fname <- "lgcp_region"
                                } else {
-                                 file <- "lgcp.stan"
+                                 filen <- "lgcp.stan"
                                  fname <- "lgcp"
                                }
                                
                                
                              }
-                             
+                             dat <<- datlist
+                             filen <<- filen
+                             fname <<- fname
 
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
                                model_file <- system.file("stan",
-                                                         file,
+                                                         filen,
                                                          package = "rts2",
                                                          mustWork = TRUE)
                                model <- cmdstanr::cmdstan_model(model_file)

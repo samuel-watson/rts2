@@ -44,30 +44,36 @@ functions {
     return p*exp(xg)*(w' * exp(f));
   }
   real poisson_log_block_lpmf(array[] int y, array[] int i, int nT, 
-                              int nR, array[] real pop, matrix X, 
-                vector w, vector f, array[] int cell_id, array[] int n_cell){ 
+                              int nR, vector pop, matrix X, 
+                vector w, vector f, array[] int cell_id, array[] int n_cell,
+                vector gamma){ 
     // calculate the IDs of the observation
     int n = size(y);
     vector[n] lambda;
     for(j in 1:n){
-      int r = i%nR;
+      int r = i[j]%nR;
       if(r == 0)r = nR;
-      int t = ceil(i/nR);
+      int t = to_int(ceil(i[j]*1.0/nR));
+      int lsize = n_cell[r+1] - n_cell[r];
+      array[lsize] int idx;
+      for(l in 1:lsize)idx[l] = cell_id[n_cell[r]+l-1]+(t-1)*nR;
       lambda[j] = calc_lambda(pop[r+(t-1)*nR],
                          X[r+(t-1)*nR,]*gamma,
                          w[(n_cell[r]):(n_cell[r+1]-1)],
-                         f[cell_id[(n_cell[r]):(n_cell[r+1]-1)] + (t-1)*nR]);
+                         f[idx]);
     }
     
     return poisson_lpmf(y | lambda);                  
                               
   }
-  real partial_sum2_lpmf(array[] int y,int start, int end, int nT,
-                        int nR, array[] real pop, matrix X, 
-                        vector w, vector f, array[] int cell_id, array[] int n_cell){
-    return poisson_log_block_lpmf(y[start:end],start:end, nT, nR, pop,
-                                  X, w, f, cell_id, n_cell);
-  }
+  // real partial_sum2_lpmf(array[] int y,int start, int end, int nT,
+  //                       int nR, vector pop, matrix X, 
+  //                       vector w, vector f, array[] int cell_id, array[] int n_cell,
+  //                       vector gamma){
+  //   array[end-start+1] int idx = linspaced_int_array(end-start+1,start,end);
+  //   return poisson_log_block_lpmf(y[start:end]|idx, nT, nR, pop,
+  //                                 X, w, f, cell_id, n_cell, gamma);
+  // }
 }
 data {
   // define the model and problem
@@ -92,10 +98,10 @@ data {
   matrix[n_region*nT,Q] X;
   
   // distribution parameters
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
 }
 transformed data {
@@ -148,7 +154,7 @@ model{
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  int grainsize = 1;
+  // int grainsize = 1;
   // for(r in 1:n_region){
   //   for(t in 1:nT){
   //     for(l in 1:(n_cell[r+1]-n_cell[r])){
@@ -159,8 +165,10 @@ model{
   // }
   // 
   // y ~ poisson(lambda_r); // we can parallelise this 
-  target += reduce_sum(partial_sum2_lpmf,y,grainsize,nT,n_region,popdens,
-                        X, q_weights, f, cell_id, n_cell);
+  // target += reduce_sum(partial_sum2_lpmf,y,grainsize,nT,n_region,popdens,
+  //                       X, q_weights, f, cell_id, n_cell, gamma);
+  array[n_region*nT] int idx = linspaced_int_array(n_region*nT,1,n_region*nT);
+  y ~ poisson_log_block(idx, nT, n_region, popdens, X, q_weights, f, cell_id, n_cell, gamma);
 }
 
 generated quantities{

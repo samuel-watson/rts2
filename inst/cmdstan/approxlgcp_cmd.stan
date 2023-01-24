@@ -1,5 +1,5 @@
 functions {
-  vector lambda_nD(real[] L, int[] m, int D) {
+  vector lambda_nD(array[] real L, array[] int m, int D) {
     vector[D] lam;
     for(i in 1:D){
       lam[i] = ((m[i]*pi())/(2*L[i]))^2; }
@@ -25,7 +25,7 @@ functions {
 
     return S;
   }
-  vector phi_nD(real[] L, int[] m, matrix x) {
+  vector phi_nD(array[] real L, array[] int m, matrix x) {
     int c = cols(x);
     int r = rows(x);
 
@@ -40,38 +40,32 @@ functions {
     }
     return fi1;
   }
+  real partial_sum2_lpmf(array[] int y,int start, int end, vector mu){
+    return poisson_log_lpmf(y[start:end]|mu[start:end]);
+  }
 }
 data {
-  // define the model and problem
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
-  real L[D]; // boundary condition
+  array[D] real L; // boundary condition
   int<lower=1> M; // number of basis functions (per dimension)
   int<lower=1> M_nD; //total basis functions m1*m2*...*mD
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int n_region; // number of regions
-  int n_Q; // number of intersections
-  int<lower=1> n_cell[n_region+1]; //number of cells intersecting region  
-  int<lower=1> cell_id[n_Q]; // IDs of the cells intersecting the region
-  vector[n_Q] q_weights; // proportionate weights
-  
-  // outcomes data
-  int y[n_region*nT]; //outcome
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
-  int indices[M_nD,D]; //indices
-  vector[n_region*nT] popdens; //population density
-  matrix[n_region*nT,Q] X;
-  
-  // distribution parameters
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[M_nD,D] int indices; //indices
+  vector[Nsample*nT] popdens; //population density
+  matrix[Nsample*nT,Q] X;
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
+  vector[Nsample*nT] logpopdens = log(popdens);
 
   for (m in 1:M_nD){
     PHI[,m] = phi_nD(L, indices[m,], x_grid);
@@ -112,7 +106,6 @@ transformed parameters{
 
 }
 model{
-  vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
   to_vector(beta) ~ normal(0,1);
   phi ~ normal(prior_lscale[1],prior_lscale[2]);
   sigma ~ normal(prior_var[1],prior_var[2]);
@@ -120,35 +113,15 @@ model{
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  
-  for(r in 1:n_region){
-    for(t in 1:nT){
-      for(l in 1:(n_cell[r+1]-n_cell[r])){
-        lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
-      }
-    }
-  }
- 
-  y ~ poisson(lambda_r);
+  int grainsize = 1;
+  target += reduce_sum(partial_sum2_lpmf,y,grainsize,X*gamma+logpopdens+f);
+
 }
 
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
-  vector[n_region*nT] region_predict;
 
   for(i in 1:(Nsample*nT)){
-    y_grid_predict[i] = exp(f[i]);
+    y_grid_predict[i] = exp(X[i,]*gamma+logpopdens[i]+f[i]);
   }
-  
-  region_predict = rep_vector(0,n_region*nT);
-  for(r in 1:n_region){
-    for(t in 1:nT){
-      for(l in 1:(n_cell[r+1]-n_cell[r])){
-        region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
-      }
-    }
-  }
-  
 }

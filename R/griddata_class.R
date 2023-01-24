@@ -670,7 +670,7 @@ grid <- R6::R6Class("grid",
                                  filen <- "approxlgcp_region_cmd.stan"
                                  fname <- "approxlgcp_region"
                                } else {
-                                 filen <- "approxlgcp.stan"
+                                 filen <- "approxlgcp_cmd.stan"
                                  fname <- "approxlgcp"
                                }
                                
@@ -708,7 +708,7 @@ grid <- R6::R6Class("grid",
                                  filen <- "approxlgcp_nngp_region_cmd.stan"
                                  fname <- "approxlgcp_nngp_region"
                                } else {
-                                 filen <- "approxlgcp_nngp.stan"
+                                 filen <- "approxlgcp_nngp_cmd.stan"
                                  fname <- "approxlgcp_nngp"
                                }
                                
@@ -755,10 +755,11 @@ grid <- R6::R6Class("grid",
 
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
-                               model_file <- system.file("stan",
-                                                         filen,
-                                                         package = "rts2",
-                                                         mustWork = TRUE)
+                               # model_file <- system.file("stan",
+                               #                           filen,
+                               #                           package = "rts2",
+                               #                           mustWork = TRUE)
+                               model_file <- paste0("D:/Documents/R/rts2/inst/cmdstan/",filen)
                                model <- cmdstanr::cmdstan_model(model_file)
                                res <- model$sample(
                                  data=datlist,

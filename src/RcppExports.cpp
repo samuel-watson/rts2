@@ -26,6 +26,7 @@ END_RCPP
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_mod();
 
@@ -33,6 +34,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_genNN", (DL_FUNC) &_rts2_genNN, 2},
     {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4lgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_mod, 0},
     {NULL, NULL, 0}

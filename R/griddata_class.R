@@ -275,30 +275,31 @@ grid <- R6::R6Class("grid",
                              if(is(cov_data,"sf")){
                                sf::st_agr(cov_data) = "constant"
                                sf::st_agr(self$grid_data) = "constant"
-                               tmp <- sf::st_intersection(cov_data[,zcols],self$grid_data)
-                               tmp_len <- lengths(sf::st_intersects(self$grid_data,cov_data))
-                               tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
+                               self$grid_data$grid_id <- 1:nrow(self$grid_data)
+                               cov_data$region_id <- 1:nrow(cov_data)
+                               if(weight_type=="pop"){
+                                 tmp <- suppressWarnings(sf::st_intersection(g1$grid_data[,"grid_id"],cov_data[,c("region_id",popdens)]))
+                               } else {
+                                 tmp <- suppressWarnings(sf::st_intersection(self$grid_data[,"grid_id"],cov_data[,"region_id"]))
+                               }
+                               n_Q <- nrow(tmp)
+                               tmp$area <- as.numeric(sf::st_area(tmp))
+                               tmp <- tmp[order(tmp$grid_id),]
+                               a1 <-rep(aggregate(tmp$area,list(tmp$grid_id),sum)$x,unname(table(tmp$grid_id)))
+                               tmp$w <- tmp$area/a1
+                               if(weight_type=="pop"){
+                                 tmp$w <- tmp$w*tmp[,popdens,drop=TRUE]
+                                 a1 <-rep(aggregate(tmp$w,list(tmp$grid_id),sum)$x,unname(table(tmp$grid_id)))
+                                 tmp$w <- tmp$w/a1
+                               }
+                               
                                vals <- matrix(nrow=nrow(self$grid_data),ncol=length(zcols))
 
                                if(verbose)cat("Overlaying geographies\n")
 
                                for(i in 1:nrow(self$grid_data)){
-                                 if(i < nrow(self$grid_data)){
-                                   idx_range <- tmp_len[i]:(tmp_len[i+1]-1)
-                                 } else {
-                                   idx_range <- tmp_len[i]:nrow(tmp)
-                                 }
-
-                                 tmp_range <- tmp[idx_range,]
-                                 w <- as.numeric(sf::st_area(tmp_range))
-
-                                 if(weight_type=="pop"){
-                                   w <- w*as.data.frame(tmp_range)[,popdens]
-                                 }
-
                                  for(j in 1:length(zcols)){
-                                   vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],
-                                                              w=w)
+                                   vals[i,j] <- sum(cov_data[tmp[tmp$grid_id==i,]$region_id,zcols[j],drop=TRUE]*tmp[tmp$grid_id==i,]$w)
                                  }
 
                                  if(verbose)cat("\r",progress_bar(i,nrow(self$grid_data)))
@@ -749,28 +750,35 @@ grid <- R6::R6Class("grid",
                                
                                
                              }
-                             dat <<- datlist
-                             filen <<- filen
-                             fname <<- fname
 
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
-                               # model_file <- system.file("stan",
-                               #                           filen,
-                               #                           package = "rts2",
-                               #                           mustWork = TRUE)
-                               model_file <- paste0("D:/Documents/R/rts2/inst/cmdstan/",filen)
+                               model_file <- system.file("stan",
+                                                         filen,
+                                                         package = "rts2",
+                                                         mustWork = TRUE)
+                               #used for debugging without installing package
+                               #model_file <- paste0("D:/Documents/R/rts2/inst/cmdstan/",filen)
                                model <- cmdstanr::cmdstan_model(model_file)
-                               res <- model$sample(
-                                 data=datlist,
-                                 chains=chains,
-                                 iter_warmup = iter_warmup,
-                                 iter_sampling = iter_sampling,
-                                 parallel_chains = parallel_chains,
-                                 output_dir=dir,
-                                 init=0.5,
-                                 ...
-                               )
+                               if(!vb){
+                                 res <- model$sample(
+                                   data=datlist,
+                                   chains=chains,
+                                   iter_warmup = iter_warmup,
+                                   iter_sampling = iter_sampling,
+                                   parallel_chains = parallel_chains,
+                                   output_dir=dir,
+                                   init=0.5,
+                                   ...
+                                 )
+                               } else {
+                                 res <- model$variational(
+                                   data=datlist,
+                                   output_dir=dir,
+                                   ...
+                                 )
+                               }
+                               
                              } else {
                                if(!verbose){
                                  if(!vb){
@@ -874,7 +882,7 @@ grid <- R6::R6Class("grid",
                                                     popdens=NULL){
 
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
-                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")))stop("stan fit required")
+                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")|is(stan_fit,"CmdStanVB")))stop("stan fit required")
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
@@ -885,10 +893,15 @@ grid <- R6::R6Class("grid",
                                f <- f$f
                                nT <- dim(ypred)[2]/nCells
                                cmdst <- FALSE
-                             } else if(is(stan_fit,"CmdStanMCMC")){
+                             } else if(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"CmdStanVB")){
                                if(requireNamespace("cmdstanr")){
                                  ypred <- stan_fit$draws("y_grid_predict")
                                  f <- stan_fit$draws("f")
+                                 if(length(dim(ypred))==2){
+                                   #to convert to 3d if VB is used
+                                   ypred <- array(drop(ypred),dim = c(1,dim(ypred)))
+                                   f <- array(drop(f),dim = c(1,dim(f)))
+                                 }
                                  nT <- dim(ypred)[3]/nCells
                                  cmdst <- TRUE
                                }
@@ -900,15 +913,15 @@ grid <- R6::R6Class("grid",
                              if(nT>1){
                                if("pred"%in%type){
                                  if(!cmdst){
-                                   fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd)
+                                   fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/as.data.frame(self$grid_data)[,popdens]
+                                   self$grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean)
+                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd)
                                    self$grid_data$pred_mean_pp <- apply(fmu,2,mean)
                                    self$grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
                                  } else {
-                                   fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd)
+                                   fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/as.data.frame(self$grid_data)[,popdens]
+                                   self$grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean)
+                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd)
                                    self$grid_data$pred_mean_pp <- apply(fmu,3,mean)
                                    self$grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
                                  }
@@ -917,26 +930,26 @@ grid <- R6::R6Class("grid",
 
                                if("rr"%in%type){
                                  if(!cmdst){
-                                   self$grid_data$rr <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,mean))
-                                   self$grid_data$rr_sd <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],2,sd))
+                                   self$grid_data$rr <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean))
+                                   self$grid_data$rr_sd <- exp(apply(f[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd))
                                  } else {
-                                   self$grid_data$rr <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,mean))
-                                   self$grid_data$rr_sd <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)],3,sd))
+                                   self$grid_data$rr <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean))
+                                   self$grid_data$rr_sd <- exp(apply(f[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd))
                                  }
 
                                }
 
                                if("irr"%in%type){
                                  if(!cmdst){
-                                   self$grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                                            ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,mean)
-                                   self$grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                                               ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],2,sd)
+                                   self$grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                            ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,mean)
+                                   self$grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                               ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,sd)
                                  } else {
-                                   self$grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                                            ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,mean)
-                                   self$grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                                               ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)],3,sd)
+                                   self$grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                            ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,mean)
+                                   self$grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                               ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,sd)
                                  }
 
                                }

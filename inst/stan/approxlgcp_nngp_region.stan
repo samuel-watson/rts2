@@ -158,7 +158,7 @@ model{
       for(l in 1:(n_cell[r+1]-n_cell[r])){
         // lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
         //   q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
-        accum += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
+        accum += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
       lambda_r[r+(t-1)*n_region] *= accum;
     }
@@ -180,7 +180,7 @@ generated quantities{
     for(t in 1:nT){
       for(l in 1:(n_cell[r+1]-n_cell[r])){
         region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
+          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
     }
   }

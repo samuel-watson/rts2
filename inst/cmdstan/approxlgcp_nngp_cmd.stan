@@ -50,7 +50,7 @@ functions {
     
    }
    
-   real nngp_split_lpdf(vector u, matrix AD, array[,] int NN, int start){
+   real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
     int n = cols(AD);
     int M = rows(AD) - 1;
     real logdetD;
@@ -74,15 +74,15 @@ functions {
       au = u[i] - dot_product(A[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
       qf += au*au/D[i];
       if(idxlim < M){
-        idxlim++;
+        idxlim+=1;
       }
     }
     ll = -0.5*logdetD - 0.5*qf - 0.5*n*pi();
     return ll;
    }
    
-   real partial_sum_lpdf(vector u, int start, int end, matrix AD, array[,] int NN){
-     return nngp_split_lpdf(u, AD[,start:end], NN[,start:end], start);
+   real partial_sum_lpdf(array[] real u, int start, int end, matrix AD, array[,] int NN){
+     return nngp_split_lpdf(u | AD[,start:end], NN[,start:end], start);
    }
    
    real partial_sum2_lpmf(array[] int y,int start, int end, vector mu){
@@ -179,14 +179,14 @@ model{
       if(t==1){
         //f_raw[1:Nsample] ~ nngp(AD, NN);
         // f_raw[1:Nsample] ~ nngp(sigma, phi, x_grid, NN, mod);
-        target += reduce_sum(partial_sum_lpdf,f_raw[1:Nsample],grainsize,AD,NN);
+        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[1:Nsample]),grainsize,AD,NN);
       } else {
-        target += reduce_sum(partial_sum_lpdf,f_raw[(Nsample*(t-1)+1):(t*Nsample)],grainsize,AD,NN);
+        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[(Nsample*(t-1)+1):(t*Nsample)]),grainsize,AD,NN);
         //f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(AD, NN);
         // f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(sigma, phi, x_grid, NN, mod);
       }
     } else {
-      target += reduce_sum(partial_sum_lpdf,f_raw,grainsize,AD,NN);
+      target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw),grainsize,AD,NN);
       //f_raw ~ nngp(AD, NN);
       // f_raw ~ nngp(sigma, phi, x_grid, NN, mod);
     }

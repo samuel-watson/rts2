@@ -44,7 +44,7 @@ functions {
     return p*exp(xg)*(w' * exp(f));
   }
   real poisson_log_block_lpmf(array[] int y, array[] int i, int nT, 
-                              int nR, vector pop, matrix X, 
+                              int nR, int nS, vector pop, matrix X, 
                 vector w, vector f, array[] int cell_id, array[] int n_cell,
                 vector gamma){ 
     // calculate the IDs of the observation
@@ -56,7 +56,7 @@ functions {
       int t = to_int(ceil(i[j]*1.0/nR));
       int lsize = n_cell[r+1] - n_cell[r];
       array[lsize] int idx;
-      for(l in 1:lsize)idx[l] = cell_id[n_cell[r]+l-1]+(t-1)*nR;
+      for(l in 1:lsize)idx[l] = cell_id[n_cell[r]+l-1]+(t-1)*nS;
       lambda[j] = calc_lambda(pop[r+(t-1)*nR],
                          X[r+(t-1)*nR,]*gamma,
                          w[(n_cell[r]):(n_cell[r+1]-1)],
@@ -168,7 +168,7 @@ model{
   // target += reduce_sum(partial_sum2_lpmf,y,grainsize,nT,n_region,popdens,
   //                       X, q_weights, f, cell_id, n_cell, gamma);
   array[n_region*nT] int idx = linspaced_int_array(n_region*nT,1,n_region*nT);
-  y ~ poisson_log_block(idx, nT, n_region, popdens, X, q_weights, f, cell_id, n_cell, gamma);
+  y ~ poisson_log_block(idx, nT, n_region, Nsample, popdens, X, q_weights, f, cell_id, n_cell, gamma);
 }
 
 generated quantities{
@@ -179,11 +179,12 @@ generated quantities{
     y_grid_predict[i] = exp(f[i]);
   }
   
+  region_predict = rep_vector(0,n_region*nT);
   for(r in 1:n_region){
     for(t in 1:nT){
       for(l in 1:(n_cell[r+1]-n_cell[r])){
-        region_predict[r+(t-1)*nT] += popdens[r+(t-1)*nT]*exp(X[r+(t-1)*nT,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*nT]);
+        region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
+          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
     }
   }

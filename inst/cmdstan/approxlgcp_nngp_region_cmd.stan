@@ -50,7 +50,31 @@ functions {
     
    }
    
-   real nngp_lpdf(vector u, matrix AD, array[,] int NN){
+   // real nngp_lpdf(vector u, matrix AD, array[,] int NN){
+   //  int n = cols(AD);
+   //  int M = rows(AD) - 1;
+   //  real logdetD;
+   //  real qf;
+   //  real au;
+   //  real ll;
+   //  int idxlim;
+   //  matrix[M,n] A = AD[1:M,];
+   //  vector[n] D = AD[M+1,]';
+   //  
+   //   logdetD = 0;
+   //  for(i in 1:n){
+   //    logdetD += log(D[i]);
+   //  }
+   //  qf = u[1]*u[1]/D[1];
+   //  for(i in 2:n){
+   //    idxlim = i<=(M) ? i-1 : M;
+   //    au = u[i] - dot_product(A[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
+   //    qf += au*au/D[i];
+   //  }
+   //  ll = -0.5*logdetD - 0.5*qf - 0.5*n*pi();
+   //  return ll;
+   // }
+   real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
     int n = cols(AD);
     int M = rows(AD) - 1;
     real logdetD;
@@ -60,26 +84,36 @@ functions {
     int idxlim;
     matrix[M,n] A = AD[1:M,];
     vector[n] D = AD[M+1,]';
-    
-     logdetD = 0;
+    if(start <= M){
+      idxlim = start - 1;
+    } else {
+      idxlim = M;
+    }
+    logdetD = 0;
     for(i in 1:n){
       logdetD += log(D[i]);
     }
     qf = u[1]*u[1]/D[1];
     for(i in 2:n){
-      idxlim = i<=(M) ? i-1 : M;
       au = u[i] - dot_product(A[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
       qf += au*au/D[i];
+      if(idxlim < M){
+        idxlim+=1;
+      }
     }
     ll = -0.5*logdetD - 0.5*qf - 0.5*n*pi();
     return ll;
+   }
+   
+   real partial_sum_lpdf(array[] real u, int start, int end, matrix AD, array[,] int NN){
+     return nngp_split_lpdf(u| AD[,start:end], NN[,start:end], start);
    }
   
   real calc_lambda(real p, real xg, vector w, vector f){
     return p*exp(xg)*(w' * exp(f));
   }
   real poisson_log_block_lpmf(array[] int y, array[] int i, int nT, 
-                              int nR, vector pop, matrix X, 
+                              int nR, int nS, vector pop, matrix X, 
                 vector w, vector f, array[] int cell_id, array[] int n_cell,
                 vector gamma){ 
     // calculate the IDs of the observation
@@ -91,7 +125,7 @@ functions {
       int t = to_int(ceil(i[j]*1.0/nR));
       int lsize = n_cell[r+1] - n_cell[r];
       array[lsize] int idx;
-      for(l in 1:lsize)idx[l] = cell_id[n_cell[r]+l-1]+(t-1)*nR;
+      for(l in 1:lsize)idx[l] = cell_id[n_cell[r]+l-1]+(t-1)*nS;
       lambda[j] = calc_lambda(pop[r+(t-1)*nR],
                          X[r+(t-1)*nR,]*gamma,
                          w[(n_cell[r]):(n_cell[r+1]-1)],
@@ -168,34 +202,33 @@ model{
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
   
-  
+  int grainsize = 1;
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f_raw[1:Nsample] ~ nngp(AD, NN);
+        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[1:Nsample]),grainsize,AD,NN);
       } else {
-        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(AD, NN);
+        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[(Nsample*(t-1)+1):(t*Nsample)]),grainsize,AD,NN);
       }
     } else {
-      f_raw ~ nngp(AD, NN);
+      target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw),grainsize,AD,NN);
     }
   }
   
-  int grainsize = 1;
-  // for(r in 1:n_region){
-  //   for(t in 1:nT){
-  //     for(l in 1:(n_cell[r+1]-n_cell[r])){
-  //       lambda_r[r+(t-1)*nT] += popdens[r+(t-1)*nT]*exp(X[r+(t-1)*nT,]*gamma)*
-  //         q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*nT]);
+  // for(t in 1:nT){
+  //   if(nT>1){
+  //     if(t==1){
+  //       f_raw[1:Nsample] ~ nngp(AD, NN);
+  //     } else {
+  //       f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(AD, NN);
   //     }
+  //   } else {
+  //     f_raw ~ nngp(AD, NN);
   //   }
   // }
-  // 
-  // y ~ poisson(lambda_r); // we can parallelise this 
-  // target += reduce_sum(partial_sum2_lpmf,y,grainsize,nT,n_region,popdens,
-  //                       X, q_weights, f, cell_id, n_cell);
+  
   array[n_region*nT] int idx = linspaced_int_array(n_region*nT,1,n_region*nT);
-  y ~ poisson_log_block(idx, nT, n_region, popdens, X, q_weights, f, cell_id, n_cell, gamma);
+  y ~ poisson_log_block(idx, nT, n_region, Nsample, popdens, X, q_weights, f, cell_id, n_cell, gamma);
 }
 
 generated quantities{
@@ -211,7 +244,7 @@ generated quantities{
     for(t in 1:nT){
       for(l in 1:(n_cell[r+1]-n_cell[r])){
         region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
+          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
     }
   }

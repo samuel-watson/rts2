@@ -297,7 +297,11 @@ points_to_grid, add_covariates
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{grid_data}}{sf object with the grid data}
+\item{\code{grid_data}}{sf object specifying the computational grid for the analysis}
+
+\item{\code{region_data}}{sf object specifying an irregular lattice, such as census areas,
+within which case counts are aggregated. Only used if polygon data are provided on
+class initialisation.}
 
 \item{\code{priors}}{list of prior distributions for the analysis}
 
@@ -334,15 +338,18 @@ Given a contiguous boundary describing an area of interest, which is stored as a
 object of a regular grid within the limits of the boundary at \verb{$grid_data}. The boundary
 is also stored in the object as \verb{$boundary}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{grid$new(boundary, cellsize)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{grid$new(poly, cellsize, verbose = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{boundary}}{An sf object containing one polygon describing the area of interest}
+\item{\code{poly}}{An sf object containing either one polygon describing the area of interest or multiple polygons
+representing survey or census regions in which the case data counts are aggregated}
 
 \item{\code{cellsize}}{The dimension of the grid cells}
+
+\item{\code{verbose}}{Logical indicating whether to provide feedback to the console.}
 }
 \if{html}{\out{</div>}}
 }
@@ -560,6 +567,7 @@ Fit an approximate log-Gaussian Cox Process model
   chains = 3,
   parallel_chains = 3,
   verbose = TRUE,
+  vb = FALSE,
   use_cmdstanr = FALSE,
   ...
 )}\if{html}{\out{</div>}}
@@ -598,6 +606,8 @@ covariance function}
 \item{\code{parallel_chains}}{integer. Number of parallel chains}
 
 \item{\code{verbose}}{logical. Provide feedback on progress}
+
+\item{\code{vb}}{Logical indicating whether to use variational Bayes (TRUE) or full MCMC sampling (FALSE)}
 
 \item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
 instead of rstan.}
@@ -719,7 +729,8 @@ Generate hotspot probabilities
 Given a definition of a hotspot in terms of threshold(s) for incidence,
 relative risk, and/or incidence rate ratio, returns the probabilities
 each area is a "hotspot". See Details of \code{extract_preds}. Columns
-will be added to \code{grid_data}
+will be added to \code{grid_data}. Note that for incidence threshold, the threshold should
+be specified as the per individual incidence.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$hotspots(
   stan_fit,

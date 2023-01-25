@@ -27,7 +27,8 @@ grid <- R6::R6Class("grid",
                            #' object of a regular grid within the limits of the boundary at `$grid_data`. The boundary
                            #' is also stored in the object as `$boundary`
                            #'
-                           #' @param poly An sf object containing one polygon describing the area of interest
+                           #' @param poly An sf object containing either one polygon describing the area of interest or multiple polygons
+                           #' representing survey or census regions in which the case data counts are aggregated
                            #' @param cellsize The dimension of the grid cells
                            #' @param verbose Logical indicating whether to provide feedback to the console.
                            #' @return NULL
@@ -44,15 +45,15 @@ grid <- R6::R6Class("grid",
                              #if(nrow(boundary)!=1)stop("boundary should only contain one polygon")
                              
                              if(nrow(poly)==1){
-                               bgrid <- sf::st_make_grid(boundary,cellsize = cellsize)
+                               bgrid <- sf::st_make_grid(poly,cellsize = cellsize)
                                bgrid <- sf::st_sf(bgrid)
-                               idx1<- sf::st_contains(y=bgrid,x=boundary)
-                               idx2<- sf::st_intersects(y=bgrid,x=boundary)
+                               idx1<- sf::st_contains(y=bgrid,x=poly)
+                               idx2<- sf::st_intersects(y=bgrid,x=poly)
                                idx <- c(unlist( sapply( idx1, `[`) ),unlist( sapply( idx2, `[`) ))
                                bgrid <- bgrid[idx,]
                                
                                #class(bgrid) <- c(class(bgrid),"rts_grid")
-                               self$boundary <- boundary
+                               self$boundary <- poly
                                bgrid <- bgrid[!duplicated(sf::st_coordinates(sf::st_centroid(bgrid))),]
                                self$grid_data <- bgrid
                              } else if(nrow(poly)>1){
@@ -434,6 +435,7 @@ grid <- R6::R6Class("grid",
                            #' @param parallel_chains integer. Number of parallel chains
                            #' @param priors list. See Details
                            #' @param verbose logical. Provide feedback on progress
+                           #' @param vb Logical indicating whether to use variational Bayes (TRUE) or full MCMC sampling (FALSE)
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
                            #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}

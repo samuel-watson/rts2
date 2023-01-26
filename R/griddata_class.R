@@ -755,7 +755,7 @@ grid <- R6::R6Class("grid",
 
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
-                               model_file <- system.file("stan",
+                               model_file <- system.file("cmdstan",
                                                          filen,
                                                          package = "rts2",
                                                          mustWork = TRUE)
@@ -831,6 +831,7 @@ grid <- R6::R6Class("grid",
                            #' @param t.lag integer. Extract predictions for previous time periods.
                            #' @param popdens character string. Name of the column in `grid_data` with the
                            #' population density data
+                           #' @param verbose Logical indicating whether to print messages to the console
                            #' @return NULL
                            #' @details
                            #' Three outputs can be extracted from the model fit, which will be added as columns to `grid_data`:
@@ -881,7 +882,8 @@ grid <- R6::R6Class("grid",
                                                     type=c("pred","rr","irr"),
                                                     irr.lag=NULL,
                                                     t.lag=0,
-                                                    popdens=NULL){
+                                                    popdens=NULL,
+                                                    verbose = TRUE){
 
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
                              if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")|is(stan_fit,"CmdStanVB")))stop("stan fit required")
@@ -914,19 +916,39 @@ grid <- R6::R6Class("grid",
 
                              if(nT>1){
                                if("pred"%in%type){
-                                 if(!cmdst){
-                                   fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,2,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                 if(is.null(self$region_data)){
+                                   popd <- as.data.frame(self$grid_data)[,popdens]
+                                   if(!cmdst){
+                                     fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
+                                     self$grid_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,2,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                   } else {
+                                     fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
+                                     self$grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,3,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   }
                                  } else {
-                                   fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,3,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   if(verbose)message("Predicted rates are added to region_data, rr and irr are added to grid_data")
+                                   popd <- as.data.frame(self$region_data)[,popdens]
+                                   if(!cmdst){
+                                     fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
+                                     self$region_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,2,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                   } else {
+                                     fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
+                                     self$region_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,3,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   }
                                  }
+                                 
 
                                }
 

@@ -11,6 +11,170 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// get_AD
+Rcpp::List get_AD(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::ArrayXXi& NN, Eigen::ArrayXd theta);
+RcppExport SEXP _rts2_get_AD(SEXP covSEXP, SEXP dataSEXP, SEXP NNSEXP, SEXP thetaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type theta(thetaSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_AD(cov, data, NN, theta));
+    return rcpp_result_gen;
+END_RCPP
+}
+// full_A
+Eigen::MatrixXd full_A(const Eigen::MatrixXd& A, const Eigen::ArrayXXi& NN);
+RcppExport SEXP _rts2_full_A(SEXP ASEXP, SEXP NNSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    rcpp_result_gen = Rcpp::wrap(full_A(A, NN));
+    return rcpp_result_gen;
+END_RCPP
+}
+// inv_ldlt
+Eigen::MatrixXd inv_ldlt(const Eigen::MatrixXd& A, const Eigen::VectorXd& D, const Eigen::ArrayXXi& NN);
+RcppExport SEXP _rts2_inv_ldlt(SEXP ASEXP, SEXP DSEXP, SEXP NNSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type A(ASEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type D(DSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    rcpp_result_gen = Rcpp::wrap(inv_ldlt(A, D, NN));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_ZL
+Eigen::MatrixXd get_ZL(const Eigen::MatrixXd& L, int nT, double rho);
+RcppExport SEXP _rts2_get_ZL(SEXP LSEXP, SEXP nTSEXP, SEXP rhoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type L(LSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_ZL(L, nT, rho));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_Lu
+Eigen::MatrixXd get_Lu(const Eigen::MatrixXd& L, const Eigen::MatrixXd& u);
+RcppExport SEXP _rts2_get_Lu(SEXP LSEXP, SEXP uSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type L(LSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type u(uSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_Lu(L, u));
+    return rcpp_result_gen;
+END_RCPP
+}
+// get_ZLu
+Eigen::MatrixXd get_ZLu(const Eigen::MatrixXd& L, const Eigen::MatrixXd& u, int nT, double rho);
+RcppExport SEXP _rts2_get_ZLu(SEXP LSEXP, SEXP uSEXP, SEXP nTSEXP, SEXP rhoSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type L(LSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< double >::type rho(rhoSEXP);
+    rcpp_result_gen = Rcpp::wrap(get_ZLu(L, u, nT, rho));
+    return rcpp_result_gen;
+END_RCPP
+}
+// region_intensity
+Eigen::ArrayXXd region_intensity(const Eigen::ArrayXd& xb, const Eigen::ArrayXd& y, const Eigen::ArrayXXd& zu, const Eigen::ArrayXd& offset, int nT, const Eigen::ArrayXi& n_cell, const Eigen::ArrayXi& cell_id, const Eigen::ArrayXd& q_weights);
+RcppExport SEXP _rts2_region_intensity(SEXP xbSEXP, SEXP ySEXP, SEXP zuSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP n_cellSEXP, SEXP cell_idSEXP, SEXP q_weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type xb(xbSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type zu(zuSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type n_cell(n_cellSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type cell_id(cell_idSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type q_weights(q_weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(region_intensity(xb, y, zu, offset, nT, n_cell, cell_id, q_weights));
+    return rcpp_result_gen;
+END_RCPP
+}
+// lgcp_optim
+Rcpp::List lgcp_optim(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, Eigen::MatrixXd u, int nT, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int trace, bool mcnr, bool known_cov);
+RcppExport SEXP _rts2_lgcp_optim(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP uSEXP, SEXP nTSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP traceSEXP, SEXP mcnrSEXP, SEXP known_covSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< bool >::type mcnr(mcnrSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    rcpp_result_gen = Rcpp::wrap(lgcp_optim(cov, data, X, y, u, nT, start, offset, trace, mcnr, known_cov));
+    return rcpp_result_gen;
+END_RCPP
+}
+// lgcp_optim_la
+Rcpp::List lgcp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool verbose, int trace, int maxiter);
+RcppExport SEXP _rts2_lgcp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    Rcpp::traits::input_parameter< bool >::type usehess(usehessSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< int >::type maxiter(maxiterSEXP);
+    rcpp_result_gen = Rcpp::wrap(lgcp_optim_la(cov, data, X, y, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// lgcp_region_optim
+Rcpp::List lgcp_region_optim(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, Eigen::MatrixXd u, int nT, Eigen::ArrayXd start, const Eigen::VectorXd& offset, const Eigen::ArrayXi& n_cell, const Eigen::ArrayXi& cell_id, const Eigen::ArrayXd& q_weights, int trace, bool mcnr, bool known_cov);
+RcppExport SEXP _rts2_lgcp_region_optim(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP uSEXP, SEXP nTSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP n_cellSEXP, SEXP cell_idSEXP, SEXP q_weightsSEXP, SEXP traceSEXP, SEXP mcnrSEXP, SEXP known_covSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type n_cell(n_cellSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type cell_id(cell_idSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type q_weights(q_weightsSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< bool >::type mcnr(mcnrSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    rcpp_result_gen = Rcpp::wrap(lgcp_region_optim(cov, data, X, y, u, nT, start, offset, n_cell, cell_id, q_weights, trace, mcnr, known_cov));
+    return rcpp_result_gen;
+END_RCPP
+}
 // genNN
 IntegerMatrix genNN(const NumericMatrix& x, int M);
 RcppExport SEXP _rts2_genNN(SEXP xSEXP, SEXP MSEXP) {
@@ -23,20 +187,108 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// nngp_optim
+Rcpp::List nngp_optim(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::ArrayXXi& NN, Eigen::MatrixXd u, int nT, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int trace, bool mcnr, bool known_cov);
+RcppExport SEXP _rts2_nngp_optim(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP NNSEXP, SEXP uSEXP, SEXP nTSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP traceSEXP, SEXP mcnrSEXP, SEXP known_covSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< bool >::type mcnr(mcnrSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    rcpp_result_gen = Rcpp::wrap(nngp_optim(cov, data, X, y, NN, u, nT, start, offset, trace, mcnr, known_cov));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nngp_optim_la
+Rcpp::List nngp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::ArrayXXi& NN, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool verbose, int trace, int maxiter);
+RcppExport SEXP _rts2_nngp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP NNSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    Rcpp::traits::input_parameter< bool >::type usehess(usehessSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< int >::type maxiter(maxiterSEXP);
+    rcpp_result_gen = Rcpp::wrap(nngp_optim_la(cov, data, X, y, NN, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// nngp_region_optim
+Rcpp::List nngp_region_optim(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::ArrayXXi& NN, Eigen::MatrixXd u, int nT, Eigen::ArrayXd start, const Eigen::VectorXd& offset, const Eigen::ArrayXi& n_cell, const Eigen::ArrayXi& cell_id, const Eigen::ArrayXd& q_weights, int trace, bool mcnr, bool known_cov);
+RcppExport SEXP _rts2_nngp_region_optim(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP NNSEXP, SEXP uSEXP, SEXP nTSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP n_cellSEXP, SEXP cell_idSEXP, SEXP q_weightsSEXP, SEXP traceSEXP, SEXP mcnrSEXP, SEXP known_covSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type cov(covSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXi& >::type NN(NNSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type u(uSEXP);
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    Rcpp::traits::input_parameter< Eigen::ArrayXd >::type start(startSEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type n_cell(n_cellSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXi& >::type cell_id(cell_idSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type q_weights(q_weightsSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< bool >::type mcnr(mcnrSEXP);
+    Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
+    rcpp_result_gen = Rcpp::wrap(nngp_region_optim(cov, data, X, y, NN, u, nT, start, offset, n_cell, cell_id, q_weights, trace, mcnr, known_cov));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_region_mod();
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rts2_get_AD", (DL_FUNC) &_rts2_get_AD, 4},
+    {"_rts2_full_A", (DL_FUNC) &_rts2_full_A, 2},
+    {"_rts2_inv_ldlt", (DL_FUNC) &_rts2_inv_ldlt, 3},
+    {"_rts2_get_ZL", (DL_FUNC) &_rts2_get_ZL, 3},
+    {"_rts2_get_Lu", (DL_FUNC) &_rts2_get_Lu, 2},
+    {"_rts2_get_ZLu", (DL_FUNC) &_rts2_get_ZLu, 4},
+    {"_rts2_region_intensity", (DL_FUNC) &_rts2_region_intensity, 8},
+    {"_rts2_lgcp_optim", (DL_FUNC) &_rts2_lgcp_optim, 11},
+    {"_rts2_lgcp_optim_la", (DL_FUNC) &_rts2_lgcp_optim_la, 13},
+    {"_rts2_lgcp_region_optim", (DL_FUNC) &_rts2_lgcp_region_optim, 14},
     {"_rts2_genNN", (DL_FUNC) &_rts2_genNN, 2},
+    {"_rts2_nngp_optim", (DL_FUNC) &_rts2_nngp_optim, 12},
+    {"_rts2_nngp_optim_la", (DL_FUNC) &_rts2_nngp_optim_la, 14},
+    {"_rts2_nngp_region_optim", (DL_FUNC) &_rts2_nngp_region_optim, 15},
     {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4lgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_region_mod, 0},
     {NULL, NULL, 0}
 };
 

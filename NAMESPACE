@@ -3,6 +3,7 @@
 export(create_points)
 export(grid)
 export(progress_bar)
+export(sample_u)
 import(Rcpp)
 import(methods)
 importFrom(R6,R6Class)

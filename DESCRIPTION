@@ -41,6 +41,10 @@ LinkingTo:
     RcppEigen (>= 0.3.3.3.0),
     RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),
+    glmmrBase (>= 0.2.3),
+    glmmrMCML (>= 0.2.1),
+    rminqa (>= 0.2.2),
+    SparseChol,
     StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make
 URL: http://www.sam-watson.xyz/vignette.html

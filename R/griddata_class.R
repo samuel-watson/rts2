@@ -211,7 +211,9 @@ grid <- R6::R6Class("grid",
                            #' Maps spatial, temporal, or spatio-temporal covariate data onto the grid
                            #'
                            #' @details
-                           #' *Spatially-varying data only* `cov_data`` is an sf object describing covariate
+                           #' *ADDING COVARIATES*
+                           #' *Spatially-varying data only* 
+                           #' `cov_data` is an sf object describing covariate
                            #' values for a set of polygons over the area of interest. The values are mapped
                            #' onto `grid_data`. For each grid cell in `grid_data` a weighted
                            #' average of each covariate listed in `zcols` is generated with weights either
@@ -220,7 +222,8 @@ grid <- R6::R6Class("grid",
                            #' density of the polygon for population weighted (`weight_type="pop"`). Columns
                            #' with the names in `zcols` are added to the output.
                            #'
-                           #' *Temporally-varying only data* `cov_data` is a data frame with number of rows
+                           #' *Temporally-varying only data* 
+                           #' `cov_data` is a data frame with number of rows
                            #' equal to the number of time periods. One of the columns must be called `t` and
                            #' have values from 1 to the number of time periods. The other columns of the data
                            #' frame have the values of the covariates for each time period. See
@@ -229,7 +232,8 @@ grid <- R6::R6Class("grid",
                            #' covariate there will be columns appended with each time period number. For example,
                            #' `dayMon1`, `dayMon2`, etc.
                            #'
-                           #' *Spatially and temporally varying data* There are two ways to add data that
+                           #' *Spatially and temporally varying data* 
+                           #' There are two ways to add data that
                            #' vary both spatially and temporally. The final output for use in analysis must
                            #' have a column for each covariate and each time period with the same name appended
                            #' by the time period number, e.g. `covariateA1`,`covariateA2`,... If the covariate
@@ -356,11 +360,10 @@ grid <- R6::R6Class("grid",
                              return(dw)
                            },
                            #' @description
-                           #' Fit an approximate log-Gaussian Cox Process model
-                           #'
-                           #' Fit an approximate log-Gaussian Cox Process model
+                           #' Fit an (approximate) log-Gaussian Cox Process model
                            #'
                            #' @details
+                           #' *BAYESIAN MODEL FITTING*
                            #' The grid data must contain columns `t*`, giving the case
                            #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
                            #' (see `add_covariates`) and the population density.
@@ -378,18 +381,13 @@ grid <- R6::R6Class("grid",
                            #' Z(s,t) is a latent field. We use an auto-regressive specification for the
                            #' latent field, with spatial innovation in each field specified as a spatial
                            #' Gaussian process.
-                           #'
-                           #' We use the fast and accurate approximation for fully Bayesian Gaussian
-                           #' Processes proposed by Solin and Särkkä (1), using basis function
-                           #'  approximations based on approximation
-                           #' via Laplace eigenfunctions for stationary covariance functions.
-                           #' See references (1) and (2) for complete details. The approximation is a linear sum
-                           #' of `m` eigenfunctions with the boundary conditions in each dimension `[-L,L]`.
-                           #' Coordinates in each dimension are scaled to `[-1,1]`, so L represents the
-                           #' proportionate extension of the analysis area.
-                           #'
+                           #' 
+                           #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
+                           #' to use either a nearest neighbour approximation (`approx='nngp'`) or a "Hilbert space" approximation
+                           #' (`approx='hsgp'`). For full details of NNGPs see XX and for Hilbert space approximations see references (1) and (2).
+                           #'                           #'
                            #' *Priors*
-                           #'The priors should be provided as a list to the griddata object:
+                           #' For Bayesian model fitting, the priors should be provided as a list to the griddata object:
                            #'```
                            #'griddata$priors <- list(
                            #'   prior_lscale=c(0,0.5),
@@ -482,275 +480,34 @@ grid <- R6::R6Class("grid",
                              if(!approx%in%c('nngp','hsgp','none'))stop("approx must be one of nngp, hsgp, or none")
                              if(m >25 & verbose)warning("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
-                             mod <- NA
-                             if(model == "exp"){
-                               mod <- 1
-                             } else if(model=="sqexp"){
-                               mod <- 0
-                             }
+                             
                              #prepare data for model fit
+                             datlist <- private$prepare_data(m,mod,approx,popdens,covs,verbose,TRUE)
 
-                             ind <- as.matrix(expand.grid(1:m,1:m))
-                             if(is.null(self$region_data)){
-                               nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
-                               if(nT==0){
-                                 if("y"%in%colnames(self$grid_data)){
-                                   nT <- 1
-                                 } else {
-                                   stop("case counts not defined in data")
-                                 }
-                               }
-                             } else {
-                               nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
-                               if(nT==0){
-                                 if("y"%in%colnames(self$region_data)){
-                                   nT <- 1
-                                 } else {
-                                   stop("case counts not defined in data")
-                                 }
-                               }
-                             }
-                             
-                             nCell <- nrow(self$grid_data)
-
-                             x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
-                               sf::st_centroid(self$grid_data))))
-
-                             
-                             if(approx=="hsgp"){
-                               # scale to -1,1 in all dimensions
-                               xrange <- range(x_grid[,1])
-                               yrange <- range(x_grid[,2])
-                               std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
-                               
-                               x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
-                               x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
-                             }
-                             
-
-                             if(is.null(self$region_data)){
-                               # outcome data
-                               if(nT > 1){
-                                 y <- stack(as.data.frame(self$grid_data)[,paste0("t",1:nT)])[,1]
-                               } else {
-                                 y <- as.data.frame(self$grid_data)[,"y"]
-                               }
-                               
-                               #population density
-                               nColP <- sum(grepl(popdens,colnames(self$grid_data)))
-                               if(nColP==1){
-                                 popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
-                               } else if(nColP==0){
-                                 stop("popdens variable not found in grid data")
-                               } else {
-                                 if(nT>1){
-                                   popd <- stack(as.data.frame(self$grid_data)[,paste0(popdens,1:nT)])[,1]
-                                 } else {
-                                   popd <- as.data.frame(self$grid_data)[,popdens]
-                                 }
-                               }
-                               
-                               #add covariates
-                               if(!is.null(covs)){
-                                 nQ <- length(covs)
-                                 X <- matrix(NA,nrow=length(y),ncol=nQ+1)
-                                 X[,1] <- 1
-                                 for(i in 1:nQ){
-                                   nColV <- sum(grepl(covs[i],colnames(self$grid_data)))
-                                   if(nColV==1){
-                                     X[,i+1] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
-                                   } else if(nColV==0){
-                                     stop(paste0(covs[i]," not found in grid data"))
-                                   } else {
-                                     if(nT>1){
-                                       X[,i+1] <- stack(as.data.frame(self$grid_data)[,paste0(covs[i],1:nT)])[,1]
-                                     } else {
-                                       X[,i+1] <- as.data.frame(self$grid_data)[,covs[i]]
-                                     }
-                                   }
-                                   Q <- nQ+1
-                                 }
-                               } else {
-                                 X <- matrix(1,nrow=length(y),ncol=1)
-                                 Q <- 1
-                               }
-                             } else {
-                               #outcomes
-                               if(nT > 1){
-                                 y <- stack(as.data.frame(self$region_data)[,paste0("t",1:nT)])[,1]
-                               } else {
-                                 y <- as.data.frame(self$region_data)[,"y"]
-                               }
-                               
-                               #population density
-                               nColP <- sum(grepl(popdens,colnames(self$region_data)))
-                               if(nColP==1){
-                                 popd <- rep(as.data.frame(self$region_data)[,popdens],nT)
-                               } else if(nColP==0){
-                                 stop("popdens variable not found in region data")
-                               } else {
-                                 if(nT>1){
-                                   popd <- stack(as.data.frame(self$region_data)[,paste0(popdens,1:nT)])[,1]
-                                 } else {
-                                   popd <- as.data.frame(self$region_data)[,popdens]
-                                 }
-                               }
-                               
-                               #add covariates
-                               if(!is.null(covs)){
-                                 nQ <- length(covs)
-                                 X <- matrix(NA,nrow=length(y),ncol=nQ+1)
-                                 X[,1] <- 1
-                                 for(i in 1:nQ){
-                                   nColV <- sum(grepl(covs[i],colnames(self$region_data)))
-                                   if(nColV==1){
-                                     X[,i+1] <- rep(as.data.frame(self$region_data)[,covs[i]],nT)
-                                   } else if(nColV==0){
-                                     stop(paste0(covs[i]," not found in region data"))
-                                   } else {
-                                     if(nT>1){
-                                       X[,i+1] <- stack(as.data.frame(self$region_data)[,paste0(covs[i],1:nT)])[,1]
-                                     } else {
-                                       X[,i+1] <- as.data.frame(self$region_data)[,covs[i]]
-                                     }
-                                   }
-                                   Q <- nQ+1
-                                 }
-                               } else {
-                                 X <- matrix(1,nrow=length(y),ncol=1)
-                                 Q <- 1
-                               }
-                             }
-                             
-
-                             if(!is.null(self$priors)){
-                               if(length(self$priors$prior_linpred_mean)!=Q|length(self$priors$prior_linpred_sd)!=Q)
-                                 stop("Prior mean or sd vector for linear predictior is not equal to number of covariates")
-                               if(length(self$priors$prior_lscale)!=2|length(self$priors$prior_var)!=2)
-                                 stop("prior_lscale or prior_var not of length 2")
-                             } else {
-                               warning("priors not set, using defaults")
-                               self$priors <- list(
-                                 prior_lscale = c(0,0.5),
-                                 prior_var = c(0,0.5),
-                                 prior_linpred_mean = rep(0,Q),
-                                 prior_linpred_sd = rep(5,Q)
-                               )
-                             }
-
-                             if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
                              if(approx == "hsgp"){
-                               datlist <- list(
-                                 D = 2,
-                                 Q = Q,
-                                 L = c(L,L),
-                                 M = m,
-                                 M_nD = m^2,
-                                 nT= nT,
-                                 Nsample = nCell,
-                                 y = y,
-                                 x_grid = x_grid[,1:2],
-                                 indices = ind,
-                                 popdens = popd,
-                                 X= X,
-                                 prior_lscale=self$priors$prior_lscale,
-                                 prior_var=self$priors$prior_var,
-                                 prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
-                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
-                                 mod = mod
-                               )
-                               
                                if(!is.null(self$region_data)){
-                                 ncell <- unname(table(private$intersection_data$region_id))
-                                 ncell <- c(1, cumsum(ncell)+1)
-                                 datlist <- append(datlist,list(
-                                   n_region = nrow(self$region_data),
-                                   n_Q = nrow(private$intersection_data),
-                                   n_cell = ncell,
-                                   cell_id = private$intersection_data$grid_id,
-                                   q_weights = private$intersection_data$w
-                                 ))
                                  filen <- "approxlgcp_region_cmd.stan"
                                  fname <- "approxlgcp_region"
                                } else {
                                  filen <- "approxlgcp_cmd.stan"
                                  fname <- "approxlgcp"
                                }
-                               
-                               
                              } else if(approx == "nngp"){
-                               NN <- genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m)
-                               NN <- NN+1
-                               datlist <- list(
-                                 D = 2,
-                                 Q = Q,
-                                 M = m,
-                                 Nsample = nCell,
-                                 nT = nT,
-                                 NN = NN,
-                                 y = y,
-                                 x_grid = x_grid[,1:2],
-                                 popdens = popd,
-                                 X = X,
-                                 prior_lscale=self$priors$prior_lscale,
-                                 prior_var=self$priors$prior_var,
-                                 prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
-                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
-                                 mod = mod
-                               )
                                if(!is.null(self$region_data)){
-                                 ncell <- unname(table(private$intersection_data$region_id))
-                                 ncell <- c(1,cumsum(ncell)+1)
-                                 datlist <- append(datlist,list(
-                                   n_region = nrow(self$region_data),
-                                   n_Q = nrow(private$intersection_data),
-                                   n_cell = ncell,
-                                   cell_id = private$intersection_data$grid_id,
-                                   q_weights = private$intersection_data$w
-                                 ))
                                  filen <- "approxlgcp_nngp_region_cmd.stan"
                                  fname <- "approxlgcp_nngp_region"
                                } else {
                                  filen <- "approxlgcp_nngp_cmd.stan"
                                  fname <- "approxlgcp_nngp"
                                }
-                               
-                               
                              } else {
-                               datlist <- list(
-                                 D = 2,
-                                 Q = Q,
-                                 Nsample = nCell,
-                                 nT = nT,
-                                 y = y,
-                                 x_grid = x_grid[,1:2],
-                                 popdens = popd,
-                                 X = X,
-                                 prior_lscale=self$priors$prior_lscale,
-                                 prior_var=self$priors$prior_var,
-                                 prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
-                                 prior_linpred_sd=as.array(self$priors$prior_linpred_sd),
-                                 mod = mod
-                               )
-                               
                                if(!is.null(self$region_data)){
-                                 ncell <- unname(table(private$intersection_data$region_id))
-                                 ncell <- c(1,cumsum(ncell)+1)
-                                 datlist <- append(datlist,list(
-                                   n_region = nrow(self$region_data),
-                                   n_Q = nrow(private$intersection_data),
-                                   n_cell = ncell,
-                                   cell_id = private$intersection_data$grid_id,
-                                   q_weights = private$intersection_data$w
-                                 ))
                                  filen <- "lgcp_region.stan"
                                  fname <- "lgcp_region"
                                } else {
                                  filen <- "lgcp.stan"
                                  fname <- "lgcp"
                                }
-                               
-                               
                              }
 
                              if(use_cmdstanr){
@@ -821,8 +578,8 @@ grid <- R6::R6Class("grid",
                            #'
                            #' Extract incidence and relative risk predictions
                            #'
-                           #' @param stan_fit A \link[rstan]{stanfit} or \link[cmdstanr]{CmdStanMCMC} object.
-                           #' Output of `lgcp_fit()`
+                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, \link[cmdstanr]{CmdStanVB} object.
+                           #' Output of `lgcp_fit()` or the output of `lgcp_fit_ml()` or `lgcp_fit_la()`
                            #' @param type Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
                            #' posterior mean incidence (overall and population standardised), relative risk,
                            #' and incidence rate ratio, respectively.
@@ -834,6 +591,7 @@ grid <- R6::R6Class("grid",
                            #' @param verbose Logical indicating whether to print messages to the console
                            #' @return NULL
                            #' @details
+                           #' *EXTRACTING PREDICTIONS*
                            #' Three outputs can be extracted from the model fit, which will be added as columns to `grid_data`:
                            #'
                            #' Predicted incidence: If type includes `pred` then `pred_mean_total` and
@@ -878,7 +636,7 @@ grid <- R6::R6Class("grid",
                            #'                  popdens="cov")
                            #' }
                            #' @importFrom stats sd
-                           extract_preds = function(stan_fit,
+                           extract_preds = function(fit,
                                                     type=c("pred","rr","irr"),
                                                     irr.lag=NULL,
                                                     t.lag=0,
@@ -886,21 +644,23 @@ grid <- R6::R6Class("grid",
                                                     verbose = TRUE){
 
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
-                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")|is(stan_fit,"CmdStanVB")))stop("stan fit required")
+                             if(!(is(fit,"CmdStanMCMC")|is(fit,"stanfit")|
+                                  is(fit,"CmdStanVB")|is(fit,"lgcp_mcmcml")|
+                                  is(fit,"lgcp_la")))stop("stan fit or MCMCML fit required")
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
-                             if(is(stan_fit,"stanfit")){
-                               ypred <- rstan::extract(stan_fit,"y_grid_predict")
+                             if(is(fit,"stanfit")){
+                               ypred <- rstan::extract(fit,"y_grid_predict")
                                ypred <- ypred$y_grid_predict
-                               f <- rstan::extract(stan_fit,"f")
+                               f <- rstan::extract(fit,"f")
                                f <- f$f
                                nT <- dim(ypred)[2]/nCells
                                cmdst <- FALSE
-                             } else if(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"CmdStanVB")){
+                             } else if(is(fit,"CmdStanMCMC")|is(fit,"CmdStanVB")){
                                if(requireNamespace("cmdstanr")){
-                                 ypred <- stan_fit$draws("y_grid_predict")
-                                 f <- stan_fit$draws("f")
+                                 ypred <- fit$draws("y_grid_predict")
+                                 f <- fit$draws("f")
                                  if(length(dim(ypred))==2){
                                    #to convert to 3d if VB is used
                                    ypred <- array(drop(ypred),dim = c(1,dim(ypred)))
@@ -908,7 +668,14 @@ grid <- R6::R6Class("grid",
                                  }
                                  nT <- dim(ypred)[3]/nCells
                                  cmdst <- TRUE
+                               } else {
+                                 stop("No cmdstanr package")
                                }
+                             } else if(is(fit,"lgcp_mcmcml")|is(fit,"lgcp_la")){
+                               ypred <- t(fit$y_grid_predict)
+                               f <- t(fit$u)
+                               nT <- ncol(f)/nCells
+                               cmdst <- FALSE
                              }
 
                              #print(nT)
@@ -1237,9 +1004,459 @@ grid <- R6::R6Class("grid",
                              yrange <- range(x_grid[,2])
                              std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
                              return(std_val)
+                           },
+                           #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+                           #' 
+                           #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
+                           #' regional models, and using a full LGCP or nearest neighbour approximation.
+                           #' 
+                           #' @details
+                           #' *MAXIMUM LIKELIHOOD MODEL FITTING*
+                           #' The arguments `mcml_options` and `la_options` for the functions `lgcp_fit_ml` and `lgcp_fit_la` are named lists 
+                           #' with the options of whether to use NNGP (`useNN`), whether to use 
+                           #' Newton-Raphson (`mcnr`), whether to treat the covariance parameters as known (`known_theta`), whether to provide
+                           #' more detailed output (`trace`), the number of nearest neighbours if using NNGP (`nNN`), the tolerance for when to 
+                           #' terminate the algorithm (`tol`), and the maximum number of algorithm iterations (`maxiter`). The argument 
+                           #' `mcmc_options` is a named list with the number of warmup and sampling iterations for the MCMC sampler.
+                           #' @param popdens character string. Name of the population density column
+                           #' @param covs vector of character string. Base names of the covariates to
+                           #' include. For temporally-varying covariates only the stem is required and not
+                           #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
+                           #' `dayMon2`, etc.)
+                           #' @param start Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1
+                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
+                           #' covariance function
+                           #' @param mcml_options List of options for the algorithm. See details.
+                           #' @param mcmc_options List of options for the MCMC sampling. See details.
+                           #' @param verbose logical. Provide feedback on progress
+                           #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
+                           #' instead of rstan.
+                           #' @return A named list with the estimated parameters, number of iterations, whether the algorithm converged, and 
+                           #' the random effect samples.
+                           lgcp_fit_ml = function(popdens,
+                                                  covs=NULL,
+                                                  start,
+                                                  model = "exp",
+                                                  mcml_options = list(useNN=FALSE,mcnr=FALSE,known_theta=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
+                                                  mcmc_options = list(warmup = 100, sampling = 100),
+                                                  verbose=TRUE,
+                                                  use_cmdstanr = FALSE
+                                                  ){
+                             
+                             if(mcml_options$nNN<1)stop("number of nearest neighbours must be positive")
+                             if(!all(c("useNN","mcnr","known_theta","trace","nNN","tol","maxiter")%in%names(mcml_options)))stop("mcml options does not have all options specified")
+                             if(!all(c("warmup","sampling")%in%names(mcmc_options)))stop("mcmc options does not have all options specified")
+                             
+                             if(!is.null(self$region_data)&verbose)message("Using regional data model.")
+                             approx <- ifelse(mcml_options$useNN,"nngp","none")
+                             datlist <- private$prepare_data(mcml_options$nNN,model,approx,popdens,covs,verbose,FALSE)
+                             npar <- ncol(datlist$X) + 2
+                             if(datlist$nT > 1)npar = npar + 1
+                             if(length(start) != npar)stop("Wrong number of starting values")
+                             
+                             
+                             args <- list(y= datlist$y,
+                                          X = datlist$X,
+                                          coords = datlist$x_grid,
+                                          popdens = log(datlist$popdens),
+                                          nT = datlist$nT,
+                                          start = start,
+                                          mod = model,
+                                          mcml_options = mcml_options,
+                                          mcmc_options = mcmc_options,
+                                          verbose = verbose,
+                                          use_cmdstanr = use_cmdstanr)
+                             
+                             if(!is.null(self$region_data)){
+                               regiondat <- list(ncell = datlist$n_cell,
+                                                   cell_id = datlist$cell_id,
+                                                   q_weights = datlist$q_weights)
+                               args <- append(args,list(region_data = regiondat))
+                             }
+                             
+                             out <- do.call("lgcp_mcmcml",args)
+                             
+                             xb <- datlist$X%*%out$beta
+                             zu <- get_ZLu(diag(nrow(datlist$x_grid)),u = out$u,nT = datlist$nT,rho = out$rho)
+                             
+                             if(is.null(self$region_data)){
+                               y <- zu
+                               for(i in 1:ncol(y)){
+                                 y[,i] <- exp(y[,i] + xb + log(datlist$popdens))
+                               } 
+                             } else {
+                               y <- region_intensity(xb = xb,y = datlist$y,zu = zu,
+                                                     offset = log(datlist$popdens),nT = datlist$nT,
+                                                     n_cell = regiondat$ncell,cell_id = regiondat$cell_id,
+                                                     q_weights = regiondat$q_weights)
+                             }
+                             
+                             out$y_grid_predict <- y
+                             
+                             
+                             class(out) <- "lgcp_mcmcml"
+                             return(out)
+                           },
+                           #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+                           #' 
+                           #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
+                           #' regional models, and using a full LGCP or nearest neighbour approximation.
+                           #' 
+                           #' @param popdens character string. Name of the population density column
+                           #' @param covs vector of character string. Base names of the covariates to
+                           #' include. For temporally-varying covariates only the stem is required and not
+                           #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
+                           #' `dayMon2`, etc.)
+                           #' @param start Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1
+                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
+                           #' covariance function
+                           #' @param la_options List of options for the algorithm. See details.
+                           #' @param verbose logical. Provide feedback on progress
+                           #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
+                           #' instead of rstan to sample random effects at the end of the algorithm
+                           #' @return A named list with the estimated parameters, number of iterations, whether the algorithm converged, and 
+                           #' the random effect samples.
+                           lgcp_fit_la = function(popdens,
+                                                  covs=NULL,
+                                                  start,
+                                                  model = "exp",
+                                                  la_options = list(useNN=FALSE,known_theta=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
+                                                  verbose=TRUE,
+                                                  use_cmdstanr = TRUE
+                           ){
+                             
+                             if(!is.null(self$region_data)&verbose)stop("Laplace approximation model fitting not available for regional data model.")
+                             if(la_options$nNN<1)stop("Number of nearest neighbours must be positive")
+                             if(!all(c("useNN","known_theta","trace","nNN","tol","maxiter")%in%names(la_options)))stop("la options does not have all options specified")
+                             
+                             approx <- ifelse(la_options$useNN,"nngp","none")
+                             datlist <- private$prepare_data(la_options$nNN,model,approx,popdens,covs,verbose,FALSE)
+                             npar <- ncol(datlist$X) + 2
+                             if(datlist$nT > 1)npar = npar + 1
+                             if(length(start) != npar)stop("Wrong number of starting values")
+                             
+                             
+                             args <- list(y= datlist$y,
+                                          X = datlist$X,
+                                          coords = datlist$x_grid,
+                                          popdens = log(datlist$popdens),
+                                          nT = datlist$nT,
+                                          start = start,
+                                          mod = model,
+                                          la_options = la_options,
+                                          verbose = verbose)
+                             
+                             out <- do.call("lgcp_la",args)
+                             
+                             ## sample the random effects
+                             coords <- as.data.frame(datlist$x_grid)
+                             colnames(coords) <- c('X','Y')
+                             cov <- glmmrBase::Covariance$new(
+                               formula =  ~(1|fexp(X,Y)),
+                               parameters = out$theta,
+                               data=coords
+                             )
+                             L <- cov$get_chol_D()
+                             xb <- datlist$X%*%out$beta + log(datlist$popdens)
+                             v <- sample_u(y = datlist$y, xb =xb, coords = datlist$x_grid,
+                                           nT = datlist$nT,
+                                           start = c(out$theta,out$rho),verbose=verbose,
+                                           use_cmdstanr = use_cmdstanr)
+                             v <- get_ZLu(L,v,datlist$nT,out$rho)
+                             out$u_la <- out$u
+                             out$u <- v
+                             y <- v
+                             for(i in 1:ncol(y)){
+                               y[,i] <- exp(y[,i] + xb)
+                             } 
+                             
+                             out$y_grid_predict <- y
+                             
+                             class(out) <- "lgcp_la"
+                             return(out)
+                           },
+                           #' Returns summary data of the region/grid intersections
+                           #' 
+                           #' Information on the intersection between the region areas and the computational grid
+                           #' including the number of cells intersecting each region (`n_cell`), the indexes of the
+                           #' cells intersecting each region in order (`cell_id`), and the proportion of each region's 
+                           #' area covered by each intersecting grid cell (`q_weights`).
+                           #' @return A named list
+                           get_region_data = function(){
+                             if(is.null(self$region_data))stop("No region data")
+                             ncell <- unname(table(private$intersection_data$region_id))
+                             ncell <- c(1, cumsum(ncell)+1)
+                             datlist <- list(
+                               n_region = nrow(self$region_data),
+                               n_Q = nrow(private$intersection_data),
+                               n_cell = ncell,
+                               cell_id = private$intersection_data$grid_id,
+                               q_weights = private$intersection_data$w
+                             )
+                             return(datlist)
                            }
                          ),
                     private = list(
-                      intersection_data = NULL
+                      intersection_data = NULL,
+                      prepare_data = function(m,
+                                              model,
+                                              approx,
+                                              popdens,
+                                              covs,
+                                              verbose,
+                                              bayes){
+                        
+                        mod <- NA
+                        if(model == "exp"){
+                          mod <- 1
+                        } else if(model=="sqexp"){
+                          mod <- 0
+                        }
+                        
+                        ind <- as.matrix(expand.grid(1:m,1:m))
+                        if(is.null(self$region_data)){
+                          nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                          if(nT==0){
+                            if("y"%in%colnames(self$grid_data)){
+                              nT <- 1
+                            } else {
+                              stop("case counts not defined in data")
+                            }
+                          }
+                        } else {
+                          nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
+                          if(nT==0){
+                            if("y"%in%colnames(self$region_data)){
+                              nT <- 1
+                            } else {
+                              stop("case counts not defined in data")
+                            }
+                          }
+                        }
+                        
+                        nCell <- nrow(self$grid_data)
+                        
+                        x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
+                          sf::st_centroid(self$grid_data))))
+                        
+                        
+                        if(approx=="hsgp"){
+                          # scale to -1,1 in all dimensions
+                          xrange <- range(x_grid[,1])
+                          yrange <- range(x_grid[,2])
+                          std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
+                          
+                          x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
+                          x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
+                        }
+                        
+                        
+                        if(is.null(self$region_data)){
+                          # outcome data
+                          if(nT > 1){
+                            y <- stack(as.data.frame(self$grid_data)[,paste0("t",1:nT)])[,1]
+                          } else {
+                            y <- as.data.frame(self$grid_data)[,"y"]
+                          }
+                          
+                          #population density
+                          nColP <- sum(grepl(popdens,colnames(self$grid_data)))
+                          if(nColP==1){
+                            popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
+                          } else if(nColP==0){
+                            stop("popdens variable not found in grid data")
+                          } else {
+                            if(nT>1){
+                              popd <- stack(as.data.frame(self$grid_data)[,paste0(popdens,1:nT)])[,1]
+                            } else {
+                              popd <- as.data.frame(self$grid_data)[,popdens]
+                            }
+                          }
+                          
+                          #add covariates
+                          if(!is.null(covs)){
+                            nQ <- length(covs)
+                            X <- matrix(NA,nrow=length(y),ncol=nQ+1)
+                            X[,1] <- 1
+                            for(i in 1:nQ){
+                              nColV <- sum(grepl(covs[i],colnames(self$grid_data)))
+                              if(nColV==1){
+                                X[,i+1] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
+                              } else if(nColV==0){
+                                stop(paste0(covs[i]," not found in grid data"))
+                              } else {
+                                if(nT>1){
+                                  X[,i+1] <- stack(as.data.frame(self$grid_data)[,paste0(covs[i],1:nT)])[,1]
+                                } else {
+                                  X[,i+1] <- as.data.frame(self$grid_data)[,covs[i]]
+                                }
+                              }
+                              Q <- nQ+1
+                            }
+                          } else {
+                            X <- matrix(1,nrow=length(y),ncol=1)
+                            Q <- 1
+                          }
+                        } else {
+                          #outcomes
+                          if(nT > 1){
+                            y <- stack(as.data.frame(self$region_data)[,paste0("t",1:nT)])[,1]
+                          } else {
+                            y <- as.data.frame(self$region_data)[,"y"]
+                          }
+                          
+                          #population density
+                          nColP <- sum(grepl(popdens,colnames(self$region_data)))
+                          if(nColP==1){
+                            popd <- rep(as.data.frame(self$region_data)[,popdens],nT)
+                          } else if(nColP==0){
+                            stop("popdens variable not found in region data")
+                          } else {
+                            if(nT>1){
+                              popd <- stack(as.data.frame(self$region_data)[,paste0(popdens,1:nT)])[,1]
+                            } else {
+                              popd <- as.data.frame(self$region_data)[,popdens]
+                            }
+                          }
+                          
+                          #add covariates
+                          if(!is.null(covs)){
+                            nQ <- length(covs)
+                            X <- matrix(NA,nrow=length(y),ncol=nQ+1)
+                            X[,1] <- 1
+                            for(i in 1:nQ){
+                              nColV <- sum(grepl(covs[i],colnames(self$region_data)))
+                              if(nColV==1){
+                                X[,i+1] <- rep(as.data.frame(self$region_data)[,covs[i]],nT)
+                              } else if(nColV==0){
+                                stop(paste0(covs[i]," not found in region data"))
+                              } else {
+                                if(nT>1){
+                                  X[,i+1] <- stack(as.data.frame(self$region_data)[,paste0(covs[i],1:nT)])[,1]
+                                } else {
+                                  X[,i+1] <- as.data.frame(self$region_data)[,covs[i]]
+                                }
+                              }
+                              Q <- nQ+1
+                            }
+                          } else {
+                            X <- matrix(1,nrow=length(y),ncol=1)
+                            Q <- 1
+                          }
+                        }
+                        
+                        if(bayes){
+                          if(!is.null(self$priors)){
+                            if(length(self$priors$prior_linpred_mean)!=Q|length(self$priors$prior_linpred_sd)!=Q)
+                              stop("Prior mean or sd vector for linear predictior is not equal to number of covariates")
+                            if(length(self$priors$prior_lscale)!=2|length(self$priors$prior_var)!=2)
+                              stop("prior_lscale or prior_var not of length 2")
+                          } else {
+                            warning("priors not set, using defaults")
+                            self$priors <- list(
+                              prior_lscale = c(0,0.5),
+                              prior_var = c(0,0.5),
+                              prior_linpred_mean = rep(0,Q),
+                              prior_linpred_sd = rep(5,Q)
+                            )
+                          }
+                        }
+                        
+                        
+                        if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
+                        if(approx == "hsgp"){
+                          datlist <- list(
+                            D = 2,
+                            Q = Q,
+                            L = c(L,L),
+                            M = m,
+                            M_nD = m^2,
+                            nT= nT,
+                            Nsample = nCell,
+                            y = y,
+                            x_grid = x_grid[,1:2],
+                            indices = ind,
+                            popdens = popd,
+                            X= X,
+                            mod = mod
+                          )
+                          
+                          if(!is.null(self$region_data)){
+                            ncell <- unname(table(private$intersection_data$region_id))
+                            ncell <- c(1, cumsum(ncell)+1)
+                            datlist <- append(datlist,list(
+                              n_region = nrow(self$region_data),
+                              n_Q = nrow(private$intersection_data),
+                              n_cell = ncell,
+                              cell_id = private$intersection_data$grid_id,
+                              q_weights = private$intersection_data$w
+                            ))
+                          } 
+                          
+                          
+                        } else if(approx == "nngp"){
+                          NN <- genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m)
+                          NN <- NN+1
+                          datlist <- list(
+                            D = 2,
+                            Q = Q,
+                            M = m,
+                            Nsample = nCell,
+                            nT = nT,
+                            NN = NN,
+                            y = y,
+                            x_grid = x_grid[,1:2],
+                            popdens = popd,
+                            X = X,
+                            mod = mod
+                          )
+                          if(!is.null(self$region_data)){
+                            ncell <- unname(table(private$intersection_data$region_id))
+                            ncell <- c(1,cumsum(ncell)+1)
+                            datlist <- append(datlist,list(
+                              n_region = nrow(self$region_data),
+                              n_Q = nrow(private$intersection_data),
+                              n_cell = ncell,
+                              cell_id = private$intersection_data$grid_id,
+                              q_weights = private$intersection_data$w
+                            ))
+                          } 
+                          
+                          
+                        } else {
+                          datlist <- list(
+                            D = 2,
+                            Q = Q,
+                            Nsample = nCell,
+                            nT = nT,
+                            y = y,
+                            x_grid = x_grid[,1:2],
+                            popdens = popd,
+                            X = X,
+                            mod = mod
+                          )
+                          
+                          if(!is.null(self$region_data)){
+                            ncell <- unname(table(private$intersection_data$region_id))
+                            ncell <- c(1,cumsum(ncell)+1)
+                            datlist <- append(datlist,list(
+                              n_region = nrow(self$region_data),
+                              n_Q = nrow(private$intersection_data),
+                              n_cell = ncell,
+                              cell_id = private$intersection_data$grid_id,
+                              q_weights = private$intersection_data$w
+                            ))
+                          } 
+                        }
+                        
+                        if(bayes){
+                          datlist <- append(datlist,list(prior_lscale=self$priors$prior_lscale,
+                                                         prior_var=self$priors$prior_var,
+                                                         prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
+                                                         prior_linpred_sd=as.array(self$priors$prior_linpred_sd)))
+                        }
+                        
+                        return(datlist)
+                      }
                     ))
 

@@ -1243,6 +1243,8 @@ grid <- R6::R6Class("grid",
                            #' 
                            #' @param popdens String naming the variable in the data specifying the offset. If not 
                            #' provided then no offset is used.
+                           #' @param yvar String naming the outcome variable to calculate the variogram for. Optional, if
+                           #' not provided then the last time period of data will be used.
                            #' @param nbins The number of bins in the empirical semivariogram
                            #' @return A ggplot plot is printed and optionally returned
                            variogram = function(popdens,

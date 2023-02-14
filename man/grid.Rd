@@ -1062,6 +1062,9 @@ Plots the empirical semi-variogram
 \item{\code{popdens}}{String naming the variable in the data specifying the offset. If not
 provided then no offset is used.}
 
+\item{\code{yvar}}{String naming the outcome variable to calculate the variogram for. Optional, if
+not provided then the last time period of data will be used.}
+
 \item{\code{nbins}}{The number of bins in the empirical semivariogram}
 }
 \if{html}{\out{</div>}}

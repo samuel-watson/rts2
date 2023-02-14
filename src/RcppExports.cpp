@@ -129,8 +129,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // lgcp_optim_la
-Rcpp::List lgcp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool verbose, int trace, int maxiter);
-RcppExport SEXP _rts2_lgcp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
+Rcpp::List lgcp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool nr, bool verbose, int trace, int maxiter);
+RcppExport SEXP _rts2_lgcp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP nrSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -144,10 +144,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
     Rcpp::traits::input_parameter< bool >::type usehess(usehessSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type nr(nrSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
     Rcpp::traits::input_parameter< int >::type maxiter(maxiterSEXP);
-    rcpp_result_gen = Rcpp::wrap(lgcp_optim_la(cov, data, X, y, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter));
+    rcpp_result_gen = Rcpp::wrap(lgcp_optim_la(cov, data, X, y, start, offset, nT, known_cov, usehess, tol, nr, verbose, trace, maxiter));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -210,8 +211,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // nngp_optim_la
-Rcpp::List nngp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::ArrayXXi& NN, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool verbose, int trace, int maxiter);
-RcppExport SEXP _rts2_nngp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP NNSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
+Rcpp::List nngp_optim_la(const Eigen::ArrayXXi& cov, const Eigen::ArrayXd& data, const Eigen::MatrixXd& X, const Eigen::VectorXd& y, const Eigen::ArrayXXi& NN, Eigen::ArrayXd start, const Eigen::VectorXd& offset, int nT, bool known_cov, bool usehess, double tol, bool nr, bool verbose, int trace, int maxiter);
+RcppExport SEXP _rts2_nngp_optim_la(SEXP covSEXP, SEXP dataSEXP, SEXP XSEXP, SEXP ySEXP, SEXP NNSEXP, SEXP startSEXP, SEXP offsetSEXP, SEXP nTSEXP, SEXP known_covSEXP, SEXP usehessSEXP, SEXP tolSEXP, SEXP nrSEXP, SEXP verboseSEXP, SEXP traceSEXP, SEXP maxiterSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -226,10 +227,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type known_cov(known_covSEXP);
     Rcpp::traits::input_parameter< bool >::type usehess(usehessSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type nr(nrSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
     Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
     Rcpp::traits::input_parameter< int >::type maxiter(maxiterSEXP);
-    rcpp_result_gen = Rcpp::wrap(nngp_optim_la(cov, data, X, y, NN, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter));
+    rcpp_result_gen = Rcpp::wrap(nngp_optim_la(cov, data, X, y, NN, start, offset, nT, known_cov, usehess, tol, nr, verbose, trace, maxiter));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -258,6 +260,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// max_dist
+double max_dist(const Eigen::ArrayXXd& x);
+RcppExport SEXP _rts2_max_dist(SEXP xSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type x(xSEXP);
+    rcpp_result_gen = Rcpp::wrap(max_dist(x));
+    return rcpp_result_gen;
+END_RCPP
+}
+// semivariogram
+Eigen::ArrayXXd semivariogram(const Eigen::ArrayXXd& x, const Eigen::ArrayXd& offs, const Eigen::ArrayXd& y, int nbins);
+RcppExport SEXP _rts2_semivariogram(SEXP xSEXP, SEXP offsSEXP, SEXP ySEXP, SEXP nbinsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type offs(offsSEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type nbins(nbinsSEXP);
+    rcpp_result_gen = Rcpp::wrap(semivariogram(x, offs, y, nbins));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
@@ -276,12 +303,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_get_ZLu", (DL_FUNC) &_rts2_get_ZLu, 4},
     {"_rts2_region_intensity", (DL_FUNC) &_rts2_region_intensity, 8},
     {"_rts2_lgcp_optim", (DL_FUNC) &_rts2_lgcp_optim, 11},
-    {"_rts2_lgcp_optim_la", (DL_FUNC) &_rts2_lgcp_optim_la, 13},
+    {"_rts2_lgcp_optim_la", (DL_FUNC) &_rts2_lgcp_optim_la, 14},
     {"_rts2_lgcp_region_optim", (DL_FUNC) &_rts2_lgcp_region_optim, 14},
     {"_rts2_genNN", (DL_FUNC) &_rts2_genNN, 2},
     {"_rts2_nngp_optim", (DL_FUNC) &_rts2_nngp_optim, 12},
-    {"_rts2_nngp_optim_la", (DL_FUNC) &_rts2_nngp_optim_la, 14},
+    {"_rts2_nngp_optim_la", (DL_FUNC) &_rts2_nngp_optim_la, 15},
     {"_rts2_nngp_region_optim", (DL_FUNC) &_rts2_nngp_region_optim, 15},
+    {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
+    {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 4},
     {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},

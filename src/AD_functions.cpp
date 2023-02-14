@@ -22,10 +22,7 @@ Rcpp::List get_AD(const Eigen::ArrayXXi &cov,
                   Eigen::ArrayXd theta){
   
   Eigen::ArrayXd eff_range = Eigen::ArrayXd::Zero(10);
-  glmmr::DData dat(cov,data,eff_range);
-  dat.subdata(0);
-  rts::NNGPDmatrix dmat(&dat, NN, theta,1);
-  dmat.genAD();
+  rts::NNGPDmatrix dmat(cov,data,eff_range, NN, theta,1);
   
   Rcpp::List out = Rcpp::List::create(_["A"] = dmat.A_, _["D"] = dmat.D_);
   return out;
@@ -140,7 +137,7 @@ Eigen::MatrixXd get_Lu(const Eigen::MatrixXd &L,
   int nT = u.rows()/L.rows();
   int n = L.rows();
   if(nT==1){
-    return u;
+    return L*u;
   } else {
     Eigen::MatrixXd Lu(u.rows(),u.cols());
     for(int t=0; t<nT; t++){

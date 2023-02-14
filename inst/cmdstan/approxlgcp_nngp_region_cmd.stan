@@ -50,30 +50,6 @@ functions {
     
    }
    
-   // real nngp_lpdf(vector u, matrix AD, array[,] int NN){
-   //  int n = cols(AD);
-   //  int M = rows(AD) - 1;
-   //  real logdetD;
-   //  real qf;
-   //  real au;
-   //  real ll;
-   //  int idxlim;
-   //  matrix[M,n] A = AD[1:M,];
-   //  vector[n] D = AD[M+1,]';
-   //  
-   //   logdetD = 0;
-   //  for(i in 1:n){
-   //    logdetD += log(D[i]);
-   //  }
-   //  qf = u[1]*u[1]/D[1];
-   //  for(i in 2:n){
-   //    idxlim = i<=(M) ? i-1 : M;
-   //    au = u[i] - dot_product(A[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
-   //    qf += au*au/D[i];
-   //  }
-   //  ll = -0.5*logdetD - 0.5*qf - 0.5*n*pi();
-   //  return ll;
-   // }
    real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
     int n = cols(AD);
     int M = rows(AD) - 1;
@@ -135,12 +111,6 @@ functions {
     return poisson_lpmf(y | lambda);                  
                               
   }
-  // real partial_sum2_lpmf(array[] int y,int start, int end, int nT,
-  //                       int nR, array[] real pop, matrix X, 
-  //                       vector w, vector f, array[] int cell_id, array[] int n_cell){
-  //   return poisson_log_block_lpmf(y[start:end],start:end, nT, nR, pop,
-  //                                 X, w, f, cell_id, n_cell);
-  // }
 }
 data {
   int<lower=1> D; //number of dimensions
@@ -165,11 +135,21 @@ data {
   array[Q] real prior_linpred_mean;
   array[Q] real prior_linpred_sd;
   int mod;
+  int<lower = 0, upper = 1> known_cov;
+  array[known_cov ? 1 : 0] real<lower=0> sigma_data; 
+  array[known_cov ? 1 : 0] real<lower=0> phi_data; 
+}
+
+transformed data {
+  matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
+  if(known_cov){
+    AD_data = getAD(sigma_data[1], phi_data[1], x_grid, NN, mod);
+  }
 }
 
 parameters {
-  real<lower=1e-05> phi; //length scale
-  real<lower=1e-05> sigma;
+  array[known_cov ? 1 : 0] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 1 : 0] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
@@ -178,7 +158,17 @@ parameters {
 transformed parameters {
   matrix[M +1,Nsample] AD;
   vector[Nsample*nT] f;
-  AD = getAD(sigma, phi, x_grid, NN, mod);
+  real<lower=1e-05> phi; //length scale
+  real<lower=1e-05> sigma;
+  if(known_cov){
+    sigma = sigma_data[1];
+    phi = phi_data[1];
+    AD = AD_data;
+  } else {
+    sigma = sigma_param[1];
+    phi = phi_param[1];
+    AD = getAD(sigma, phi, x_grid, NN, mod);
+  }
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
@@ -195,8 +185,10 @@ transformed parameters {
 
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
-  phi ~ normal(prior_lscale[1],prior_lscale[2]);
-  sigma ~ normal(prior_var[1],prior_var[2]);
+  if(!known_cov){
+    phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
+  }
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);

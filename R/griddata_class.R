@@ -39,7 +39,7 @@ grid <- R6::R6Class("grid",
                                                  cellsize,
                                                  verbose = TRUE){
 
-                             if(!is(poly,"sf"))stop("boundary not sf")
+                             if(!is(poly,"sf"))stop("data not sf")
                              if(!is(cellsize,"numeric"))stop("cellsize not numeric")
                              if(nrow(poly)>1 & verbose)message("Multiple polygons in data. Assuming analysis uses counts aggregated to an irregular lattice and not point data.")
                              #if(nrow(boundary)!=1)stop("boundary should only contain one polygon")
@@ -60,7 +60,7 @@ grid <- R6::R6Class("grid",
                                boundary <- sf::st_union(poly)
                                boundary <- sf::st_sfc(boundary)
                                self$boundary <- sf::st_sf(boundary)
-                               
+                               bboundary<<-boundary
                                bgrid <- sf::st_make_grid(self$boundary,cellsize = cellsize)
                                bgrid <- sf::st_sf(bgrid)
                                idx1<- sf::st_contains(y=bgrid,x=self$boundary)
@@ -194,10 +194,11 @@ grid <- R6::R6Class("grid",
                                {
                                  self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,
                                                                            point_data[tdat==tuniq[i],]))
-                                 colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("t",i)
+                                 if(length(tuniq)>1)colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("t",i)
                                  self$grid_data$d <- min(point_data[tdat==tuniq[i],]$t)
                                  colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("date",i)
                                }
+                               
                              } else {
                                self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,
                                                                          point_data))
@@ -426,6 +427,8 @@ grid <- R6::R6Class("grid",
                            #' `L=2` is a doubling of the analysis area. See Details.
                            #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
                            #' covariance function
+                           #' @param known_theta An optional vector of two values of the covariance parameters. If these are provided
+                           #' then the covariance parameters are assumed to be known and will not be estimated.
                            #' @param dir character string. Directory to save ouptut.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
@@ -465,6 +468,7 @@ grid <- R6::R6Class("grid",
                                                m=10,
                                                L=1.5,
                                                model = "exp",
+                                               known_theta = NULL,
                                                dir=NULL,
                                                iter_warmup=500,
                                                iter_sampling=500,
@@ -482,7 +486,21 @@ grid <- R6::R6Class("grid",
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              
                              #prepare data for model fit
-                             datlist <- private$prepare_data(m,mod,approx,popdens,covs,verbose,TRUE)
+                             datlist <- private$prepare_data(m,model,approx,popdens,covs,verbose,TRUE)
+                             if(!is.null(known_theta)){
+                               if(length(known_theta)!=2)stop("Theta should be of length 2")
+                               datlist$known_cov <- 1
+                               datlist$sigma_data <- as.array(known_theta[1])
+                               if(approx=="hsgp"){
+                                 datlist$phi_data <- as.array(c(known_theta[2],known_theta[2]))
+                               } else {
+                                 datlist$phi_data <- as.array(known_theta[2])
+                               }
+                             } else {
+                               datlist$known_cov <- 0
+                               datlist$sigma_data <- c()
+                               datlist$phi_data <- c()
+                             }
 
                              if(approx == "hsgp"){
                                if(!is.null(self$region_data)){
@@ -650,6 +668,7 @@ grid <- R6::R6Class("grid",
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
+                             if(!is.null(self$region_data))nRegion <- nrow(self$region_data)
                              if(is(fit,"stanfit")){
                                ypred <- rstan::extract(fit,"y_grid_predict")
                                ypred <- ypred$y_grid_predict
@@ -702,15 +721,15 @@ grid <- R6::R6Class("grid",
                                    if(verbose)message("Predicted rates are added to region_data, rr and irr are added to grid_data")
                                    popd <- as.data.frame(self$region_data)[,popdens]
                                    if(!cmdst){
-                                     fmu <- ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
-                                     self$region_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,mean)
-                                     self$region_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],2,sd)
+                                     fmu <- ypred[,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/popd
+                                     self$region_data$pred_mean_total <- apply(ypred[,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE],2,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred[,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE],2,sd)
                                      self$region_data$pred_mean_pp <- apply(fmu,2,mean)
                                      self$region_data$pred_mean_pp_sd <- apply(fmu,2,sd)
                                    } else {
-                                     fmu <- ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/popd
-                                     self$region_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,mean)
-                                     self$region_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE],3,sd)
+                                     fmu <- ypred[,,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/popd
+                                     self$region_data$pred_mean_total <- apply(ypred[,,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE],3,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred[,,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE],3,sd)
                                      self$region_data$pred_mean_pp <- apply(fmu,3,mean)
                                      self$region_data$pred_mean_pp_sd <- apply(fmu,3,sd)
                                    }
@@ -749,19 +768,36 @@ grid <- R6::R6Class("grid",
                                if("irr"%in%type)stop("cannot estimate irr as only one time period")
 
                                if("pred"%in%type){
-                                 if(!cmdst){
-                                   fmu <- ypred/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred,2,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred,2,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,2,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                 if(is.null(self$region_data)){
+                                   if(!cmdst){
+                                     fmu <- ypred/as.data.frame(self$grid_data)[,popdens]
+                                     self$grid_data$pred_mean_total <- apply(ypred,2,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(ypred,2,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,2,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                   } else {
+                                     fmu <- ypred/as.data.frame(self$grid_data)[,popdens]
+                                     self$grid_data$pred_mean_total <- apply(ypred,3,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(ypred,3,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,3,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   }
                                  } else {
-                                   fmu <- ypred/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(ypred,3,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(ypred,3,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,3,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   if(!cmdst){
+                                     fmu <- ypred/as.data.frame(self$region_data)[,popdens]
+                                     self$region_data$pred_mean_total <- apply(ypred,2,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred,2,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,2,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,2,sd)
+                                   } else {
+                                     fmu <- ypred/as.data.frame(self$region_data)[,popdens]
+                                     self$region_data$pred_mean_total <- apply(ypred,3,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(ypred,3,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,3,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,3,sd)
+                                   }
                                  }
+                                 
 
                                }
 
@@ -1005,6 +1041,7 @@ grid <- R6::R6Class("grid",
                              std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
                              return(std_val)
                            },
+                           #' @description
                            #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
                            #' 
                            #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
@@ -1097,6 +1134,7 @@ grid <- R6::R6Class("grid",
                              class(out) <- "lgcp_mcmcml"
                              return(out)
                            },
+                           #' @description 
                            #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
                            #' 
                            #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
@@ -1120,14 +1158,14 @@ grid <- R6::R6Class("grid",
                                                   covs=NULL,
                                                   start,
                                                   model = "exp",
-                                                  la_options = list(useNN=FALSE,known_theta=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
+                                                  la_options = list(useNN=FALSE,known_theta=FALSE,nr=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
                                                   verbose=TRUE,
                                                   use_cmdstanr = TRUE
                            ){
                              
                              if(!is.null(self$region_data)&verbose)stop("Laplace approximation model fitting not available for regional data model.")
                              if(la_options$nNN<1)stop("Number of nearest neighbours must be positive")
-                             if(!all(c("useNN","known_theta","trace","nNN","tol","maxiter")%in%names(la_options)))stop("la options does not have all options specified")
+                             if(!all(c("useNN","known_theta","nr","trace","nNN","tol","maxiter")%in%names(la_options)))stop("la options does not have all options specified")
                              
                              approx <- ifelse(la_options$useNN,"nngp","none")
                              datlist <- private$prepare_data(la_options$nNN,model,approx,popdens,covs,verbose,FALSE)
@@ -1147,18 +1185,22 @@ grid <- R6::R6Class("grid",
                                           verbose = verbose)
                              
                              out <- do.call("lgcp_la",args)
-                             
                              ## sample the random effects
                              coords <- as.data.frame(datlist$x_grid)
                              colnames(coords) <- c('X','Y')
+                             
+                             f1 <- ifelse(model=="exp","~(1|fexp(X,Y))","~(1|sqexp(X,Y))")
+                             
                              cov <- glmmrBase::Covariance$new(
-                               formula =  ~(1|fexp(X,Y)),
+                               formula =formula(f1),
                                parameters = out$theta,
                                data=coords
                              )
+                             
+                             
                              L <- cov$get_chol_D()
                              xb <- datlist$X%*%out$beta + log(datlist$popdens)
-                             v <- sample_u(y = datlist$y, xb =xb, coords = datlist$x_grid,
+                             v <- sample_u(y = datlist$y, xb =xb, coords = coords,
                                            nT = datlist$nT,
                                            start = c(out$theta,out$rho),verbose=verbose,
                                            use_cmdstanr = use_cmdstanr)
@@ -1175,6 +1217,7 @@ grid <- R6::R6Class("grid",
                              class(out) <- "lgcp_la"
                              return(out)
                            },
+                           #' @description 
                            #' Returns summary data of the region/grid intersections
                            #' 
                            #' Information on the intersection between the region areas and the computational grid
@@ -1194,6 +1237,132 @@ grid <- R6::R6Class("grid",
                                q_weights = private$intersection_data$w
                              )
                              return(datlist)
+                           },
+                           #' @description 
+                           #' Plots the empirical semi-variogram
+                           #' 
+                           #' @param popdens String naming the variable in the data specifying the offset. If not 
+                           #' provided then no offset is used.
+                           #' @param nbins The number of bins in the empirical semivariogram
+                           #' @return A ggplot plot is printed and optionally returned
+                           variogram = function(popdens,
+                                                yvar,
+                                                nbins = 20){
+                             
+                             if(is.null(self$region_data)){
+                               
+                               if(!missing(popdens)){
+                                 if(!popdens%in%colnames(self$grid_data))stop("popdens variable not in grid data")
+                                 offs <- as.data.frame(self$grid_data)[,popdens]
+                               } else {
+                                 offs <- rep(1,nrow(self$grid_data))
+                               }
+                               
+                               if(missing(yvar)){
+                                 nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                                 if(nT==0){
+                                   if("y"%in%colnames(self$grid_data)){
+                                     yvar <- "y"
+                                   } else {
+                                     stop("case counts not defined in data")
+                                   }
+                                 } else {
+                                   yvar <- paste0("t",nT)
+                                 }
+                               } else {
+                                 if(!yvar%in%colnames(self$grid_data))stop("yvar not in grid data")
+                               }
+                               
+                               
+                               df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$grid_data))))
+                               dfs <- semivariogram(as.matrix(df),
+                                                    offs = as.data.frame(self$grid_data)[,popdens],
+                                                    y = as.data.frame(self$grid_data)[,yvar],nbins)
+                               dfs <- as.data.frame(dfs)
+                               colnames(dfs) <- c("bin","val")
+                               p <- ggplot2::ggplot(data=dfs,ggplot2::aes(x=bin,y=val))+
+                                 ggplot2::geom_point()+
+                                 ggplot2::theme_bw()+
+                                 ggplot2::theme(panel.grid=ggplot2::element_blank())+
+                                 ggplot2::labs(x="Distance",y="Semivariogram function")
+                               print(p)
+                               return(invisible(p))
+                             } else {
+                               
+                               if(!missing(popdens)){
+                                 if(!popdens%in%colnames(self$region_data))stop("popdens variable not in region data")
+                                 offs <- as.data.frame(g1$region_data)[,popdens]
+                               } else {
+                                 offs <- rep(1,nrow(self$region_data))
+                               }
+                               
+                               if(missing(yvar)){
+                                 nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
+                                 if(nT==0){
+                                   if("y"%in%colnames(self$region_data)){
+                                     yvar <- "y"
+                                   } else {
+                                     stop("case counts not defined in data")
+                                   }
+                                 } else {
+                                   yvar <- paste0("t",nT)
+                                 }
+                               } else {
+                                 if(!yvar%in%colnames(self$region_data))stop("yvar not in region data")
+                               }
+                               
+                               message("Using centroids of regions as locations")
+                               df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$region_data))))
+                               dfs <- semivariogram(as.matrix(df),
+                                                    offs = as.data.frame(self$region_data)[,popdens],
+                                                    y = as.data.frame(self$region_data)[,yvar],nbins)
+                               dfs <- as.data.frame(dfs)
+                               colnames(dfs) <- c("bin","val")
+                               p <- ggplot2::ggplot(data=dfs,ggplot2::aes(x=bin,y=val))+
+                                 ggplot2::geom_point()+
+                                 ggplot2::theme_bw()+
+                                 ggplot2::theme(panel.grid=ggplot2::element_blank())+
+                                 ggplot2::labs(x="Distance",y="Semivariogram function")
+                               print(p)
+                               return(invisible(p))
+                             }
+                             
+                           },
+                           #' @description 
+                           #' Re-orders the computational grid
+                           #' 
+                           #' The quality of the nearest neighbour approximation can depend on the ordering of 
+                           #' the grid cells. This function reorders the grid cells.
+                           #' @param option Either "y" for order of the y coordinate, "x" for order of the x coordinate,
+                           #' "minimax"  in which the next observation in the order is the one which maximises the
+                           #'  minimum distance to the previous observations,g1$grid_data <- g1$grid_data[o0,] or "random" which randomly orders them.
+                           #'  @return No return, used for effects.
+                           reorder = function(option="y"){
+                             df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$grid_data))))
+                             colnames(df) <- c("x","y")
+                             if(option=="y"){
+                               o0 <- order(df$y,df$x,decreasing = FALSE)
+                               self$grid_data <- self$grid_data[o0,]
+                             } else if(option=="x"){
+                               o0 <- order(df$x,df$y,decreasing = FALSE)
+                               self$grid_data <- self$grid_data[o0,]
+                             } else if(option=="minimax"){
+                               o1 <- rep(NA,nrow(df))
+                               o1[which.min(sqrt((df$x-0.5)^2 + (df$y - 0.5)^2))] <- 1
+                               for(i in 2:nrow(df)){
+                                 dists <- matrix(0,nrow=nrow(df)-i+1, ncol=(i-1))
+                                 for(j in 1:(i-1)){
+                                   dists[,j] <- sqrt((df$x[is.na(o1)] - df$x[which(o1 == j)])^2 +
+                                                       (df$y[is.na(o1)] - df$y[which(o1 == j)])^2)
+                                 }
+                                 mindists <- apply(dists,1,min)
+                                 o1[is.na(o1)][which.max(mindists)] <- i
+                               }
+                               self$grid_data <- self$grid_data[o1,]
+                             } else if(option=="random"){
+                               o2 <- sample(1:nrow(df),nrow(df),replace=FALSE)
+                               self$grid_data <- self$grid_data[o2,]
+                             }
                            }
                          ),
                     private = list(
@@ -1395,7 +1564,7 @@ grid <- R6::R6Class("grid",
                           
                           
                         } else if(approx == "nngp"){
-                          NN <- genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m)
+                          NN <- suppressWarnings(genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m))
                           NN <- NN+1
                           datlist <- list(
                             D = 2,

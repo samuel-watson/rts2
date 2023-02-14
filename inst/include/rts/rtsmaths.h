@@ -6,6 +6,7 @@
 #include <cmath> 
 #include <glmmr.h>
 #include <RcppEigen.h>
+#include <queue>
 #include "eigenext.h"
 #ifdef _OPENMP
 #include <omp.h>     
@@ -45,6 +46,32 @@ inline Eigen::MatrixXd inv_ldlt_AD(const Eigen::MatrixXd &A,
   }
   
   return y*D.cwiseSqrt().asDiagonal();
+}
+
+inline Rcpp::IntegerVector top_i_pq(Rcpp::NumericVector v, int n) {
+  typedef std::pair<double, int> Elt;
+  std::priority_queue< Elt, std::vector<Elt>, std::greater<Elt> > pq;
+  std::vector<int> result;
+  
+  for (int i = 0; i != v.size(); ++i) {
+    if (pq.size() < n)
+      pq.push(Elt(v[i], i));
+    else {
+      Elt elt = Elt(v[i], i);
+      if (pq.top() < elt) {
+        pq.pop();
+        pq.push(elt);
+      }
+    }
+  }
+  
+  result.reserve(pq.size());
+  while (!pq.empty()) {
+    result.push_back(pq.top().second + 1);
+    pq.pop();
+  }
+  
+  return Rcpp::wrap(result);
 }
 
 }

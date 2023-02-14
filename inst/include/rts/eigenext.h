@@ -24,15 +24,18 @@ inline void visit_lambda(const Mat& m, const Func& f)
   m.visit(visitor);
 }
 
-inline Eigen::ArrayXi find(Eigen::ArrayXi vec, int n){
+template<typename T>
+inline Eigen::ArrayXi find(Eigen::ArrayXi vec, T n){
   std::vector<int> indices;
   glmmr::Eigen_ext::visit_lambda(vec,
-                                 [&indices,n](int v, int i, int j) {
+                                 [&indices,n](T v, int i, int j) {
                                    if(v == n)
                                      indices.push_back(i);
                                  });
   return Eigen::Map<Eigen::ArrayXi>(indices.data(),indices.size());
 }
+
+
 
 template<class ArgType, class RowIndexType, class ColIndexType>
 class indexing_functor {

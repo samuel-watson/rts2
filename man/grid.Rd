@@ -295,11 +295,6 @@ new1 <- g1$aggregate_output(cov1,
 b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 g1$scale_conversion_factor()
-Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
-
-Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
-regional models, and using a full LGCP or nearest neighbour approximation.
-
 }
 \references{
 (1) Solin A, Särkkä S. Hilbert space methods for reduced-rank Gaussian
@@ -347,6 +342,8 @@ class initialisation.}
 \item \href{#method-grid-lgcp_fit_ml}{\code{grid$lgcp_fit_ml()}}
 \item \href{#method-grid-lgcp_fit_la}{\code{grid$lgcp_fit_la()}}
 \item \href{#method-grid-get_region_data}{\code{grid$get_region_data()}}
+\item \href{#method-grid-variogram}{\code{grid$variogram()}}
+\item \href{#method-grid-reorder}{\code{grid$reorder()}}
 \item \href{#method-grid-clone}{\code{grid$clone()}}
 }
 }
@@ -583,6 +580,7 @@ Fit an (approximate) log-Gaussian Cox Process model
   m = 10,
   L = 1.5,
   model = "exp",
+  known_theta = NULL,
   dir = NULL,
   iter_warmup = 500,
   iter_sampling = 500,
@@ -616,6 +614,9 @@ number of nearest neighbours for nearest neighbour Gaussian process. See Details
 
 \item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
 covariance function}
+
+\item{\code{known_theta}}{An optional vector of two values of the covariance parameters. If these are provided
+then the covariance parameters are assumed to be known and will not be estimated.}
 
 \item{\code{dir}}{character string. Directory to save ouptut.}
 
@@ -919,11 +920,6 @@ numeric
 \preformatted{b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 g1$scale_conversion_factor()
-Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
-
-Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
-regional models, and using a full LGCP or nearest neighbour approximation.
-
 }
 \if{html}{\out{</div>}}
 
@@ -934,6 +930,10 @@ regional models, and using a full LGCP or nearest neighbour approximation.
 \if{html}{\out{<a id="method-grid-lgcp_fit_ml"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-lgcp_fit_ml}{}}}
 \subsection{Method \code{lgcp_fit_ml()}}{
+Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+
+Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and
+regional models, and using a full LGCP or nearest neighbour approximation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit_ml(
   popdens,
@@ -977,24 +977,24 @@ instead of rstan.}
 \subsection{Returns}{
 A named list with the estimated parameters, number of iterations, whether the algorithm converged, and
 the random effect samples.
-Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
-
-Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and
-regional models, and using a full LGCP or nearest neighbour approximation.
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-grid-lgcp_fit_la"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-lgcp_fit_la}{}}}
 \subsection{Method \code{lgcp_fit_la()}}{
+Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+
+Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and
+regional models, and using a full LGCP or nearest neighbour approximation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit_la(
   popdens,
   covs = NULL,
   start,
   model = "exp",
-  la_options = list(useNN = FALSE, known_theta = FALSE, trace = 1, nNN = 10, tol = 0.01,
-    maxiter = 10),
+  la_options = list(useNN = FALSE, known_theta = FALSE, nr = FALSE, trace = 1, nNN = 10,
+    tol = 0.01, maxiter = 10),
   verbose = TRUE,
   use_cmdstanr = TRUE
 )}\if{html}{\out{</div>}}
@@ -1027,24 +1027,70 @@ instead of rstan to sample random effects at the end of the algorithm}
 \subsection{Returns}{
 A named list with the estimated parameters, number of iterations, whether the algorithm converged, and
 the random effect samples.
-Returns summary data of the region/grid intersections
-
-Information on the intersection between the region areas and the computational grid
-including the number of cells intersecting each region (\code{n_cell}), the indexes of the
-cells intersecting each region in order (\code{cell_id}), and the proportion of each region's
-area covered by each intersecting grid cell (\code{q_weights}).
 }
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-grid-get_region_data"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-get_region_data}{}}}
 \subsection{Method \code{get_region_data()}}{
+Returns summary data of the region/grid intersections
+
+Information on the intersection between the region areas and the computational grid
+including the number of cells intersecting each region (\code{n_cell}), the indexes of the
+cells intersecting each region in order (\code{cell_id}), and the proportion of each region's
+area covered by each intersecting grid cell (\code{q_weights}).
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$get_region_data()}\if{html}{\out{</div>}}
 }
 
 \subsection{Returns}{
 A named list
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-variogram"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-variogram}{}}}
+\subsection{Method \code{variogram()}}{
+Plots the empirical semi-variogram
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$variogram(popdens, yvar, nbins = 20)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{popdens}}{String naming the variable in the data specifying the offset. If not
+provided then no offset is used.}
+
+\item{\code{nbins}}{The number of bins in the empirical semivariogram}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot plot is printed and optionally returned
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-reorder"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-reorder}{}}}
+\subsection{Method \code{reorder()}}{
+Re-orders the computational grid
+
+The quality of the nearest neighbour approximation can depend on the ordering of
+the grid cells. This function reorders the grid cells.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$reorder(option = "y")}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{option}}{Either "y" for order of the y coordinate, "x" for order of the x coordinate,
+"minimax"  in which the next observation in the order is the one which maximises the
+minimum distance to the previous observations,g1$grid_data <- g1$grid_data\link{o0,} or "random" which randomly orders them.
+@return No return, used for effects.}
+}
+\if{html}{\out{</div>}}
 }
 }
 \if{html}{\out{<hr>}}

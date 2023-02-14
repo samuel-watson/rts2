@@ -12,8 +12,8 @@ lgcp_la(
   nT,
   start,
   mod = "exp",
-  la_options = list(useNN = FALSE, known_theta = FALSE, trace = 1, nNN = 10, tol = 0.01,
-    maxiter = 10),
+  la_options = list(useNN = FALSE, known_theta = FALSE, nr = FALSE, trace = 1, nNN = 10,
+    tol = 0.01, maxiter = 10),
   verbose = TRUE
 )
 }

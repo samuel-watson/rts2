@@ -15,14 +15,16 @@ namespace rts{
 
 template<typename model>
 class rho_likelihood : public Functor<std::vector<double> > {
-  model* M_;
+  model& M_;
+  double parrho;
+  double ll;
 public:
-  rho_likelihood(model* M) :  
-  M_(M){}
+  rho_likelihood(model& M) :  
+  M_(M), parrho(0.0), ll(0.0) {}
   double operator()(const std::vector<double> &par) {
-    double parrho = par[0];
-    M_->update_rho(parrho);
-    double ll = M_->log_likelihood();
+    parrho = par[0];
+    M_.update_rho(parrho);
+    ll = M_.log_likelihood();
     return -1*ll;
   }
 };

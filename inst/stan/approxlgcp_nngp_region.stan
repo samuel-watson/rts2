@@ -100,11 +100,21 @@ data {
   real prior_linpred_mean[Q];
   real prior_linpred_sd[Q];
   int mod;
+  int<lower = 0, upper = 1> known_cov;
+  real<lower=0> sigma_data[known_cov ? 1 : 0]; 
+  real<lower=0> phi_data[known_cov ? 1 : 0]; 
+}
+
+transformed data {
+  matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
+  if(known_cov){
+    AD_data = getAD(sigma_data[1], phi_data[1], x_grid, NN, mod);
+  }
 }
 
 parameters {
-  real<lower=1e-05> phi; //length scale
-  real<lower=1e-05> sigma;
+  real<lower=1e-05> phi_param[known_cov ? 1 : 0]; //length scale
+  real<lower=1e-05> sigma_param[known_cov ? 1 : 0];
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
@@ -113,7 +123,17 @@ parameters {
 transformed parameters {
   matrix[M +1,Nsample] AD;
   vector[Nsample*nT] f;
-  AD = getAD(sigma, phi, x_grid, NN, mod);
+  real<lower=1e-05> phi; //length scale
+  real<lower=1e-05> sigma;
+  if(known_cov){
+    sigma = sigma_data[1];
+    phi = phi_data[1];
+    AD = AD_data;
+  } else {
+    sigma = sigma_param[1];
+    phi = phi_param[1];
+    AD = getAD(sigma, phi, x_grid, NN, mod);
+  }
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
@@ -131,8 +151,10 @@ transformed parameters {
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
   real accum = 0;
-  phi ~ normal(prior_lscale[1],prior_lscale[2]);
-  sigma ~ normal(prior_var[1],prior_var[2]);
+  if(!known_cov){
+    phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
+  }
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
@@ -156,8 +178,6 @@ model{
       accum = 0;
       lambda_r[r+(t-1)*n_region] = popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma);
       for(l in 1:(n_cell[r+1]-n_cell[r])){
-        // lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-        //   q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*n_region]);
         accum += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
       lambda_r[r+(t-1)*n_region] *= accum;

@@ -132,15 +132,22 @@ data {
   array[Q] real prior_linpred_mean;
   array[Q] real prior_linpred_sd;
   int mod;
+  int<lower = 0, upper = 1> known_cov;
+  array[known_cov ? 1 : 0] real<lower=0> sigma_data; 
+  array[known_cov ? 1 : 0] real<lower=0> phi_data; 
 }
 
 transformed data {
   vector[Nsample*nT] logpopdens = log(popdens);
+  matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
+  if(known_cov){
+    AD_data = getAD(sigma_data[1], phi_data[1], x_grid, NN, mod);
+  }
 }
 
 parameters {
-  real<lower=1e-05> phi; //length scale
-  real<lower=1e-05> sigma;
+  array[known_cov ? 1 : 0] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 1 : 0] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
@@ -149,7 +156,18 @@ parameters {
 transformed parameters {
   matrix[M +1,Nsample] AD;
   vector[Nsample*nT] f;
-  AD = getAD(sigma, phi, x_grid, NN, mod);
+  real<lower=1e-05> phi; //length scale
+  real<lower=1e-05> sigma;
+  if(known_cov){
+    sigma = sigma_data[1];
+    phi = phi_data[1];
+    AD = AD_data;
+  } else {
+    sigma = sigma_param[1];
+    phi = phi_param[1];
+    AD = getAD(sigma, phi, x_grid, NN, mod);
+  }
+  
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
@@ -165,9 +183,10 @@ transformed parameters {
 }
 
 model{
-  
-  phi ~ normal(prior_lscale[1],prior_lscale[2]);
-  sigma ~ normal(prior_var[1],prior_var[2]);
+  if(!known_cov){
+    phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
+  }
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
@@ -177,23 +196,16 @@ model{
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        //f_raw[1:Nsample] ~ nngp(AD, NN);
-        // f_raw[1:Nsample] ~ nngp(sigma, phi, x_grid, NN, mod);
         target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[1:Nsample]),grainsize,AD,NN);
       } else {
         target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[(Nsample*(t-1)+1):(t*Nsample)]),grainsize,AD,NN);
-        //f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(AD, NN);
-        // f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(sigma, phi, x_grid, NN, mod);
       }
     } else {
       target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw),grainsize,AD,NN);
-      //f_raw ~ nngp(AD, NN);
-      // f_raw ~ nngp(sigma, phi, x_grid, NN, mod);
     }
 
   }
   target += reduce_sum(partial_sum2_lpmf,y,grainsize,X*gamma+logpopdens+f);
-  //y ~ poisson_log(X*gamma+logpopdens+f);
 }
 
 generated quantities{

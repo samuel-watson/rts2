@@ -1,6 +1,7 @@
 #ifndef RTSHEADER_H
 #define RTSHEADER_H
 
+#include <glmmr.h>
 #include "rts/nngpdmatrix.h"
 #include "rts/rtsmaths.h"
 #include "rts/rtsmodel.h"

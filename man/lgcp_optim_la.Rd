@@ -15,6 +15,7 @@ lgcp_optim_la(
   known_cov = FALSE,
   usehess = FALSE,
   tol = 0.001,
+  nr = FALSE,
   verbose = TRUE,
   trace = 0L,
   maxiter = 20L

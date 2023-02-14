@@ -34,7 +34,7 @@ public:
   Eigen::MatrixXd zu_;
   Eigen::MatrixXd ZL_;
   Eigen::MatrixXd L_;
-  Eigen::MatrixXd W_;
+  Eigen::VectorXd W_;
   Eigen::VectorXd y_;
   Eigen::MatrixXd u_;
   double var_par_;
@@ -65,7 +65,7 @@ public:
   zu_(X.rows(),u.cols()),
   ZL_(Eigen::MatrixXd::Zero(1,1)),
   L_(Eigen::MatrixXd::Zero(1,1)),
-  W_(Eigen::MatrixXd::Identity(X.rows(),X.rows())), y_(y),  
+  W_(Eigen::VectorXd::Ones(X.rows())), y_(y),  
   u_(u), var_par_(1.0), 
   family_("poisson"), link_("log"),
   D_(u.rows(),u.rows()), offset_(offset),
@@ -93,7 +93,7 @@ public:
   ) : X_(X), 
   xb_(X.rows()),zu_(X.rows(),m), L_(L), 
   ZL_(Eigen::MatrixXd::Zero(X.rows(),X.rows())),
-  W_(Eigen::MatrixXd::Identity(X.rows(),X.rows())), y_(y),  
+  W_(Eigen::VectorXd::Ones(X.rows())), y_(y),  
   u_(Eigen::MatrixXd::Zero(X.rows(),m)), var_par_(1.0), 
   family_("poisson"), link_("log"), D_(L.rows(),L.rows()), 
   offset_(offset), nT_(nT), rho_(rho), useLflag_(true) { 
@@ -183,10 +183,8 @@ public:
   }
   
   void update_W(int i = 0){
-    Eigen::VectorXd w = glmmr::maths::dhdmu(xb_ + zu_.col(i),family_,link_);
-    for(int i = 0; i < n_; i++){
-      W_(i,i) = 1/(w(i));
-    }
+    W_ = glmmr::maths::dhdmu((linpred()).col(0),family_,link_);
+    W_.noalias() = (W_.array().inverse()).matrix();
   }
   
   // LOG GRADIENT
@@ -229,7 +227,7 @@ public:
   Eigen::MatrixXd zu_;
   Eigen::MatrixXd ZL_;
   Eigen::MatrixXd L_;
-  Eigen::MatrixXd W_;
+  Eigen::VectorXd W_;
   const Eigen::VectorXd &y_;
   Eigen::MatrixXd u_;
   Eigen::MatrixXd regionu_;
@@ -268,7 +266,7 @@ public:
   zu_(Eigen::MatrixXd::Zero(u.rows(),u.cols())),
   ZL_(Eigen::MatrixXd::Identity(1,1)),
   L_(Eigen::MatrixXd::Identity(1,1)),
-  W_(Eigen::MatrixXd::Identity(X.rows(),X.rows())), 
+  W_(Eigen::VectorXd::Ones(X.rows())), 
   y_(y),  
   u_(u), 
   regionu_(Eigen::MatrixXd::Zero(y.size(),u.cols())), 
@@ -305,7 +303,7 @@ public:
   zu_(Eigen::MatrixXd::Zero(L.rows()*nT,m)), 
   L_(L), 
   ZL_(Eigen::MatrixXd::Zero(X.rows(),X.rows())),
-  W_(Eigen::MatrixXd::Identity(X.rows(),X.rows())), y_(y),  
+  W_(Eigen::VectorXd::Ones(X.rows())), y_(y),  
   u_(Eigen::MatrixXd::Zero(L.cols()*nT,m)), 
   regionu_(Eigen::MatrixXd::Zero(y.size(),m)), 
   D_(L.rows(),L.rows()), var_par_(1.0), 
@@ -443,12 +441,8 @@ public:
   }
   
   void update_W(int i = 0){
-    Eigen::ArrayXXd rintens(n_,niter_);
-    rintens = region_intensity(true);
-    Eigen::VectorXd w = glmmr::maths::dhdmu(rintens.col(i).matrix(),family_,link_);
-    for(int i = 0; i < n_; i++){
-      W_(i,i) = 1/(w(i));
-    }
+    W_ = glmmr::maths::dhdmu((linpred()).col(0),family_,link_);
+    W_.noalias() = (W_.array().inverse()).matrix();
   }
   
   Eigen::MatrixXd linpred(){

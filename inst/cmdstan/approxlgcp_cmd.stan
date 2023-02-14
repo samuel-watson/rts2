@@ -62,32 +62,50 @@ data {
   array[Q] real prior_linpred_mean;
   array[Q] real prior_linpred_sd;
   int mod;
+  int<lower = 0, upper = 1> known_cov;
+  array[known_cov ? 1 : 0] real<lower=0> sigma_data; 
+  array[known_cov ? D : 0] real<lower=0> phi_data; 
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
   vector[Nsample*nT] logpopdens = log(popdens);
+  real diagSPD_data[known_cov ? M_nD : 0];
 
   for (m in 1:M_nD){
     PHI[,m] = phi_nD(L, indices[m,], x_grid);
+  }
+  
+  if(known_cov){
+    for(m in 1:M_nD){
+      diagSPD_data[m] =  sqrt(spd_nD(sigma_data[1], to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
+    }
   }
 }
 
 parameters {
   matrix[M_nD,nT] beta;
-  row_vector<lower=1e-05>[D] phi; //length scale
-  real<lower=1e-05> sigma;
+  array[known_cov ? D : 0] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 1 : 0] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
 }
 
 transformed parameters{
   vector[Nsample*nT] f;
-  //vector[Nsample] f_tilde;
   vector[M_nD] diagSPD;
   vector[M_nD] SPD_beta;
-
-  for(m in 1:M_nD){
-    diagSPD[m] =  sqrt(spd_nD(sigma, phi, sqrt(lambda_nD(L, indices[m,], D)), D, mod));
+  real<lower=1e-05> sigma;
+  row_vector<lower=1e-05>[D] phi;
+  if(known_cov){
+    sigma = sigma_data[1];
+    phi = to_row_vector(phi_data);
+    diagSPD = to_vector(diagSPD_data);
+  } else {
+    sigma = sigma_param[1];
+    phi = to_row_vector(phi_param);
+    for(m in 1:M_nD){
+      diagSPD[m] =  sqrt(spd_nD(sigma, phi, sqrt(lambda_nD(L, indices[m,], D)), D, mod));
+    }
   }
 
   for(t in 1:nT){
@@ -107,8 +125,10 @@ transformed parameters{
 }
 model{
   to_vector(beta) ~ normal(0,1);
-  phi ~ normal(prior_lscale[1],prior_lscale[2]);
-  sigma ~ normal(prior_var[1],prior_var[2]);
+  if(!known_cov){
+    to_vector(phi_param) ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
+  }
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);

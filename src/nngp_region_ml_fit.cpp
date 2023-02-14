@@ -45,26 +45,25 @@ Rcpp::List nngp_region_optim(const Eigen::ArrayXXi &cov,
                       int trace,
                       bool mcnr = true,
                       bool known_cov = false){
-  Eigen::ArrayXd eff_range = Eigen::ArrayXd::Zero(10);
-  glmmr::DData dat(cov,data,eff_range);
-  dat.subdata(0);
   //check start is the right length
-  int npars_expect = X.cols() + dat.n_cov_pars();
+  int theta_expect = glmmr::algo::get_n_cov_pars(cov);
+  int npars_expect = theta_expect + X.cols();
   if(nT>1) npars_expect++;
   if(start.size() != npars_expect){
     Rcpp::stop("Wrong number of starting parameter values.");
   }
   
-  double rho = nT>1 ? start(start.size()-1) : 0.0;
-  Eigen::ArrayXd thetapars = start.segment(X.cols(),dat.n_cov_pars());
-  rts::NNGPDmatrix dmat(&dat, NN, thetapars, nT);
-  dmat.genAD();
+  Eigen::ArrayXd eff_range = Eigen::ArrayXd::Zero(10);
   Eigen::VectorXd beta = start.segment(0,X.cols());
+  double rho = nT>1 ? start(start.size()-1) : 0.0;
+  Eigen::ArrayXd thetapars = start.segment(X.cols(),theta_expect);
+  
+  rts::NNGPDmatrix dmat(cov,data,eff_range, NN, thetapars, nT);
   rts::rtsRegionModel model(u,X,y,beta,offset,nT,n_cell,cell_id,q_weights);
   int startlen = start.size();
   if(nT>1) startlen--;
-  glmmr::mcmloptim<rts::NNGPDmatrix, rts::rtsRegionModel> mc(&dmat,&model, start.segment(0,startlen),trace);
-  rts::rtsoptim<rts::rtsRegionModel> rmc(&model, trace);
+  glmmr::mcmloptim<rts::NNGPDmatrix, rts::rtsRegionModel> mc(dmat,model, start.segment(0,startlen),trace);
+  rts::rtsoptim<rts::rtsRegionModel> rmc(model, trace);
   
   if(!mcnr){
     mc.l_optim();

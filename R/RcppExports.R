@@ -177,8 +177,8 @@ lgcp_optim <- function(cov, data, X, y, u, nT, start, offset, trace, mcnr = TRUE
 #' @param trace Either 0, 1, or 2 indicating the level of detail to print to the console
 #' @param maxiter Integer. Maximum number of iterations of the algorithm.
 #' @return A named list with beta, theta, and rho parameters with standard errors and random effect estimates
-lgcp_optim_la <- function(cov, data, X, y, start, offset, nT, known_cov = FALSE, usehess = FALSE, tol = 1e-3, verbose = TRUE, trace = 0L, maxiter = 20L) {
-    .Call(`_rts2_lgcp_optim_la`, cov, data, X, y, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter)
+lgcp_optim_la <- function(cov, data, X, y, start, offset, nT, known_cov = FALSE, usehess = FALSE, tol = 1e-3, nr = FALSE, verbose = TRUE, trace = 0L, maxiter = 20L) {
+    .Call(`_rts2_lgcp_optim_la`, cov, data, X, y, start, offset, nT, known_cov, usehess, tol, nr, verbose, trace, maxiter)
 }
 
 #' Maximum likelihood optimisation step for MCMCML algorithm for the region LGCP model
@@ -272,8 +272,8 @@ nngp_optim <- function(cov, data, X, y, NN, u, nT, start, offset, trace, mcnr = 
 #' @param trace Either 0, 1, or 2 indicating the level of detail to print to the console
 #' @param maxiter Integer. Maximum number of iterations of the algorithm.
 #' @return A named list with beta, theta, and rho parameters with standard errors and random effect estimates
-nngp_optim_la <- function(cov, data, X, y, NN, start, offset, nT, known_cov = FALSE, usehess = FALSE, tol = 1e-3, verbose = TRUE, trace = 0L, maxiter = 10L) {
-    .Call(`_rts2_nngp_optim_la`, cov, data, X, y, NN, start, offset, nT, known_cov, usehess, tol, verbose, trace, maxiter)
+nngp_optim_la <- function(cov, data, X, y, NN, start, offset, nT, known_cov = FALSE, usehess = FALSE, tol = 1e-3, nr = FALSE, verbose = TRUE, trace = 0L, maxiter = 10L) {
+    .Call(`_rts2_nngp_optim_la`, cov, data, X, y, NN, start, offset, nT, known_cov, usehess, tol, nr, verbose, trace, maxiter)
 }
 
 #' Maximum likelihood optimisation step for MCMCML algorithm for the region LGCP model with nearest neighbour approximation
@@ -306,5 +306,13 @@ nngp_optim_la <- function(cov, data, X, y, NN, start, offset, nT, known_cov = FA
 #' @return A named list with beta, theta, and rho parameters
 nngp_region_optim <- function(cov, data, X, y, NN, u, nT, start, offset, n_cell, cell_id, q_weights, trace, mcnr = TRUE, known_cov = FALSE) {
     .Call(`_rts2_nngp_region_optim`, cov, data, X, y, NN, u, nT, start, offset, n_cell, cell_id, q_weights, trace, mcnr, known_cov)
+}
+
+max_dist <- function(x) {
+    .Call(`_rts2_max_dist`, x)
+}
+
+semivariogram <- function(x, offs, y, nbins) {
+    .Call(`_rts2_semivariogram`, x, offs, y, nbins)
 }
 

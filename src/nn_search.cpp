@@ -1,34 +1,9 @@
 #include <Rcpp.h>
 #include <queue>
+#include "../inst/include/rtsheader.h"
 
 using namespace Rcpp;
 using namespace std;
-
-IntegerVector top_i_pq(NumericVector v, int n) {
-  typedef pair<double, int> Elt;
-  priority_queue< Elt, vector<Elt>, greater<Elt> > pq;
-  vector<int> result;
-  
-  for (int i = 0; i != v.size(); ++i) {
-    if (pq.size() < n)
-      pq.push(Elt(v[i], i));
-    else {
-      Elt elt = Elt(v[i], i);
-      if (pq.top() < elt) {
-        pq.pop();
-        pq.push(elt);
-      }
-    }
-  }
-  
-  result.reserve(pq.size());
-  while (!pq.empty()) {
-    result.push_back(pq.top().second + 1);
-    pq.pop();
-  }
-  
-  return wrap(result);
-}
 
 //' Generate matrix of nearest neighbours
 //' 
@@ -51,7 +26,7 @@ IntegerMatrix genNN(const NumericMatrix &x,
       for(int j=0; j<(i-1); j++){
         dist(j) = sqrt((x(i,0) - x(j,0))*(x(i,0) - x(j,0))+(x(i,1) - x(j,1))*(x(i,1) - x(j,1)));
       }
-      NN.column(i) = top_i_pq(dist,M);
+      NN.column(i) = rts::top_i_pq(dist,M);
     } else {
       for(int j = 0; j<i; j++){
         NN(j,i) = j;

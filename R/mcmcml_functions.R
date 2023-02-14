@@ -64,7 +64,7 @@ lgcp_mcmcml <- function(y,X,coords,
   
   if(mcml_options$useNN){
     NN <- genNN(as.matrix(coords),mcml_options$nNN)
-    AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN-1,theta = theta)
+    AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN,theta = theta)
     L <- inv_ldlt(AD$A,AD$D,NN) # cholesky decomposition
     ZL <- get_ZL(L,nT,rho)
   } else {
@@ -155,8 +155,9 @@ lgcp_mcmcml <- function(y,X,coords,
     
     if(!mcml_options$known_theta){
       if(mcml_options$useNN){
-        AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN-1,theta = theta)
-        L <- inv_ldlt(AD$A,AD$D,NN) # cholesky decomposition
+        AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN,theta = theta)
+        print(theta)
+        L <- inv_ldlt(AD$A,AD$D,NN) 
         ZL <- get_ZL(L,nT,rho)
       } else {
         cov$update_parameters(theta)
@@ -246,21 +247,26 @@ lgcp_mcmcml <- function(y,X,coords,
   
   
   # get standard errors
-  
-  if(!mcml_options$known_theta){
-    if(mcml_options$useNN){
-      AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN-1,theta = theta)
-      L <- inv_ldlt(AD$A,AD$D,NN) # cholesky decomposition
-      ZL <- get_ZL(L,nT,rho)
-    } else {
-      cov$update_parameters(theta)
-      L <- cov$get_chol_D()
-      ZL <- get_ZL(L,nT,rho)
+  if(!useRegion){
+    if(!mcml_options$known_theta){
+      if(mcml_options$useNN){
+        AD <- get_AD(cov = ddata$cov,data = ddata$data,NN = NN,theta = theta)
+        L <- inv_ldlt(AD$A,AD$D,NN) # cholesky decomposition
+        ZL <- get_ZL(L,nT,rho)
+      } else {
+        cov$update_parameters(theta)
+        L <- cov$get_chol_D()
+        ZL <- get_ZL(L,nT,rho)
+      }
     }
+    
+    S <- (ZL%*%t(ZL))
+    XSX <- t(X)%*%solve(S)%*%X
+    XSX <- solve(XSX)
+  } else {
+    XSX <- 0
   }
-  S <- (ZL%*%t(ZL))
-  XSX <- t(X)%*%solve(S)%*%X
-  XSX <- solve(XSX)
+  
   
   return(list(beta = beta, theta=theta, 
               rho=rho, iter = iter, 
@@ -292,7 +298,10 @@ lgcp_la <- function(y,X,coords,
                         nT,
                         start,
                       mod = "exp",
-                        la_options = list(useNN=FALSE,known_theta=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
+                        la_options = list(useNN=FALSE,known_theta=FALSE,
+                                          nr = FALSE,
+                                          trace=1,
+                                          nNN=10,tol=1e-2, maxiter=10),
                         verbose = TRUE
 ){
   nCell <- nrow(coords)
@@ -305,10 +314,6 @@ lgcp_la <- function(y,X,coords,
     theta <- start[(ncol(X)+1):(length(start)-1)]
     rho <- start[length(start)]
   }
-  newbeta <- beta
-  newtheta <- theta
-  newrho <- rho
-  diff <- rep(1,length(start))
   
   f1 <- ifelse(mod=="exp","~(1|fexp(X,Y))","~(1|sqexp(X,Y))")
   
@@ -322,7 +327,6 @@ lgcp_la <- function(y,X,coords,
   
   ## function name
   str <- ifelse(la_options$useNN,"nngp_optim_la","lgcp_optim_la")
-  #if(la_options$known_theta)str <- paste0(str,"_known_cov")
   
   ## build arguments list
   args <- list(cov = matrix(ddata$cov,nrow=1),
@@ -340,7 +344,11 @@ lgcp_la <- function(y,X,coords,
   args <- append(args,list(offset = popdens,
                            nT = nT,
                            known_cov = la_options$known_theta,
-                           trace = la_options$trace))
+                           tol = la_options$tol,
+                           nr = la_options$nr,
+                           verbose = verbose,
+                           trace = la_options$trace,
+                           maxiter = la_options$maxiter))
   
   out <- do.call(str,args)
   
@@ -375,16 +383,10 @@ sample_u <- function(y,xb,coords,
   nCell <- nrow(coords)
   useRegion <- !missing(region_data)
   
-  if(nT == 1){
-    theta <- start
-    rho <- 1
-  } else {
-    theta <- start[1:(length(start)-1)]
-    rho <- start[length(start)]
-  }
+  theta <- start[1:(length(start)-1)]
+  rho <- start[length(start)]
   
   f1 <- ifelse(mod=="exp","~(1|fexp(X,Y))","~(1|sqexp(X,Y))")
-  
   cov <- glmmrBase::Covariance$new(
     formula =  formula(f1),
     parameters = theta,

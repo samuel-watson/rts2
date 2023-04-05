@@ -43,8 +43,10 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           dependencies: NA
-          extra-packages: any::rcmdcheck any::testthat stan-dev/cmdstanr
-          needs: check
+          extra-packages: |
+            rcmdcheck
+            testthat
+            stan-dev/cmdstanr
 
       - uses: r-lib/actions/check-r-package@v2
         with:

@@ -91,7 +91,7 @@ lgcp_mcmcml <- function(y,X,coords,
     )
     filen <- "mcml_poisson_region_cmd.stan"
     filer <- "mcml_poisson_region"
-    filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_region_cmd.stan"
+    #filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_region_cmd.stan"
   } else {
     dat <- list(
       N = nrow(ZL),
@@ -101,7 +101,7 @@ lgcp_mcmcml <- function(y,X,coords,
     )
     filen <- "mcml_poisson_cmd.stan"
     filer <- "mcml_poisson"
-    filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_cmd.stan"
+    #filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_cmd.stan"
   }
   
   ## function name
@@ -136,11 +136,11 @@ lgcp_mcmcml <- function(y,X,coords,
   
   if(use_cmdstanr){
     if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
-    # model_file <- system.file("cmdstan",
-    #                           filen,
-    #                           package = "rts2",
-    #                           mustWork = TRUE)
-    model <- cmdstanr::cmdstan_model(filetmp)
+    model_file <- system.file("cmdstan",
+                              filen,
+                              package = "rts2",
+                              mustWork = TRUE)
+    model <- cmdstanr::cmdstan_model(model_file)
   }
   
   iter <- 1
@@ -413,7 +413,7 @@ sample_u <- function(y,xb,coords,
     )
     filen <- "mcml_poisson_region_cmd.stan"
     filer <- "mcml_poisson_region"
-    filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_region_cmd.stan"
+    #filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_region_cmd.stan"
   } else {
     dat <- list(
       N = nrow(ZL),
@@ -423,16 +423,16 @@ sample_u <- function(y,xb,coords,
     )
     filen <- "mcml_poisson_cmd.stan"
     filer <- "mcml_poisson"
-    filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_cmd.stan"
+    #filetmp <- "D:/Documents/R/rts2/inst/cmdstan/mcml_poisson_cmd.stan"
   }
   
   
   if(use_cmdstanr){
-    # model_file <- system.file("cmdstan",
-    #                           filen,
-    #                           package = "rts2",
-    #                           mustWork = TRUE)
-    model <- cmdstanr::cmdstan_model(filetmp)
+    model_file <- system.file("cmdstan",
+                              filen,
+                              package = "rts2",
+                              mustWork = TRUE)
+    model <- cmdstanr::cmdstan_model(model_file)
     if(verbose){
       res <- model$sample(
         data=dat,

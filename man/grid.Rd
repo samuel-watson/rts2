@@ -560,6 +560,7 @@ Fit an approximate log-Gaussian Cox Process model
   chains = 3,
   parallel_chains = 3,
   verbose = TRUE,
+  vb = FALSE,
   use_cmdstanr = FALSE,
   ...
 )}\if{html}{\out{</div>}}
@@ -719,7 +720,8 @@ Generate hotspot probabilities
 Given a definition of a hotspot in terms of threshold(s) for incidence,
 relative risk, and/or incidence rate ratio, returns the probabilities
 each area is a "hotspot". See Details of \code{extract_preds}. Columns
-will be added to \code{grid_data}
+will be added to \code{grid_data}. Note that for incidence threshold, the threshold should
+be specified as the per individual incidence.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$hotspots(
   stan_fit,

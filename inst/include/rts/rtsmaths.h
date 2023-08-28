@@ -4,34 +4,24 @@
 #define _USE_MATH_DEFINES
 
 #include <cmath> 
-#include <glmmr.h>
+#include <glmmr/openmpheader.h>
 #include <RcppEigen.h>
 #include <queue>
-#include "eigenext.h"
-#ifdef _OPENMP
-#include <omp.h>     
-#else
-// for machines with compilers void of openmp support
-#define omp_get_num_threads()  1
-#define omp_get_thread_num()   0
-#define omp_get_max_threads()  1
-#define omp_get_thread_limit() 1
-#define omp_get_num_procs()    1
-#define omp_set_nested(a)   // empty statement to remove the call
-#define omp_get_wtime()        0
-#endif
+#include <glmmr/algo.h>
 
 // [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::plugins(openmp)]]
 
 namespace rts{
 
-inline Eigen::MatrixXd inv_ldlt_AD(const Eigen::MatrixXd &A, 
-                         const Eigen::VectorXd &D,
-                         const Eigen::ArrayXXi &NN){
+using namespace Eigen;
+
+inline MatrixXd inv_ldlt_AD(const MatrixXd &A, 
+                         const VectorXd &D,
+                         const ArrayXXi &NN){
   int n = A.cols();
   int m = A.rows();
-  Eigen::MatrixXd y = Eigen::MatrixXd::Zero(n,n);
+  MatrixXd y = MatrixXd::Zero(n,n);
 #pragma omp parallel for  
   for(int k=0; k<n; k++){
     int idxlim;
@@ -48,7 +38,7 @@ inline Eigen::MatrixXd inv_ldlt_AD(const Eigen::MatrixXd &A,
   return y*D.cwiseSqrt().asDiagonal();
 }
 
-inline Rcpp::IntegerVector top_i_pq(Rcpp::NumericVector v, int n) {
+inline ArrayXi top_i_pq(ArrayXd v, int n) {
   typedef std::pair<double, int> Elt;
   std::priority_queue< Elt, std::vector<Elt>, std::greater<Elt> > pq;
   std::vector<int> result;
@@ -65,13 +55,17 @@ inline Rcpp::IntegerVector top_i_pq(Rcpp::NumericVector v, int n) {
     }
   }
   
-  result.reserve(pq.size());
+  //result.reserve(pq.size());
+  ArrayXi res(pq.size());
+  int iter = 0;
   while (!pq.empty()) {
-    result.push_back(pq.top().second + 1);
+    res(iter) = pq.top().second + 1;
+    //result.push_back(pq.top().second + 1);
     pq.pop();
+    iter++;
   }
   
-  return Rcpp::wrap(result);
+  return res;
 }
 
 }

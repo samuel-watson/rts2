@@ -1,6 +1,6 @@
 Package: rts2
 Title: Real-Time Disease Surveillance
-Version: 0.5
+Version: 0.6
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -27,9 +27,9 @@ Imports:
     methods,
     R6,
     Rcpp (>= 0.12.0),
-    RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),
     rstantools (>= 2.1.1),
+    RcppParallel (>= 5.0.1),
     sf (>= 1.0-5),
     lubridate
 Suggests:
@@ -41,10 +41,8 @@ LinkingTo:
     RcppEigen (>= 0.3.3.3.0),
     RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),
-    glmmrBase (>= 0.2.3),
-    glmmrMCML (>= 0.2.1),
+    glmmrBase (>= 0.4.5),
     rminqa (>= 0.2.2),
-    SparseChol,
+    SparseChol (>= 0.2.1),
     StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make
-URL: http://www.sam-watson.xyz/vignette.html

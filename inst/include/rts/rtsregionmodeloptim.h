@@ -7,7 +7,7 @@
 #include "regiondata.h"
 #include "regionlinearpredictor.h"
 
-namespace glmmr {
+namespace rts {
 
 using namespace rminqa;
 using namespace Eigen;
@@ -102,6 +102,19 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselo
   } else {
     return intens;
   }
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::full_log_likelihood(){
+  double ll = rts::rtsRegionModelOptim<modeltype>::log_likelihood();
+  double logl = 0;
+  MatrixXd Lu = this->model.covariance.Lu(this->re.u_);
+#pragma omp parallel for reduction (+:logl)
+  for(int i = 0; i < Lu.cols(); i++){
+    logl += this->model.covariance.log_likelihood(Lu.col(i));
+  }
+  logl *= 1/Lu.cols();
+  return ll+logl;
 }
 
 template<typename modeltype>

@@ -17,7 +17,6 @@ public:
                 const ArrayXXd &data,
                 const strvec& colnames, int T) : Covariance(formula, data, colnames), grid(data, T) { isSparse = false; };
   
-  using Covariance::ZL;
   MatrixXd ZL() override;
   MatrixXd LZWZL(const VectorXd& w) override;
   MatrixXd ZLu(const MatrixXd& u) override;

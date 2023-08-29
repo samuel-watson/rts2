@@ -695,6 +695,12 @@ END_RCPP
 }
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_region_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
@@ -749,6 +755,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
     {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 4},
     {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4approxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4lgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_mod, 0},
+    {"_rcpp_module_boot_stan_fit4mcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_region_mod, 0},
     {NULL, NULL, 0}
 };
 

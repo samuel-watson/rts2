@@ -21,6 +21,8 @@ public:
              const rts::griddata& grid_) : 
     n_cell(n_cell_), cell_id(cell_id_), q_weights(q_weights_), grid(grid_), 
     nRegion(n_cell.size()-1) {};
+  RegionData(const rts::RegionData& region) : n_cell(region.n_cell), cell_id(region.cell_id),
+    q_weights(region.q_weights), grid(region.grid), nRegion(region.nRegion) {};
   MatrixXd grid_to_region(const MatrixXd& u);
 };
 

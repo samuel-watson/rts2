@@ -19,24 +19,51 @@ namespace rts {
 using namespace Eigen;
 using namespace glmmr;
 
-
-template<typename cov, typename linpred>
-class rtsModelBits {
-  rtsModelBits(){};
-  ~rtsModelBits() = default;
-};
-
-template<>
-class rtsModelBits<rts::ar1Covariance, LinearPredictor> {
+class rtsModelBitsBase {
 public:
   glmmr::Formula formula;
-  rts::ar1Covariance covariance;
-  LinearPredictor linear_predictor;
   glmmr::ModelExtraData data;
   glmmr::Family family;
   glmmr::calculator calc;
   glmmr::calculator vcalc;
   bool weighted = false;
+  
+  rtsModelBitsBase(const glmmr::Formula& formula_, 
+                 const glmmr::ModelExtraData& data_,
+                 const glmmr::Family& family_) : formula(formula_),
+    data(data_), family(family_) {};
+  
+  rtsModelBitsBase(const std::string& formula_, 
+                   const ArrayXXd& data_,
+                   const std::string& family_,
+                   const std::string& link_) : formula(formula_),
+                   data(data_.rows()), family(family_,link_) {};
+  
+  rtsModelBitsBase(const rts::rtsModelBitsBase& bits) : formula(bits.formula),
+    data(bits.data), family(bits.family) {};
+  
+  virtual int n(){ return 0; };
+  virtual ArrayXd xb(){return ArrayXd::Zero(1);};
+  virtual void setup_calculator(){};
+  ~rtsModelBitsBase() = default;
+};
+
+template<typename cov, typename linpred>
+class rtsModelBits : public rtsModelBitsBase {
+  cov covariance;
+  linpred linear_predictor;
+  rtsModelBits(){};
+  ~rtsModelBits() = default;
+  int n() override;
+  ArrayXd zb() override;
+  void setup_calculator() override;
+};
+
+template<>
+class rtsModelBits<rts::ar1Covariance, LinearPredictor> : public rtsModelBitsBase {
+public:
+  rts::ar1Covariance covariance;
+  LinearPredictor linear_predictor;
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -44,11 +71,13 @@ public:
                std::string family_, 
                std::string link_,
                int T) : 
-  formula(formula_), 
+  rtsModelBitsBase(formula_,data_,family_,link_),
   covariance(formula_,data_,colnames_, T),
-  linear_predictor(formula,data_,colnames_),
-  data(data_.rows()),
-  family(family_,link_) { setup_calculator(); };
+  linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+  
+  rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, LinearPredictor>& bits) :
+    rtsModelBitsBase(bits.formula,bits.data,bits.family),
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
   
   int n(){return linear_predictor.n();};
   ArrayXd xb(){return linear_predictor.xb() + data.offset;};
@@ -72,16 +101,10 @@ public:
 };
 
 template<>
-class rtsModelBits<rts::nngpCovariance, LinearPredictor> {
+class rtsModelBits<rts::nngpCovariance, LinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula;
   rts::nngpCovariance covariance;
   LinearPredictor linear_predictor;
-  glmmr::ModelExtraData data;
-  glmmr::Family family;
-  glmmr::calculator calc;
-  glmmr::calculator vcalc;
-  bool weighted = false;
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -89,11 +112,13 @@ public:
                std::string family_, 
                std::string link_,
                int T, int m) : 
-  formula(formula_), 
+    rtsModelBitsBase(formula_,data_,family_,link_),
   covariance(formula_,data_,colnames_, T, m),
-  linear_predictor(formula,data_,colnames_),
-  data(data_.rows()),
-  family(family_,link_) { setup_calculator(); };
+  linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+  
+  rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, LinearPredictor>& bits) : 
+    rtsModelBitsBase(bits.formula,bits.data,bits.family),
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
   
   int n(){return linear_predictor.n();};
   ArrayXd xb(){return linear_predictor.xb() + data.offset;};
@@ -119,17 +144,11 @@ public:
 // to enable the gradient functions.
 
 template<>
-class rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> {
+class rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula_region;
-  glmmr::Formula formula;
+  glmmr::Formula formula_grid;
   rts::ar1Covariance covariance;
   rts::regionLinearPredictor linear_predictor;
-  glmmr::ModelExtraData data;
-  glmmr::Family family;
-  glmmr::calculator calc;
-  glmmr::calculator vcalc;
-  bool weighted = false;
   
   rtsModelBits(const std::string& form_region,
                const std::string& form_grid,
@@ -141,30 +160,26 @@ public:
                std::string link_,
                int T,
                rts::RegionData& region) : 
-  formula_region(form_region),
-  formula(form_grid), 
+  rtsModelBitsBase(form_region,data_region,family_,link_),
+  formula_grid(form_grid),
   covariance(form_grid,data_grid,colnames_grid, T),
-  linear_predictor(formula_region,formula,data_region,data_grid,colnames_region,colnames_grid,region),
-  data(data_region.rows()),
-  family(family_,link_) {};
+  linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+  
+  rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor>& bits) : 
+    rtsModelBitsBase(bits.formula,bits.data,bits.family),
+    formula_grid(bits.formula_grid),
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
   int n(){return linear_predictor.n();};
   ArrayXd xb(){return linear_predictor.xb() + data.offset;};
-  
 };
 
 template<>
-class rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> {
+class rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula_region;
-  glmmr::Formula formula;
+  glmmr::Formula formula_grid;
   rts::nngpCovariance covariance;
   rts::regionLinearPredictor linear_predictor;
-  glmmr::ModelExtraData data;
-  glmmr::Family family;
-  glmmr::calculator calc;
-  glmmr::calculator vcalc;
-  bool weighted = false;
   
   rtsModelBits(const std::string& form_region,
                const std::string& form_grid,
@@ -176,17 +191,26 @@ public:
                std::string link_,
                rts::RegionData& region,
                int T, int m) : 
-  formula_region(form_region),
-  formula(form_grid), 
+  rtsModelBitsBase(form_region,data_region,family_,link_),
+  formula_grid(form_grid),
   covariance(form_grid,data_grid,colnames_grid, T, m),
-  linear_predictor(formula_region,formula,data_region,data_grid,colnames_region,colnames_grid,region),
-  data(data_region.rows()),
-  family(family_,link_) {};
+  linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+  
+  rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor>& bits) : 
+    rtsModelBitsBase(bits.formula,bits.data,bits.family),
+    formula_grid(bits.formula_grid),
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
   int n(){return linear_predictor.n();};
   ArrayXd xb(){return linear_predictor.xb() + data.offset;};
- 
+  
 };
 
 }
+
+typedef rts::rtsModelBits<rts::ar1Covariance, glmmr::LinearPredictor> BitsAR;
+typedef rts::rtsModelBits<rts::nngpCovariance, glmmr::LinearPredictor> BitsNNGP;
+typedef rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> BitsARRegion;
+typedef rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> BitsNNGPRegion;
+
 

@@ -12,12 +12,13 @@ using namespace Eigen;
 using namespace glmmr;
 
 template<typename modeltype>
-class rtsModelOptim : public ModelOptim<modeltype> {
-  public:
+class rtsModelOptim : public ModelOptim<modeltype> {  public:
     
     rtsModelOptim(modeltype& model_, 
                glmmr::ModelMatrix<modeltype>& matrix_,
                glmmr::RandomEffects<modeltype>& re_) : ModelOptim<modeltype>(model_,matrix_,re_) {};
+    
+    rtsModelOptim(const rts::rtsModelOptim<modeltype>& optim) : ModelOptim<modeltype>(optim.model,optim.matrix,optim.re) {};
     
     void update_theta(const dblvec &theta) override;
     void update_u(const MatrixXd& u) override;

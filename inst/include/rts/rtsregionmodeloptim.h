@@ -23,6 +23,8 @@ public:
                 glmmr::RandomEffects<modeltype>& re_,
                 rts::RegionData& region_) : ModelOptim<modeltype>(model_,matrix_,re_), region(region_) {};
   
+  rtsRegionModelOptim(const rts::rtsRegionModelOptim<modeltype>& optim) : ModelOptim<modeltype>(optim.model, optim.matrix, optim.re), region(optim.region) {};
+  
   void update_theta(const dblvec &theta) override;
   void update_u(const MatrixXd& u) override;
   double log_likelihood() override;
@@ -64,9 +66,9 @@ template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
   double ll = 0;
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
-  if constexpr (std::is_same_v<modeltype, rts::rtsModelBits<rts::ar1Covariance, glmmr::LinearPredictor> > || std::is_same_v<modeltype, rts::rtsModelBits<rts::nngpCovariance, glmmr::LinearPredictor> >){
+  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP >){
     xb = region_intensity();
-  } else if constexpr (std::is_same_v<modeltype, rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> > || std::is_same_v<modeltype, rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> >){
+  } else if constexpr (std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsNNGPRegion >){
     xb = this->model.linear_predictor.xb_region(this->re.u_);
   }
   if(this->model.weighted){

@@ -17,6 +17,8 @@ public:
                 const ArrayXXd &data,
                 const strvec& colnames, int T) : Covariance(formula, data, colnames), grid(data, T) { isSparse = false; };
   
+  ar1Covariance(const rts::ar1Covariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid) {isSparse = false; };
+  
   MatrixXd ZL() override;
   MatrixXd LZWZL(const VectorXd& w) override;
   MatrixXd ZLu(const MatrixXd& u) override;
@@ -27,6 +29,9 @@ public:
   double log_determinant() override;
   void update_rho(const double rho_);
   void update_grid(int T);
+  void update_parameters(const dblvec& parameters) override;
+  void update_parameters(const ArrayXd& parameters) override;
+  void update_parameters_extern(const dblvec& parameters) override;
   
 };
 
@@ -36,9 +41,33 @@ inline void rts::ar1Covariance::update_grid(int T){
   grid.setup(data_,T);
 }
 
+inline void rts::ar1Covariance::update_parameters_extern(const dblvec& parameters){
+  parameters_ = parameters;
+  update_parameters_in_calculators();
+};
+
+inline void rts::ar1Covariance::update_parameters(const dblvec& parameters){
+  parameters_ = parameters;
+  update_parameters_in_calculators();
+};
+
+inline void rts::ar1Covariance::update_parameters(const ArrayXd& parameters){
+  if(parameters_.size()==0){
+    for(unsigned int i = 0; i < parameters.size(); i++){
+      parameters_.push_back(parameters(i));
+    }
+    update_parameters_in_calculators();
+  } else {
+    for(unsigned int i = 0; i < parameters.size(); i++){
+      parameters_[i] = parameters(i);
+    }
+    update_parameters_in_calculators();
+  } 
+};
+
 inline MatrixXd rts::ar1Covariance::ZL(){
   MatrixXd ZL = MatrixXd::Zero(grid.N*grid.T,grid.N*grid.T);
-  MatrixXd L = glmmr::sparse_to_dense(matL,false);
+  MatrixXd L = Covariance::D(true,false);//glmmr::sparse_to_dense(matL,false);
   
   if(grid.T==1){
     ZL = L;

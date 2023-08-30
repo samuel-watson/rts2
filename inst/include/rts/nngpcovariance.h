@@ -27,6 +27,14 @@ public:
     gen_AD();
   }
   
+  nngpCovariance(const rts::nngpCovariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_),  
+    grid(cov.grid), A(grid.m,grid.N), Dvec(grid.N), 
+    S(grid.m,grid.m), Sv(grid.m), ll1(0.0), ja(1) {
+      isSparse = false;
+      ja(0) = 0;
+      gen_AD();
+    }
+  
   using Covariance::ZL;
   MatrixXd D(bool chol = true, bool upper = false) override;
   MatrixXd ZL() override;

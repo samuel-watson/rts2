@@ -21,40 +21,20 @@ GridData__gen_NN <- function(ptr_, m_) {
     invisible(.Call(`_rts2_GridData__gen_NN`, ptr_, m_))
 }
 
-ModelBits_ar_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_) {
-    .Call(`_rts2_ModelBits_ar_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_)
+Model_ar_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_) {
+    .Call(`_rts2_Model_ar_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_)
 }
 
-ModelBits_nngp_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_) {
-    .Call(`_rts2_ModelBits_nngp_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_)
+Model_nngp_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_) {
+    .Call(`_rts2_Model_nngp_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_)
 }
 
-ModelBits_ar_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_) {
-    .Call(`_rts2_ModelBits_ar_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_)
+Model_ar_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_) {
+    .Call(`_rts2_Model_ar_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_)
 }
 
-ModelBits_nngp_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_) {
-    .Call(`_rts2_ModelBits_nngp_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_)
-}
-
-rtsModelBits__update_beta <- function(xp, beta_, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModelBits__update_beta`, xp, beta_, covtype_, lptype_))
-}
-
-rtsModelBits__update_theta <- function(xp, theta_, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModelBits__update_theta`, xp, theta_, covtype_, lptype_))
-}
-
-rtsModelBits__update_rho <- function(xp, rho_, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModelBits__update_rho`, xp, rho_, covtype_, lptype_))
-}
-
-rtsModel__new_from_bits <- function(bptr_, covtype_) {
-    .Call(`_rts2_rtsModel__new_from_bits`, bptr_, covtype_)
-}
-
-rtsRegionModel__new_from_bits <- function(bptr_, covtype_) {
-    .Call(`_rts2_rtsRegionModel__new_from_bits`, bptr_, covtype_)
+Model_nngp_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_) {
+    .Call(`_rts2_Model_nngp_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_)
 }
 
 rtsModel__set_y <- function(xp, y_, covtype_, lptype_) {

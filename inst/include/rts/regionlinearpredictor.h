@@ -31,6 +31,12 @@ class regionLinearPredictor{
         parameters(region_predictor.P() + grid_predictor.P(), 0.0),
         Xdata(region_predictor.Xdata) {};
     
+    regionLinearPredictor(const rts::regionLinearPredictor& linpred) : region(linpred.region), 
+      region_predictor(linpred.region_predictor),
+      grid_predictor(linpred.grid_predictor), 
+      parameters(linpred.parameters),
+      Xdata(region_predictor.Xdata) {};
+    
     void update_parameters(const dblvec& parameters_);
     void update_parameters(const Eigen::ArrayXd& parameters_);
     int P();

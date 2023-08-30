@@ -44,7 +44,7 @@ void GridData__gen_NN(SEXP ptr_, SEXP m_){
 }
 
 // [[Rcpp::export]]
-SEXP ModelBits_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
                         SEXP family_, SEXP link_, SEXP beta_,
                         SEXP theta_, SEXP T_){
   std::string formula = as<std::string>(formula_);
@@ -55,14 +55,14 @@ SEXP ModelBits_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
   std::vector<double> beta = as<std::vector<double> >(beta_);
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
-  XPtr<BitsAR>ptr(new BitsAR(formula,data,colnames,family,link,T),true);
-  ptr->linear_predictor.update_parameters(beta);
-  ptr->covariance.update_parameters(theta);
+  XPtr<ModelAR>ptr(new ModelAR(formula,data,colnames,family,link,T),true);
+  ptr->model.linear_predictor.update_parameters(beta);
+  ptr->model.covariance.update_parameters(theta);
   return ptr;
 }
 
 // [[Rcpp::export]]
-SEXP ModelBits_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
                           SEXP family_, SEXP link_, SEXP beta_,
                           SEXP theta_, SEXP T_, SEXP m_){
   std::string formula = as<std::string>(formula_);
@@ -74,14 +74,14 @@ SEXP ModelBits_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
   int m = as<int>(m_);
-  XPtr<BitsNNGP>ptr(new BitsNNGP(formula,data,colnames,family,link,T,m),true);
-  ptr->linear_predictor.update_parameters(beta);
-  ptr->covariance.update_parameters(theta);
+  XPtr<ModelNNGP>ptr(new ModelNNGP(formula,data,colnames,family,link,T,m),true);
+  ptr->model.linear_predictor.update_parameters(beta);
+  ptr->model.covariance.update_parameters(theta);
   return ptr;
 }
 
 // [[Rcpp::export]]
-SEXP ModelBits_ar_region__new(SEXP formula_region_, SEXP formula_grid_,
+SEXP Model_ar_region__new(SEXP formula_region_, SEXP formula_grid_,
                               SEXP data_region_, SEXP data_grid_, 
                               SEXP colnames_region_, SEXP colnames_grid_,
                               SEXP family_, SEXP link_, 
@@ -100,14 +100,14 @@ SEXP ModelBits_ar_region__new(SEXP formula_region_, SEXP formula_grid_,
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<BitsARRegion> ptr(new BitsARRegion(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,T,*rptr),true);
-  ptr->linear_predictor.update_parameters(beta);
-  ptr->covariance.update_parameters(theta);
+  XPtr<ModelARRegion> ptr(new ModelARRegion(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,T,*rptr),true);
+  ptr->model.linear_predictor.update_parameters(beta);
+  ptr->model.covariance.update_parameters(theta);
   return ptr;
 }
 
 // [[Rcpp::export]]
-SEXP ModelBits_nngp_region__new(SEXP formula_region_, SEXP formula_grid_,
+SEXP Model_nngp_region__new(SEXP formula_region_, SEXP formula_grid_,
                               SEXP data_region_, SEXP data_grid_, 
                               SEXP colnames_region_, SEXP colnames_grid_,
                               SEXP family_, SEXP link_, 
@@ -127,102 +127,10 @@ SEXP ModelBits_nngp_region__new(SEXP formula_region_, SEXP formula_grid_,
   int T = as<int>(T_);
   int m = as<int>(m_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<BitsNNGPRegion>ptr(new BitsNNGPRegion(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,*rptr,T,m),true);
-  ptr->linear_predictor.update_parameters(beta);
-  ptr->covariance.update_parameters(theta);
+  XPtr<ModelNNGPRegion>ptr(new ModelNNGPRegion(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,*rptr,T,m),true);
+  ptr->model.linear_predictor.update_parameters(beta);
+  ptr->model.covariance.update_parameters(theta);
   return ptr;
-}
-
-// [[Rcpp::export]]
-void rtsModelBits__update_beta(SEXP xp, SEXP beta_, SEXP covtype_, SEXP lptype_){
-  // covtype 1 = ar, 2 = nn, lptype 1 = linearpredictor, 2 = regionpredictor
-  std::vector<double> beta = as<std::vector<double> >(beta_);
-  int covtype = as<int>(covtype_);
-  int lptype = as<int>(lptype_);
-  if(covtype == 1 && lptype == 1){
-    XPtr<BitsAR> ptr(xp);
-    ptr->linear_predictor.update_parameters(beta);
-  } else if(covtype == 2 && lptype == 1){
-    XPtr<BitsNNGP> ptr(xp);
-    ptr->linear_predictor.update_parameters(beta);
-  } else if(covtype == 1 && lptype == 2){
-    XPtr<BitsARRegion> ptr(xp);
-    ptr->linear_predictor.update_parameters(beta);
-  } else if(covtype == 2 && lptype == 2){
-    XPtr<BitsNNGPRegion> ptr(xp);
-    ptr->linear_predictor.update_parameters(beta);
-  }
-  
-}
-
-// [[Rcpp::export]]
-void rtsModelBits__update_theta(SEXP xp, SEXP theta_, SEXP covtype_, SEXP lptype_){
-  std::vector<double> theta = as<std::vector<double> >(theta_);
-  int covtype = as<int>(covtype_);
-  int lptype = as<int>(lptype_);
-  if(covtype == 1 && lptype == 1){
-    XPtr<BitsAR> ptr(xp);
-    ptr->covariance.update_parameters(theta);
-  } else if(covtype == 2 && lptype == 1){
-    XPtr<BitsNNGP> ptr(xp);
-    ptr->covariance.update_parameters(theta);
-  } else if(covtype == 1 && lptype == 2){
-    XPtr<BitsARRegion> ptr(xp);
-    ptr->covariance.update_parameters(theta);
-  } else if(covtype == 2 && lptype == 2){
-    XPtr<BitsNNGPRegion> ptr(xp);
-    ptr->covariance.update_parameters(theta);
-  }
-  
-}
-
-// [[Rcpp::export]]
-void rtsModelBits__update_rho(SEXP xp, SEXP rho_, SEXP covtype_, SEXP lptype_){
-  double rho = as<double>(rho_);
-  int covtype = as<int>(covtype_);
-  int lptype = as<int>(lptype_);
-  if(covtype == 1 && lptype == 1){
-    XPtr<BitsAR> ptr(xp);
-    ptr->covariance.update_rho(rho);
-  } else if(covtype == 2 && lptype == 1){
-    XPtr<BitsNNGP> ptr(xp);
-    ptr->covariance.update_rho(rho);
-  } else if(covtype == 1 && lptype == 2){
-    XPtr<BitsARRegion> ptr(xp);
-    ptr->covariance.update_rho(rho);
-  } else if(covtype == 2 && lptype == 2){
-    XPtr<BitsNNGPRegion> ptr(xp);
-    ptr->covariance.update_rho(rho);
-  }
-  
-}
-
-// [[Rcpp::export]]
-SEXP rtsModel__new_from_bits(SEXP bptr_, SEXP covtype_){
-  int covtype = as<int>(covtype_);
-  if(covtype == 1){
-    XPtr<BitsAR> bptr(bptr_);
-    XPtr<ModelAR> ptr(new ModelAR(*bptr),true);
-    return ptr;
-  } else {
-    XPtr<BitsNNGP> bptr(bptr_);
-    XPtr<ModelNNGP> ptr(new ModelNNGP(*bptr),true);
-    return ptr;
-  }
-}
-
-// [[Rcpp::export]]
-SEXP rtsRegionModel__new_from_bits(SEXP bptr_, SEXP covtype_){
-  int covtype = as<int>(covtype_);
-  if(covtype == 1){
-    XPtr<BitsARRegion> bptr(bptr_);
-    XPtr<ModelARRegion> ptr(new ModelARRegion(*bptr),true);
-    return ptr;
-  } else {
-    XPtr<BitsNNGPRegion> bptr(bptr_);
-    XPtr<ModelNNGPRegion> ptr(new ModelNNGPRegion(*bptr),true);
-    return ptr;
-  }
 }
 
 // [[Rcpp::export]]

@@ -42,6 +42,10 @@ SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(ptr_);
     Eigen::MatrixXd A = ptr->model.covariance.A;
     return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.A;
+    return wrap(A);
   }
 }
 
@@ -63,6 +67,14 @@ SEXP rtsModel__aic(SEXP xp, SEXP covtype_, SEXP lptype_){
     return wrap(aic);
   } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
+    double aic = ptr->optim.aic();
+    return wrap(aic);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    double aic = ptr->optim.aic();
+    return wrap(aic);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
     double aic = ptr->optim.aic();
     return wrap(aic);
   }
@@ -88,6 +100,14 @@ SEXP rtsModel__beta_parameter_names(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(xp);
     strvec parnames = ptr->model.linear_predictor.parameter_names();
     return wrap(parnames);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    strvec parnames = ptr->model.linear_predictor.parameter_names();
+    return wrap(parnames);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    strvec parnames = ptr->model.linear_predictor.parameter_names();
+    return wrap(parnames);
   }
 }
 
@@ -109,6 +129,14 @@ SEXP rtsModel__theta_parameter_names(SEXP xp, SEXP covtype_, SEXP lptype_){
     return wrap(parnames);
   } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
+    strvec parnames = ptr->model.covariance.parameter_names();
+    return wrap(parnames);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    strvec parnames = ptr->model.covariance.parameter_names();
+    return wrap(parnames);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
     strvec parnames = ptr->model.covariance.parameter_names();
     return wrap(parnames);
   }
@@ -134,6 +162,14 @@ SEXP rtsModel__sandwich(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::MatrixXd sandwich = ptr->matrix.sandwich_matrix();
     return wrap(sandwich);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::MatrixXd sandwich = ptr->matrix.sandwich_matrix();
+    return wrap(sandwich);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::MatrixXd sandwich = ptr->matrix.sandwich_matrix();
+    return wrap(sandwich);
   }
 }
 
@@ -157,28 +193,13 @@ SEXP rtsModel__infomat_theta(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::MatrixXd M = ptr->matrix.information_matrix_theta();
     return wrap(M);
-  }
-}
-
-// [[Rcpp::export]]
-SEXP rtsModel__kenward_roger(SEXP xp, SEXP covtype_, SEXP lptype_){
-  int covtype = as<int>(covtype_);
-  int lptype = as<int>(lptype_);
-  if(covtype == 1 && lptype == 1){
-    XPtr<ModelAR> ptr(xp);
-    kenward_data M = ptr->matrix.kenward_roger();
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::MatrixXd M = ptr->matrix.information_matrix_theta();
     return wrap(M);
-  } else if(covtype == 2 && lptype == 1){
-    XPtr<ModelNNGP> ptr(xp);
-    kenward_data M = ptr->matrix.kenward_roger();
-    return wrap(M);
-  } else if(covtype == 1 && lptype == 2){
-    XPtr<ModelARRegion> ptr(xp);
-    kenward_data M = ptr->matrix.kenward_roger();
-    return wrap(M);
-  } else if(covtype == 2 && lptype == 2){
-    XPtr<ModelNNGPRegion> ptr(xp);
-    kenward_data M = ptr->matrix.kenward_roger();
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::MatrixXd M = ptr->matrix.information_matrix_theta();
     return wrap(M);
   }
 }
@@ -201,6 +222,14 @@ SEXP rtsModel__hessian(SEXP xp, SEXP covtype_, SEXP lptype_){
     return wrap(hess);
   } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
+    vector_matrix hess = ptr->matrix.re_score();
+    return wrap(hess);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    vector_matrix hess = ptr->matrix.re_score();
+    return wrap(hess);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
     vector_matrix hess = ptr->matrix.re_score();
     return wrap(hess);
   }
@@ -259,6 +288,34 @@ SEXP rtsModel__predict(SEXP xp, SEXP newdata_,
     );
   } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
+    vector_matrix res = ptr->re.predict_re(newdata,newoffset);
+    if(m>0){
+      samps = glmmr::maths::sample_MVN(res,m);
+    } else {
+      samps.setZero();
+    }
+    Eigen::VectorXd xb = ptr->model.linear_predictor.predict_xb(newdata,newoffset);
+    return Rcpp::List::create(
+      Rcpp::Named("linear_predictor") = wrap(xb),
+      Rcpp::Named("re_parameters") = wrap(res),
+      Rcpp::Named("samples") = wrap(samps)
+    );
+  }else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    vector_matrix res = ptr->re.predict_re(newdata,newoffset);
+    if(m>0){
+      samps = glmmr::maths::sample_MVN(res,m);
+    } else {
+      samps.setZero();
+    }
+    Eigen::VectorXd xb = ptr->model.linear_predictor.predict_xb(newdata,newoffset);
+    return Rcpp::List::create(
+      Rcpp::Named("linear_predictor") = wrap(xb),
+      Rcpp::Named("re_parameters") = wrap(res),
+      Rcpp::Named("samples") = wrap(samps)
+    );
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
     vector_matrix res = ptr->re.predict_re(newdata,newoffset);
     if(m>0){
       samps = glmmr::maths::sample_MVN(res,m);

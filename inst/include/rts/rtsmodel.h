@@ -17,34 +17,29 @@ using namespace Eigen;
 using namespace glmmr;
 
 template<typename modeltype>
-class rtsModelBase {
+class rtsModel {
 public:
-  glmmr::RandomEffects<modeltype> re;
-  glmmr::ModelMatrix<modeltype> matrix;
-  rts::rtsModelOptim<modeltype> optim;
-  
-  rtsModelBase(modeltype& model_) : re(model_), matrix(model_,re), optim(model_,matrix,re) {};
-  
-  rtsModelBase(const rts::rtsModelBase<modeltype>& mod) : re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
-  
-};
-
-template<typename modeltype>
-class rtsModel : public rtsModelBase<modeltype> {
-public:
-  rtsRegionModel();
+  rtsModel();
+  ~rtsModel() = default;
 };
 
 template<>
-class rtsModel<BitsAR> : public rtsModelBase<BitsAR> {
+class rtsModel<BitsAR> {
   public:
     BitsAR model;
+    glmmr::RandomEffects<BitsAR> re;
+    glmmr::ModelMatrix<BitsAR> matrix;
+    rts::rtsModelOptim<BitsAR> optim;
+    
     rtsModel(const std::string& formula_,
              const ArrayXXd& data_,
              const strvec& colnames_,
              std::string family_, 
              std::string link_,
-             int T) : model(formula_,data_,colnames_,family_,link_,T), rtsModelBase<BitsAR>(model) {};
+             int T) : model(formula_,data_,colnames_,family_,link_,T), re(model), matrix(model,re), optim(model,matrix,re) {};
+    
+    rtsModel(const rts::rtsModel<BitsAR>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+    
     void set_offset(const VectorXd& offset_){
       model.data.set_offset(offset_);
     }
@@ -77,15 +72,22 @@ class rtsModel<BitsAR> : public rtsModelBase<BitsAR> {
 };
 
 template<>
-class rtsModel<BitsNNGP> : public rtsModelBase<BitsNNGP>{
+class rtsModel<BitsNNGP>{
 public:
   BitsNNGP model;
+  glmmr::RandomEffects<BitsNNGP> re;
+  glmmr::ModelMatrix<BitsNNGP> matrix;
+  rts::rtsModelOptim<BitsNNGP> optim;
+  
   rtsModel(const std::string& formula_,
            const ArrayXXd& data_,
            const strvec& colnames_,
            std::string family_, 
            std::string link_,
-           int T, int m) : model(formula_,data_,colnames_,family_,link_,T, m), rtsModelBase<BitsNNGP>(model) {};
+           int T, int m) : model(formula_,data_,colnames_,family_,link_,T, m), re(model), matrix(model,re), optim(model,matrix,re) {};
+  
+  rtsModel(const rts::rtsModel<BitsNNGP>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);
   }

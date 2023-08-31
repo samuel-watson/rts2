@@ -22,7 +22,6 @@ public:
   void setup(const ArrayXXd& X_, int T_);
   void setup(const ArrayXXd& X_, int T_, int m);
 };
-
 }
 
 inline void rts::griddata::genNN(int M){

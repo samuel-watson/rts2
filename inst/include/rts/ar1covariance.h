@@ -100,7 +100,7 @@ inline MatrixXd rts::ar1Covariance::ZLu(const MatrixXd& u){
 
 inline MatrixXd rts::ar1Covariance::Lu(const MatrixXd& u){
   MatrixXd LU(u.rows(), u.cols());
-  MatrixXd L = glmmr::sparse_to_dense(matL,false);
+  MatrixXd L = Covariance::D(true,false);//glmmr::sparse_to_dense(matL,false);
   for(int t = 0; t<grid.T; t++)LU.block(t*grid.N, 0, grid.N, u.cols()) = L*u;
   return LU;
 }

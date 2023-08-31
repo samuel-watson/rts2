@@ -21,6 +21,10 @@ GridData__gen_NN <- function(ptr_, m_) {
     invisible(.Call(`_rts2_GridData__gen_NN`, ptr_, m_))
 }
 
+ModelBits_ar_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_) {
+    .Call(`_rts2_ModelBits_ar_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_)
+}
+
 Model_ar_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_) {
     .Call(`_rts2_Model_ar_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_)
 }
@@ -29,12 +33,20 @@ Model_nngp_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_
     .Call(`_rts2_Model_nngp_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_)
 }
 
-Model_ar_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_) {
-    .Call(`_rts2_Model_ar_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_)
+Model_ar_region_grid__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_) {
+    .Call(`_rts2_Model_ar_region_grid__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_)
 }
 
-Model_nngp_region__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_) {
-    .Call(`_rts2_Model_nngp_region__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_)
+Model_nngp_region_grid__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_) {
+    .Call(`_rts2_Model_nngp_region_grid__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_, m_)
+}
+
+Model_ar_region__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, rptr_) {
+    .Call(`_rts2_Model_ar_region__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, rptr_)
+}
+
+Model_nngp_region__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_) {
+    .Call(`_rts2_Model_nngp_region__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_)
 }
 
 rtsModel__set_y <- function(xp, y_, covtype_, lptype_) {
@@ -129,10 +141,6 @@ rtsModel__get_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_theta`, xp, covtype_, lptype_)
 }
 
-rtsModel__L <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__L`, xp, covtype_, lptype_)
-}
-
 rtsModel__ZL <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__ZL`, xp, covtype_, lptype_)
 }
@@ -163,10 +171,6 @@ rtsModel__sandwich <- function(xp, covtype_, lptype_) {
 
 rtsModel__infomat_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__infomat_theta`, xp, covtype_, lptype_)
-}
-
-rtsModel__kenward_roger <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__kenward_roger`, xp, covtype_, lptype_)
 }
 
 rtsModel__hessian <- function(xp, covtype_, lptype_) {

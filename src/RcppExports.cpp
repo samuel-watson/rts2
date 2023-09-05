@@ -581,6 +581,32 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel_cov__log_likelihood
+SEXP rtsModel_cov__log_likelihood(SEXP xp, SEXP covtype_, SEXP lptype_, SEXP u_);
+RcppExport SEXP _rts2_rtsModel_cov__log_likelihood(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP u_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel_cov__log_likelihood(xp, covtype_, lptype_, u_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel_cov__set_sparse
+void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_);
+RcppExport SEXP _rts2_rtsModel_cov__set_sparse(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP sparse_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type sparse_(sparse_SEXP);
+    rtsModel_cov__set_sparse(ptr_, lptype_, sparse_);
+    return R_NilValue;
+END_RCPP
+}
 // nngp_ldlt
 SEXP nngp_ldlt(SEXP A_, SEXP D_, SEXP NN_);
 RcppExport SEXP _rts2_nngp_ldlt(SEXP A_SEXP, SEXP D_SEXP, SEXP NN_SEXP) {
@@ -764,6 +790,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel_nngp__A", (DL_FUNC) &_rts2_rtsModel_nngp__A, 2},
     {"_rts2_rtsModel_nngp__D", (DL_FUNC) &_rts2_rtsModel_nngp__D, 2},
     {"_rts2_rtsModel_nngp__submatrix", (DL_FUNC) &_rts2_rtsModel_nngp__submatrix, 3},
+    {"_rts2_rtsModel_cov__log_likelihood", (DL_FUNC) &_rts2_rtsModel_cov__log_likelihood, 4},
+    {"_rts2_rtsModel_cov__set_sparse", (DL_FUNC) &_rts2_rtsModel_cov__set_sparse, 3},
     {"_rts2_nngp_ldlt", (DL_FUNC) &_rts2_nngp_ldlt, 3},
     {"_rts2_rtsModel__aic", (DL_FUNC) &_rts2_rtsModel__aic, 3},
     {"_rts2_rtsModel__beta_parameter_names", (DL_FUNC) &_rts2_rtsModel__beta_parameter_names, 3},

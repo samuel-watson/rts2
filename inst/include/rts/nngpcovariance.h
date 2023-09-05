@@ -138,18 +138,19 @@ inline int rts::nngpCovariance::Q(){
 inline double rts::nngpCovariance::log_likelihood(const VectorXd &u){
   double ll1 = 0.0;
   double logdet = log_determinant();
+  int idxlim;
+  double au;
   
   for(int t = 0; t<grid.T; t++){
     double qf = u(t*grid.N)*u(t*grid.N)/Dvec(0);
-#pragma omp parallel for reduction (+:qf)
     for(int i = 1; i < grid.N; i++){
-      int idxlim = i <= m ? i : m;
+      idxlim = i <= m ? i : m;
       VectorXd usec(idxlim);
       for(int j = 0; j < idxlim; j++) usec(j) = u(grid.NN(j,i));
-      double au = u(t*grid.N + i) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
+      au = u(t*grid.N + i) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
       qf += au*au/Dvec(i);
     }
-    ll1 -= 0.5*qf + 0.5*grid.N*M_PI; 
+    ll1 -= 0.5*qf + 0.5*grid.N*log(2*M_PI); 
   }
   ll1 -= 0.5*logdet;
   return ll1;

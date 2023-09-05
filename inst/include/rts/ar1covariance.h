@@ -66,12 +66,11 @@ inline void rts::ar1Covariance::update_parameters(const ArrayXd& parameters){
 };
 
 inline MatrixXd rts::ar1Covariance::ZL(){
-  MatrixXd ZL = MatrixXd::Zero(grid.N*grid.T,grid.N*grid.T);
-  MatrixXd L = Covariance::D(true,false);//glmmr::sparse_to_dense(matL,false);
-  
+  MatrixXd L = Covariance::D(true,false);
   if(grid.T==1){
-    ZL = L;
+    return L;
   } else {
+    MatrixXd ZL = MatrixXd::Zero(grid.N*grid.T,grid.N*grid.T);
     for(int t=0; t<grid.T;t++){
       for(int s=t; s<grid.T;s++){
         if(t==0){
@@ -81,9 +80,8 @@ inline MatrixXd rts::ar1Covariance::ZL(){
         }
       }
     }
+    return ZL;
   }
-  
-  return ZL;
 }
 
 inline MatrixXd rts::ar1Covariance::LZWZL(const VectorXd& w){
@@ -99,10 +97,8 @@ inline MatrixXd rts::ar1Covariance::ZLu(const MatrixXd& u){
 }
 
 inline MatrixXd rts::ar1Covariance::Lu(const MatrixXd& u){
-  MatrixXd LU(u.rows(), u.cols());
-  MatrixXd L = Covariance::D(true,false);//glmmr::sparse_to_dense(matL,false);
-  for(int t = 0; t<grid.T; t++)LU.block(t*grid.N, 0, grid.N, u.cols()) = L*u;
-  return LU;
+  MatrixXd ZLu = rts::ar1Covariance::ZL() * u;
+  return ZLu;
 }
 
 inline sparse rts::ar1Covariance::ZL_sparse(){
@@ -137,6 +133,4 @@ inline double rts::ar1Covariance::log_determinant(){
 inline void rts::ar1Covariance::update_rho(const double rho_){
   rho = rho_;
 }
-
-
 

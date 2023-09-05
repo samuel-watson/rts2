@@ -87,21 +87,50 @@ SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_){
 }
 
 // [[Rcpp::export]]
-SEXP rtsModel_nngp__log_likelihood(SEXP ptr_, SEXP lptype_, SEXP u_){
+SEXP rtsModel_cov__log_likelihood(SEXP xp, SEXP covtype_, SEXP lptype_, SEXP u_){
+  int covtype = as<int>(covtype_);
   int lptype = as<int>(lptype_);
   Eigen::VectorXd u = as<Eigen::VectorXd>(u_);
+  if(covtype == 1 && lptype == 1){
+    XPtr<ModelAR> ptr(xp);
+    double aic = ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  } else if(covtype == 2 && lptype == 1){
+    XPtr<ModelNNGP> ptr(xp);
+    double aic = ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  } else if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    double aic = ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    double aic = ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    double aic =ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    double aic = ptr->model.covariance.log_likelihood(u);
+    return wrap(aic);
+  }
+}
+
+// [[Rcpp::export]]
+void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_){
+  int lptype = as<int>(lptype_);
+  bool sparse = as<bool>(sparse_);
   if(lptype == 1){
-    XPtr<ModelNNGP> ptr(ptr_);
-    double A = ptr->model.covariance.log_likelihood(u);
-    return wrap(A);
+    XPtr<ModelAR> ptr(ptr_);
+    ptr->model.covariance.set_sparse(sparse);
   } else if(lptype == 2){
-    XPtr<ModelNNGPRegion> ptr(ptr_);
-    double A = ptr->model.covariance.log_likelihood(u);
-    return wrap(A);
+    XPtr<ModelARRegion> ptr(ptr_);
+    ptr->model.covariance.set_sparse(sparse);
   } else if(lptype == 3){
-    XPtr<ModelNNGPRegionG> ptr(ptr_);
-    double A = ptr->model.covariance.log_likelihood(u);
-    return wrap(A);
+    XPtr<ModelARRegionG> ptr(ptr_);
+    ptr->model.covariance.set_sparse(sparse);
   }
 }
 

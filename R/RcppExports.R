@@ -165,6 +165,14 @@ rtsModel_nngp__submatrix <- function(ptr_, lptype_, i_) {
     .Call(`_rts2_rtsModel_nngp__submatrix`, ptr_, lptype_, i_)
 }
 
+rtsModel_cov__log_likelihood <- function(xp, covtype_, lptype_, u_) {
+    .Call(`_rts2_rtsModel_cov__log_likelihood`, xp, covtype_, lptype_, u_)
+}
+
+rtsModel_cov__set_sparse <- function(ptr_, lptype_, sparse_) {
+    invisible(.Call(`_rts2_rtsModel_cov__set_sparse`, ptr_, lptype_, sparse_))
+}
+
 nngp_ldlt <- function(A_, D_, NN_) {
     .Call(`_rts2_nngp_ldlt`, A_, D_, NN_)
 }

@@ -64,6 +64,7 @@ class rtsModel<BitsAR> {
         re.u_.conservativeResize(model.covariance.Q(),u_.cols());
         re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
       }
+      re.u_ = u_;
       re.zu_ = model.covariance.ZLu(re.u_);
     }
     void set_trace(int trace_){
@@ -113,6 +114,7 @@ public:
       re.u_.conservativeResize(model.covariance.Q(),u_.cols());
       re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
     }
+    re.u_ = u_;
     re.zu_ = model.covariance.ZLu(re.u_);
   }
   void set_trace(int trace_){

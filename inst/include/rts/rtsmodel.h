@@ -84,7 +84,8 @@ public:
            const strvec& colnames_,
            std::string family_, 
            std::string link_,
-           int T, int m) : model(formula_,data_,colnames_,family_,link_,T, m), re(model), matrix(model,re), optim(model,matrix,re) {};
+           int T, int m,
+           const rts::griddata& grid_) : model(formula_,data_,colnames_,family_,link_,T, m, grid_), re(model), matrix(model,re), optim(model,matrix,re) {};
   
   rtsModel(const rts::rtsModel<BitsNNGP>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   

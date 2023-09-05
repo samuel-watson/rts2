@@ -3,6 +3,19 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
+SEXP nngpCovariance__new(SEXP formula_, SEXP data_, SEXP colnames_,
+                      SEXP T_,SEXP m_, SEXP gptr_){
+  std::string formula = as<std::string>(formula_);
+  Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
+  std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
+  int T = as<int>(T_);
+  int m = as<int>(m_);
+  XPtr<rts::griddata> gptr(gptr_);
+  XPtr<rts::nngpCovariance> ptr(new rts::nngpCovariance(formula,data,colnames,T,m,*gptr));
+  return ptr;
+}
+
+// [[Rcpp::export]]
 SEXP GridData__new(SEXP x_, SEXP t_){
   Eigen::ArrayXXd x = as<Eigen::ArrayXXd>(x_);
   int t = as<int>(t_);
@@ -44,24 +57,6 @@ void GridData__gen_NN(SEXP ptr_, SEXP m_){
 }
 
 // [[Rcpp::export]]
-SEXP ModelBits_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
-                      SEXP family_, SEXP link_, SEXP beta_,
-                      SEXP theta_, SEXP T_){
-  std::string formula = as<std::string>(formula_);
-  Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
-  std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
-  std::string family = as<std::string>(family_);
-  std::string link = as<std::string>(link_);
-  std::vector<double> beta = as<std::vector<double> >(beta_);
-  std::vector<double> theta = as<std::vector<double> >(theta_);
-  int T = as<int>(T_);
-  XPtr<BitsAR>ptr(new BitsAR(formula,data,colnames,family,link,T),true);
-  ptr->linear_predictor.update_parameters(beta);
-  ptr->covariance.update_parameters(theta);
-  return ptr;
-}
-
-// [[Rcpp::export]]
 SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
                         SEXP family_, SEXP link_, SEXP beta_,
                         SEXP theta_, SEXP T_){
@@ -82,7 +77,7 @@ SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
 // [[Rcpp::export]]
 SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
                           SEXP family_, SEXP link_, SEXP beta_,
-                          SEXP theta_, SEXP T_, SEXP m_){
+                          SEXP theta_, SEXP T_, SEXP m_, SEXP gptr_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
@@ -92,7 +87,8 @@ SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
   int m = as<int>(m_);
-  XPtr<ModelNNGP>ptr(new ModelNNGP(formula,data,colnames,family,link,T,m),true);
+  XPtr<rts::griddata> gptr(gptr_);
+  XPtr<ModelNNGP> ptr(new ModelNNGP(formula,data,colnames,family,link,T,m,*gptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
@@ -139,6 +135,7 @@ SEXP Model_nngp_region_grid__new(SEXP formula_region_,
                                  SEXP link_, 
                                  SEXP beta_,
                                  SEXP theta_, SEXP rptr_,
+                                 SEXP gptr_,
                                  SEXP T_, SEXP m_){
   std::string formula_region = as<std::string>(formula_region_);
   std::string formula_grid = as<std::string>(formula_grid_);
@@ -153,7 +150,8 @@ SEXP Model_nngp_region_grid__new(SEXP formula_region_,
   int T = as<int>(T_);
   int m = as<int>(m_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<ModelNNGPRegionG>ptr(new ModelNNGPRegionG(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,*rptr,T,m),true);
+  XPtr<rts::griddata> gptr(gptr_);
+  XPtr<ModelNNGPRegionG> ptr(new ModelNNGPRegionG(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,family,link,*rptr,*gptr,T,m),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
@@ -172,7 +170,7 @@ SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<ModelARRegion>ptr(new ModelARRegion(formula,data,colnames,family,link,T,*rptr),true);
+  XPtr<ModelARRegion> ptr(new ModelARRegion(formula,data,colnames,family,link,T,*rptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
@@ -181,7 +179,7 @@ SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
 // [[Rcpp::export]]
 SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
                         SEXP family_, SEXP link_, SEXP beta_,
-                        SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_){
+                        SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP gptr_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
@@ -192,7 +190,8 @@ SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
   int T = as<int>(T_);
   int m = as<int>(m_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<ModelNNGPRegion>ptr(new ModelNNGPRegion(formula,data,colnames,family,link,T,m,*rptr),true);
+  XPtr<rts::griddata> gptr(gptr_);
+  XPtr<ModelNNGPRegion> ptr(new ModelNNGPRegion(formula,data,colnames,family,link,T,m,*rptr,*gptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
@@ -851,6 +850,37 @@ SEXP rtsModel__ZL(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegionG> ptr(xp);
     Eigen::MatrixXd ZL = ptr->model.covariance.ZL();
     return wrap(ZL);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__D(SEXP xp, SEXP covtype_, SEXP lptype_){
+  int covtype = as<int>(covtype_);
+  int lptype = as<int>(lptype_); 
+  if(covtype == 1 && lptype == 1){
+    XPtr<ModelAR> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
+  } else if(covtype == 2 && lptype == 1){
+    XPtr<ModelNNGP> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
+  } else if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::MatrixXd D = ptr->model.covariance.D(false,false);
+    return wrap(D);
   }
 }
 

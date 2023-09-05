@@ -1401,7 +1401,7 @@ grid <- R6::R6Class("grid",
                                             popdens,
                                             covs,
                                             covs_grid,
-                                            verbose){
+                                            update = TRUE){
 
                         data <- private$prepare_data(m,
                                                      model,
@@ -1409,25 +1409,26 @@ grid <- R6::R6Class("grid",
                                                      popdens,
                                                      covs,
                                                      covs_grid,
-                                                     verbose,
+                                                     FALSE,
                                                      FALSE)
 
-                        if(is.null(grid_ptr)){
-                          grid_ptr <- GridData__new(data$x_grid,data$nT)
+                        if(is.null(private$grid_ptr)){
+                          private$grid_ptr <- GridData__new(as.matrix(data$x_grid),data$nT)
                         }
 
-                        if(!is.null(self$region_data) & is.null(region_ptr)){
-                          region_ptr <- RegionData__new(data$n_cell,data$cell_id,data$q_weights, grid_ptr)
+                        if(!is.null(self$region_data) & is.null(private$region_ptr)){
+                          private$region_ptr <- RegionData__new(data$n_cell,data$cell_id,data$q_weights, grid_ptr)
                         }
 
-                        if(is.null(private$ptr)){
+                        if(is.null(private$ptr) || update){
                           # build formulae
                           f1 <- ""
                           if(length(covs) == 0){
-                            
-                          }
-                          for(i in 1:length(covs)){
-                            f1 <- paste0(f1,"+",covs[[i]])
+                            f1 <- "1"
+                          } else {
+                            for(i in 1:length(covs)){
+                              f1 <- paste0(f1,"+",covs[[i]])
+                            }
                           }
 
                           if(length(covs_grid)>0){
@@ -1435,6 +1436,8 @@ grid <- R6::R6Class("grid",
                             for(i in 1:length(covs)){
                               f2 <- paste0(f2,"+",covs_grid[[i]])
                             }
+                          } else {
+                            f2 <- "1"
                           }
                           
                           # add random effects structure
@@ -1448,53 +1451,84 @@ grid <- R6::R6Class("grid",
                             stop("Only exp and spexp for now.")
                           }
 
-                          private$cov_type <- ifelse(approx=="nngp",2,1)
-                          private$lp_type <- ifelse(!is.null(self$region_data)&length(covs_grid)>0,2,1)
+                          if(approx == "nngp"){
+                            private$cov_type <- 2
+                          } else if(approx == "lgcp"){
+                            private$cov_type <- 1
+                          } else {
+                            stop("Only nngp or lgcp for ML available")
+                          }
+                          if(!is.null(self$region_data)){
+                            if(length(covs_grid) > 0){
+                              private$lp_type <- 3
+                            } else {
+                              private$lp_type <- 2
+                            }
+                          } else {
+                            private$lp_type <- 1
+                          }
+                          
                           # use random starting values for now
-                          P <- length(covs) + length(covs_grid)
-                          beta <- norm(P,0,0.5)
+                          P <- length(covs) + length(covs_grid) + 1
+                          beta <- rnorm(P,0,0.5)
                           theta <- runif(2,0,0.5)
+                          
+                          # out<<- list(f1,
+                          #   as.matrix(cbind(data$X,data$x_grid)),
+                          #   c("intercept",covs,"X","Y"),
+                          #   "poisson",
+                          #   "log",
+                          #   beta,
+                          #   theta,
+                          #   data$nT,
+                          #   m,
+                          #   private$grid_ptr)
 
                           if(private$cov_type == 2 & private$lp_type == 1){
                             private$ptr <- Model_nngp_lp__new(f1,
-                                                              cbind(data$X,as.matrix(data$x_grid)),
-                                                              c(covs,"X","Y"),
-                                                              "poisson","log",
+                                                              as.matrix(cbind(data$X,data$x_grid)),
+                                                              c("intercept",covs,"X","Y"),
+                                                              "poisson",
+                                                              "log",
                                                               beta,
                                                               theta,
-                                                              data$nT,m)
+                                                              data$nT,
+                                                              m,
+                                                              private$grid_ptr)
                           } else if(private$cov_type == 1 & private$lp_type == 1){
                             private$ptr <- Model_ar_lp__new(f1,
-                                                            cbind(data$X,as.matrix(data$x_grid)),
-                                                            c(covs,"X","Y"),
-                                                            "poisson","log",
+                                                            as.matrix(cbind(data$X,data$x_grid)),
+                                                            c("intercept",covs,"X","Y"),
+                                                            "poisson",
+                                                            "log",
                                                             beta,
                                                             theta,
                                                             data$nT)
                           } else if(private$cov_type == 1 & private$lp_type == 2){
                             private$ptr <- Model_ar_region__new(f1,
-                                                                cbind(data$X,as.matrix(data$x_grid)),
-                                                                c(covs,"X","Y"),
+                                                                as.matrix(cbind(data$X,data$x_grid)),
+                                                                c("intercept",covs,"X","Y"),
                                                                 "poisson","log",
                                                                 beta,
                                                                 theta,
                                                                 data$nT,private$region_ptr)
                           } else if(private$cov_type == 2 & private$lp_type == 2){
-                            private$ptr <- Model_nngp_lp__new(f1,
-                                                              cbind(data$X,as.matrix(data$x_grid)),
-                                                              c(covs,"X","Y"),
+                            private$ptr <- Model_nngp_region__new(f1,
+                                                              as.matrix(cbind(data$X,data$x_grid)),
+                                                              c("intercept",covs,"X","Y"),
                                                               "poisson","log",
                                                               beta,
                                                               theta,
                                                               data$nT,m,
-                                                              private$region_ptr)
+                                                              private$region_ptr,
+                                                              private$grid_ptr)
                           }else if(private$cov_type == 1 & private$lp_type == 3){
                             
-                            private$ptr <- Model_ar_region__new(f1,
+                            private$ptr <- Model_ar_region_grid__new(f1,
                                                                 f2,
-                                                                cbind(data$X,as.matrix(data$x_grid[,c("X","Y")])),
+                                                                as.matrix(cbind(data$X,data$x_grid[,c("X","Y")])),
                                                                 as.matrix(data$x_grid),
-                                                                c(covs,"X","Y"),
+                                                                c("intercept",covs,"X","Y"),
                                                                 colnames(data$x_grid),
                                                                 "poisson","log",
                                                                 beta,
@@ -1502,11 +1536,11 @@ grid <- R6::R6Class("grid",
                                                                 private$region_ptr,
                                                                 data$nT)
                           } else if(private$cov_type == 2 & private$lp_type == 3){
-                            private$ptr <- Model_nngp_lp__new(f1,
+                            private$ptr <- Model_nngp_region_grid__new(f1,
                                                               f2,
-                                                              cbind(data$X,as.matrix(data$x_grid[,c("X","Y")])),
+                                                              as.matrix(cbind(data$X,data$x_grid[,c("X","Y")])),
                                                               as.matrix(data$x_grid),
-                                                              c(covs,"X","Y"),
+                                                              c("intercept",covs,"X","Y"),
                                                               colnames(data$x_grid),
                                                               "poisson","log",
                                                               beta,
@@ -1517,7 +1551,8 @@ grid <- R6::R6Class("grid",
                           
 
 
-                          Model__set_offset(private$ptr,log(data$popdens))
+                          rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)
+                          rtsModel__set_y(private$ptr,data$y,private$cov_type,private$lp_type)
                         }
                       },
                       prepare_data = function(m,
@@ -1718,7 +1753,11 @@ grid <- R6::R6Class("grid",
                           
                           
                         } else if(approx == "nngp"){
-                          NN <- suppressWarnings(genNN(sf::st_coordinates(sf::st_centroid(self$grid_data)),m))
+                          if(is.null(private$grid_ptr)){
+                            private$grid_ptr <- GridData__new(as.matrix(x_grid[,1:2]),nT)
+                          }
+                          GridData__gen_NN(private$grid_ptr,m)
+                          NN <- GridData__NN(private$grid_ptr)
                           NN <- NN+1
                           datlist <- list(
                             D = 2,

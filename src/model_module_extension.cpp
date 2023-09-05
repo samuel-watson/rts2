@@ -50,6 +50,71 @@ SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel_nngp__D(SEXP ptr_, SEXP lptype_){
+  int lptype = as<int>(lptype_);
+  if(lptype == 1){
+    XPtr<ModelNNGP> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.Dvec;
+    return wrap(A);
+  } else if(lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.Dvec;
+    return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.Dvec;
+    return wrap(A);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_){
+  int lptype = as<int>(lptype_);
+  int i = as<int>(i_);
+  if(lptype == 1){
+    XPtr<ModelNNGP> ptr(ptr_);
+    vector_matrix A = ptr->model.covariance.submatrix(i);
+    return wrap(A);
+  } else if(lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(ptr_);
+    vector_matrix A = ptr->model.covariance.submatrix(i);
+    return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(ptr_);
+    vector_matrix A = ptr->model.covariance.submatrix(i);
+    return wrap(A);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel_nngp__log_likelihood(SEXP ptr_, SEXP lptype_, SEXP u_){
+  int lptype = as<int>(lptype_);
+  Eigen::VectorXd u = as<Eigen::VectorXd>(u_);
+  if(lptype == 1){
+    XPtr<ModelNNGP> ptr(ptr_);
+    double A = ptr->model.covariance.log_likelihood(u);
+    return wrap(A);
+  } else if(lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(ptr_);
+    double A = ptr->model.covariance.log_likelihood(u);
+    return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(ptr_);
+    double A = ptr->model.covariance.log_likelihood(u);
+    return wrap(A);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP nngp_ldlt(SEXP A_, SEXP D_, SEXP NN_){
+  Eigen::MatrixXd A = as<Eigen::MatrixXd>(A_);
+  Eigen::VectorXd D = as<Eigen::VectorXd>(D_);
+  Eigen::ArrayXXi NN = as<Eigen::ArrayXXi>(NN_);
+  Eigen::MatrixXd L = rts::inv_ldlt_AD(A,D,NN);
+  return wrap(L);
+}
+
+// [[Rcpp::export]]
 SEXP rtsModel__aic(SEXP xp, SEXP covtype_, SEXP lptype_){
   int covtype = as<int>(covtype_);
   int lptype = as<int>(lptype_);

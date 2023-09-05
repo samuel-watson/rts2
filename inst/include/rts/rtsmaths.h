@@ -26,7 +26,7 @@ inline MatrixXd inv_ldlt_AD(const MatrixXd &A,
   for(int k=0; k<n; k++){
     int idxlim;
     for (int i = 0; i < n; i++) {
-      idxlim = i<=m ? i-1 : m;
+      idxlim = i<=m ? i : m;
       double lsum = 0;
       for (int j = 0; j < idxlim; j++) {
         lsum += -1.0 * A(j,i) * y(NN(j,i),k);
@@ -45,9 +45,9 @@ inline ArrayXi top_i_pq(ArrayXd v, int n) {
   
   for (int i = 0; i != v.size(); ++i) {
     if (pq.size() < n)
-      pq.push(Elt(v[i], i));
+      pq.push(Elt(v(i), i));
     else {
-      Elt elt = Elt(v[i], i);
+      Elt elt = Elt(v(i), i);
       if (pq.top() < elt) {
         pq.pop();
         pq.push(elt);
@@ -55,12 +55,10 @@ inline ArrayXi top_i_pq(ArrayXd v, int n) {
     }
   }
   
-  //result.reserve(pq.size());
   ArrayXi res(pq.size());
   int iter = 0;
   while (!pq.empty()) {
-    res(iter) = pq.top().second + 1;
-    //result.push_back(pq.top().second + 1);
+    res(iter) = pq.top().second;
     pq.pop();
     iter++;
   }

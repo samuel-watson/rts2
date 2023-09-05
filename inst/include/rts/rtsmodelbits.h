@@ -71,9 +71,9 @@ public:
                std::string family_, 
                std::string link_,
                int T) : 
-  rtsModelBitsBase(formula_,data_,family_,link_),
-  covariance(formula_,data_,colnames_, T),
-  linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    rtsModelBitsBase(formula_,data_,family_,link_),
+    covariance(formula_,data_,colnames_, T),
+    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
   rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, LinearPredictor>& bits) :
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
@@ -111,10 +111,11 @@ public:
                const strvec& colnames_,
                std::string family_, 
                std::string link_,
-               int T, int m) : 
+               int T, int m,
+               const rts::griddata& grid_) : 
     rtsModelBitsBase(formula_,data_,family_,link_),
-  covariance(formula_,data_,colnames_, T, m),
-  linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    covariance(formula_,data_,colnames_, T, m, grid_),
+    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
   rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, LinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
@@ -160,10 +161,10 @@ public:
                std::string link_,
                int T,
                rts::RegionData& region) : 
-  rtsModelBitsBase(form_region,data_region,family_,link_),
-  formula_grid(form_grid),
-  covariance(form_grid,data_grid,colnames_grid, T),
-  linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+    rtsModelBitsBase(form_region,data_region,family_,link_),
+    formula_grid(form_grid),
+    covariance(form_grid,data_grid,colnames_grid, T),
+    linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
@@ -190,10 +191,11 @@ public:
                std::string family_, 
                std::string link_,
                rts::RegionData& region,
+               const rts::griddata& grid_,
                int T, int m) : 
   rtsModelBitsBase(form_region,data_region,family_,link_),
   formula_grid(form_grid),
-  covariance(form_grid,data_grid,colnames_grid, T, m),
+  covariance(form_grid,data_grid,colnames_grid, T, m, grid_),
   linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor>& bits) : 

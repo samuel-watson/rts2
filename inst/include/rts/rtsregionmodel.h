@@ -89,7 +89,8 @@ public:
            std::string family_, 
            std::string link_,
            int T, int m,
-           rts::RegionData& region_) : model(formula_,data_,colnames_,family_,link_,T, m), re(model), matrix(model,re), 
+           rts::RegionData& region_,
+           const rts::griddata& grid_) : model(formula_,data_,colnames_,family_,link_,T, m, grid_), re(model), matrix(model,re), 
             optim(model,matrix,re,region_) {};
   
   rtsRegionModel(const rts::rtsRegionModel<BitsNNGP>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
@@ -198,7 +199,8 @@ public:
                  std::string family_, 
                  std::string link_,
                  rts::RegionData& region,
-                 int T, int m) : model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,region,T,m), 
+                 const rts::griddata& grid_,
+                 int T, int m) : model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,region,grid_,T,m), 
                     re(model), matrix(model,re), 
                     optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
   

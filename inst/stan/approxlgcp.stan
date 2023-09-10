@@ -1,5 +1,5 @@
 functions {
-  vector lambda_nD(real[] L, int[] m, int D) {
+  vector lambda_nD(array[] real L, array[] int m, int D) {
     vector[D] lam;
     for(i in 1:D){
       lam[i] = ((m[i]*pi())/(2*L[i]))^2; }
@@ -25,7 +25,7 @@ functions {
 
     return S;
   }
-  vector phi_nD(real[] L, int[] m, matrix x) {
+  vector phi_nD(array[] real L, array[] int m, matrix x) {
     int c = cols(x);
     int r = rows(x);
 
@@ -44,20 +44,20 @@ functions {
 data {
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
-  real L[D]; // boundary condition
+  array[D] real L; // boundary condition
   int<lower=1> M; // number of basis functions (per dimension)
   int<lower=1> M_nD; //total basis functions m1*m2*...*mD
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int y[Nsample*nT]; //outcome
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
-  int indices[M_nD,D]; //indices
+  array[M_nD,D] int indices; //indices
   vector[Nsample*nT] popdens; //population density
   matrix[Nsample*nT,Q] X;
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
 }
 transformed data {

@@ -41,14 +41,14 @@ data {
   int<lower=1> Q; //number of covariates
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int y[Nsample*nT]; //outcome
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[Nsample*nT] popdens; //population density
   matrix[Nsample*nT,Q] X;
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
 }
 

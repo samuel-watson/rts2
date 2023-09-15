@@ -71,6 +71,7 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
   } else if constexpr (std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsNNGPRegion >){
     xb = this->model.linear_predictor.xb_region(this->re.u_);
   }
+  xb.matrix().colwise() += this->model.data.offset;
   if(this->model.weighted){
 #pragma omp parallel for reduction (+:ll) collapse(2)
     for(int j=0; j<xb.cols() ; j++){

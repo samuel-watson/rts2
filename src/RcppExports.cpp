@@ -53,16 +53,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // RegionData__new
-SEXP RegionData__new(SEXP n_cell_, SEXP cell_id_, SEXP q_weights_, SEXP g_ptr_);
-RcppExport SEXP _rts2_RegionData__new(SEXP n_cell_SEXP, SEXP cell_id_SEXP, SEXP q_weights_SEXP, SEXP g_ptr_SEXP) {
+SEXP RegionData__new(SEXP n_cell_, SEXP cell_id_, SEXP q_weights_, SEXP N_, SEXP T_);
+RcppExport SEXP _rts2_RegionData__new(SEXP n_cell_SEXP, SEXP cell_id_SEXP, SEXP q_weights_SEXP, SEXP N_SEXP, SEXP T_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type n_cell_(n_cell_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type cell_id_(cell_id_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type q_weights_(q_weights_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type g_ptr_(g_ptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(RegionData__new(n_cell_, cell_id_, q_weights_, g_ptr_));
+    Rcpp::traits::input_parameter< SEXP >::type N_(N_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
+    rcpp_result_gen = Rcpp::wrap(RegionData__new(n_cell_, cell_id_, q_weights_, N_, T_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -173,13 +174,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // Model_ar_region__new
-SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP colnames_, SEXP family_, SEXP link_, SEXP beta_, SEXP theta_, SEXP T_, SEXP rptr_);
-RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP family_SEXP, SEXP link_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP rptr_SEXP) {
+SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP family_, SEXP link_, SEXP beta_, SEXP theta_, SEXP T_, SEXP rptr_);
+RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP family_SEXP, SEXP link_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP rptr_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type family_(family_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type link_(link_SEXP);
@@ -187,18 +189,19 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_region__new(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, rptr_));
+    rcpp_result_gen = Rcpp::wrap(Model_ar_region__new(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, rptr_));
     return rcpp_result_gen;
 END_RCPP
 }
 // Model_nngp_region__new
-SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP colnames_, SEXP family_, SEXP link_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP gptr_);
-RcppExport SEXP _rts2_Model_nngp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP family_SEXP, SEXP link_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP) {
+SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP family_, SEXP link_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP gptr_);
+RcppExport SEXP _rts2_Model_nngp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP family_SEXP, SEXP link_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type family_(family_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type link_(link_SEXP);
@@ -208,7 +211,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_region__new(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_));
+    rcpp_result_gen = Rcpp::wrap(Model_nngp_region__new(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -698,6 +701,30 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__region_intensity
+SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_);
+RcppExport SEXP _rts2_rtsModel__region_intensity(SEXP xpSEXP, SEXP covtype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__region_intensity(xp, covtype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel__grid_to_region
+SEXP rtsModel__grid_to_region(SEXP xp, SEXP u_);
+RcppExport SEXP _rts2_rtsModel__grid_to_region(SEXP xpSEXP, SEXP u_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__grid_to_region(xp, u_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__predict
 SEXP rtsModel__predict(SEXP xp, SEXP newdata_, SEXP newoffset_, int m, SEXP covtype_, SEXP lptype_);
 RcppExport SEXP _rts2_rtsModel__predict(SEXP xpSEXP, SEXP newdata_SEXP, SEXP newoffset_SEXP, SEXP mSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -752,15 +779,15 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_nngpCovariance__new", (DL_FUNC) &_rts2_nngpCovariance__new, 6},
     {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
     {"_rts2_GridData_nn__new", (DL_FUNC) &_rts2_GridData_nn__new, 3},
-    {"_rts2_RegionData__new", (DL_FUNC) &_rts2_RegionData__new, 4},
+    {"_rts2_RegionData__new", (DL_FUNC) &_rts2_RegionData__new, 5},
     {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},
     {"_rts2_GridData__gen_NN", (DL_FUNC) &_rts2_GridData__gen_NN, 2},
     {"_rts2_Model_ar_lp__new", (DL_FUNC) &_rts2_Model_ar_lp__new, 8},
     {"_rts2_Model_nngp_lp__new", (DL_FUNC) &_rts2_Model_nngp_lp__new, 10},
     {"_rts2_Model_ar_region_grid__new", (DL_FUNC) &_rts2_Model_ar_region_grid__new, 12},
     {"_rts2_Model_nngp_region_grid__new", (DL_FUNC) &_rts2_Model_nngp_region_grid__new, 14},
-    {"_rts2_Model_ar_region__new", (DL_FUNC) &_rts2_Model_ar_region__new, 9},
-    {"_rts2_Model_nngp_region__new", (DL_FUNC) &_rts2_Model_nngp_region__new, 11},
+    {"_rts2_Model_ar_region__new", (DL_FUNC) &_rts2_Model_ar_region__new, 10},
+    {"_rts2_Model_nngp_region__new", (DL_FUNC) &_rts2_Model_nngp_region__new, 12},
     {"_rts2_rtsModel__set_y", (DL_FUNC) &_rts2_rtsModel__set_y, 4},
     {"_rts2_rtsModel__set_offset", (DL_FUNC) &_rts2_rtsModel__set_offset, 4},
     {"_rts2_rtsModel__set_weights", (DL_FUNC) &_rts2_rtsModel__set_weights, 4},
@@ -799,6 +826,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__sandwich", (DL_FUNC) &_rts2_rtsModel__sandwich, 3},
     {"_rts2_rtsModel__infomat_theta", (DL_FUNC) &_rts2_rtsModel__infomat_theta, 3},
     {"_rts2_rtsModel__hessian", (DL_FUNC) &_rts2_rtsModel__hessian, 3},
+    {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 2},
+    {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
     {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 4},

@@ -27,6 +27,7 @@ class rtsRegionModel {
 template<>
 class rtsRegionModel<BitsAR>{
 public:
+  rts::RegionData region;
   BitsAR model;
   glmmr::RandomEffects<BitsAR> re;
   glmmr::ModelMatrix<BitsAR> matrix;
@@ -34,14 +35,17 @@ public:
   
   rtsRegionModel(const std::string& formula_,
            const ArrayXXd& data_,
+           const ArrayXXd& grid_data_,
            const strvec& colnames_,
            std::string family_, 
            std::string link_,
            int T,
-           rts::RegionData& region_) : model(formula_,data_,colnames_,family_,link_,T), re(model), matrix(model,re), 
-            optim(model,matrix,re,region_) {};
+           const rts::RegionData& region_) : region(region_), 
+            model(formula_,data_,colnames_,family_,link_,T,grid_data_), 
+            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
+            optim(model,matrix,re,region) {};
   
-  rtsRegionModel(const rts::rtsRegionModel<BitsAR>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  rtsRegionModel(const rts::rtsRegionModel<BitsAR>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);
@@ -78,6 +82,7 @@ public:
 template<>
 class rtsRegionModel<BitsNNGP> {
 public:
+  rts::RegionData region;
   BitsNNGP model;
   glmmr::RandomEffects<BitsNNGP> re;
   glmmr::ModelMatrix<BitsNNGP> matrix;
@@ -85,15 +90,18 @@ public:
   
   rtsRegionModel(const std::string& formula_,
            const ArrayXXd& data_,
+           const ArrayXXd& grid_data_,
            const strvec& colnames_,
            std::string family_, 
            std::string link_,
            int T, int m,
-           rts::RegionData& region_,
-           const rts::griddata& grid_) : model(formula_,data_,colnames_,family_,link_,T, m, grid_), re(model), matrix(model,re), 
-            optim(model,matrix,re,region_) {};
+           const rts::RegionData& region_,
+           const rts::griddata& grid_) : region(region_), 
+            model(formula_,data_,colnames_,family_,link_,T, m, grid_, grid_data_), 
+            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
+            optim(model,matrix,re,region) {};
   
-  rtsRegionModel(const rts::rtsRegionModel<BitsNNGP>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  rtsRegionModel(const rts::rtsRegionModel<BitsNNGP>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);
@@ -130,6 +138,7 @@ public:
 template<>
 class rtsRegionModel<BitsARRegion> {
 public:
+  rts::RegionData region;
   BitsARRegion model;
   glmmr::RandomEffects<BitsARRegion> re;
   glmmr::ModelMatrix<BitsARRegion> matrix;
@@ -144,11 +153,11 @@ public:
                  std::string family_, 
                  std::string link_,
                  int T,
-                 rts::RegionData& region) : model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,T,region), 
-                    re(model), matrix(model,re), 
+                 rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,T,region), 
+                    re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
                     optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
   
-  rtsRegionModel(const rts::rtsRegionModel<BitsARRegion>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  rtsRegionModel(const rts::rtsRegionModel<BitsARRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);
@@ -185,6 +194,7 @@ public:
 template<>
 class rtsRegionModel<BitsNNGPRegion> {
 public:
+  rts::RegionData region;
   BitsNNGPRegion model;
   glmmr::RandomEffects<BitsNNGPRegion> re;
   glmmr::ModelMatrix<BitsNNGPRegion> matrix;
@@ -198,13 +208,13 @@ public:
                  const strvec& colnames_grid,
                  std::string family_, 
                  std::string link_,
-                 rts::RegionData& region,
+                 rts::RegionData& region_,
                  const rts::griddata& grid_,
-                 int T, int m) : model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,region,grid_,T,m), 
-                    re(model), matrix(model,re), 
+                 int T, int m) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,region,grid_,T,m), 
+                    re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
                     optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
   
-  rtsRegionModel(const rts::rtsRegionModel<BitsNNGPRegion>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  rtsRegionModel(const rts::rtsRegionModel<BitsNNGPRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);

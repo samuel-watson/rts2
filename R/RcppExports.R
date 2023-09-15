@@ -13,8 +13,8 @@ GridData_nn__new <- function(x_, t_, m_) {
     .Call(`_rts2_GridData_nn__new`, x_, t_, m_)
 }
 
-RegionData__new <- function(n_cell_, cell_id_, q_weights_, g_ptr_) {
-    .Call(`_rts2_RegionData__new`, n_cell_, cell_id_, q_weights_, g_ptr_)
+RegionData__new <- function(n_cell_, cell_id_, q_weights_, N_, T_) {
+    .Call(`_rts2_RegionData__new`, n_cell_, cell_id_, q_weights_, N_, T_)
 }
 
 GridData__NN <- function(ptr_) {
@@ -41,12 +41,12 @@ Model_nngp_region_grid__new <- function(formula_region_, formula_grid_, data_reg
     .Call(`_rts2_Model_nngp_region_grid__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, gptr_, T_, m_)
 }
 
-Model_ar_region__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, rptr_) {
-    .Call(`_rts2_Model_ar_region__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, rptr_)
+Model_ar_region__new <- function(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, rptr_) {
+    .Call(`_rts2_Model_ar_region__new`, formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, rptr_)
 }
 
-Model_nngp_region__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_) {
-    .Call(`_rts2_Model_nngp_region__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_)
+Model_nngp_region__new <- function(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_) {
+    .Call(`_rts2_Model_nngp_region__new`, formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, m_, rptr_, gptr_)
 }
 
 rtsModel__set_y <- function(xp, y_, covtype_, lptype_) {
@@ -199,6 +199,14 @@ rtsModel__infomat_theta <- function(xp, covtype_, lptype_) {
 
 rtsModel__hessian <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__hessian`, xp, covtype_, lptype_)
+}
+
+rtsModel__region_intensity <- function(xp, covtype_) {
+    .Call(`_rts2_rtsModel__region_intensity`, xp, covtype_)
+}
+
+rtsModel__grid_to_region <- function(xp, u_) {
+    .Call(`_rts2_rtsModel__grid_to_region`, xp, u_)
 }
 
 rtsModel__predict <- function(xp, newdata_, newoffset_, m, covtype_, lptype_) {

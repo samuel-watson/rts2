@@ -33,12 +33,13 @@ SEXP GridData_nn__new(SEXP x_, SEXP t_, SEXP m_){
 }
 
 // [[Rcpp::export]]
-SEXP RegionData__new(SEXP n_cell_, SEXP cell_id_, SEXP q_weights_, SEXP g_ptr_){
+SEXP RegionData__new(SEXP n_cell_, SEXP cell_id_, SEXP q_weights_, SEXP N_, SEXP T_){
   Eigen::ArrayXi n_cell = as<Eigen::ArrayXi>(n_cell_);
   Eigen::ArrayXi cell_id = as<Eigen::ArrayXi>(cell_id_);
   Eigen::ArrayXd q_weights = as<Eigen::ArrayXd>(q_weights_);
-  XPtr<rts::griddata> ptr(g_ptr_);
-  XPtr<rts::RegionData> rptr(new rts::RegionData(n_cell,cell_id,q_weights,*ptr));
+  int N = as<int>(N_);
+  int T = as<int>(T_);
+  XPtr<rts::RegionData> rptr(new rts::RegionData(n_cell,cell_id,q_weights,N,T));
   return rptr;
 }
 
@@ -158,11 +159,12 @@ SEXP Model_nngp_region_grid__new(SEXP formula_region_,
 }
 
 // [[Rcpp::export]]
-SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_,
                           SEXP family_, SEXP link_, SEXP beta_,
-                          SEXP theta_, SEXP T_,SEXP rptr_){
+                          SEXP theta_, SEXP T_, SEXP rptr_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
+  Eigen::ArrayXXd grid_data = as<Eigen::ArrayXXd>(grid_data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
   std::string family = as<std::string>(family_);
   std::string link = as<std::string>(link_);
@@ -170,18 +172,19 @@ SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
   XPtr<rts::RegionData> rptr(rptr_);
-  XPtr<ModelARRegion> ptr(new ModelARRegion(formula,data,colnames,family,link,T,*rptr),true);
+  XPtr<ModelARRegion> ptr(new ModelARRegion(formula,data,grid_data,colnames,family,link,T,*rptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
 }
 
 // [[Rcpp::export]]
-SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_nngp_region__new(SEXP formula_, SEXP data_,SEXP grid_data_, SEXP colnames_,
                         SEXP family_, SEXP link_, SEXP beta_,
                         SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP gptr_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
+  Eigen::ArrayXXd grid_data = as<Eigen::ArrayXXd>(grid_data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
   std::string family = as<std::string>(family_);
   std::string link = as<std::string>(link_);
@@ -191,7 +194,7 @@ SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP colnames_,
   int m = as<int>(m_);
   XPtr<rts::RegionData> rptr(rptr_);
   XPtr<rts::griddata> gptr(gptr_);
-  XPtr<ModelNNGPRegion> ptr(new ModelNNGPRegion(formula,data,colnames,family,link,T,m,*rptr,*gptr),true);
+  XPtr<ModelNNGPRegion> ptr(new ModelNNGPRegion(formula,data,grid_data,colnames,family,link,T,m,*rptr,*gptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;

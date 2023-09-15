@@ -75,6 +75,17 @@ public:
     covariance(formula_,data_,colnames_, T),
     linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
+  rtsModelBits(const std::string& formula_,
+               const ArrayXXd& data_,
+               const strvec& colnames_,
+               std::string family_, 
+               std::string link_,
+               int T,
+               const ArrayXXd& grid_data_) : 
+    rtsModelBitsBase(formula_,data_,family_,link_),
+    covariance(formula_,grid_data_,std::vector<std::string>({"X","Y"}), T),
+    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+  
   rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, LinearPredictor>& bits) :
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
@@ -115,6 +126,18 @@ public:
                const rts::griddata& grid_) : 
     rtsModelBitsBase(formula_,data_,family_,link_),
     covariance(formula_,data_,colnames_, T, m, grid_),
+    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+  
+  rtsModelBits(const std::string& formula_,
+               const ArrayXXd& data_,
+               const strvec& colnames_,
+               std::string family_, 
+               std::string link_,
+               int T, int m,
+               const rts::griddata& grid_,
+               const ArrayXXd& grid_data_) : 
+    rtsModelBitsBase(formula_,data_,family_,link_),
+    covariance(formula_,grid_data_,std::vector<std::string>({"X","Y"}), T, m, grid_),
     linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
   rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, LinearPredictor>& bits) : 

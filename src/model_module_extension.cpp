@@ -330,6 +330,28 @@ SEXP rtsModel__hessian(SEXP xp, SEXP covtype_, SEXP lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_){
+  int covtype = as<int>(covtype_);
+  if(covtype == 1){
+    XPtr<ModelARRegion> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  } else if(covtype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  } 
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__grid_to_region(SEXP xp, SEXP u_){
+  Eigen::MatrixXd u = as<Eigen::MatrixXd>(u_);
+  XPtr<rts::RegionData> rptr(xp);
+  Eigen::MatrixXd out = rptr->grid_to_region(u);
+  return wrap(out);
+}
+
+// [[Rcpp::export]]
 SEXP rtsModel__predict(SEXP xp, SEXP newdata_,
                     SEXP newoffset_,
                     int m, SEXP covtype_, SEXP lptype_){

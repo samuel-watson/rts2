@@ -25,6 +25,7 @@ data {
   int nRegion; // number of regions
   int n_Q;
   vector[nRegion*nT] Xb;
+  vector[N*nT] Xb_cell;
   matrix[N*nT,N*nT] ZL;
   int y[nRegion*nT];
   int<lower=1> n_cell[nRegion+1]; //number of cells intersecting region  
@@ -35,7 +36,7 @@ parameters {
   vector[N*nT] gamma;
 }
 model {
-  vector[N*nT] u = ZL*gamma;
+  vector[N*nT] u = Xb_cell + ZL*gamma;
   vector[nRegion*nT] mu = gen_lambda(nT,nRegion,N,Xb,q_weights,u,cell_id,n_cell);
   gamma ~ std_normal();
   y ~ poisson(mu);

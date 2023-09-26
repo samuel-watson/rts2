@@ -42,7 +42,7 @@ public:
            int T,
            const rts::RegionData& region_) : region(region_), 
             model(formula_,data_,colnames_,family_,link_,T,grid_data_), 
-            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
+            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re,false,false), 
             optim(model,matrix,re,region) {};
   
   rtsRegionModel(const rts::rtsRegionModel<BitsAR>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
@@ -64,6 +64,10 @@ public:
   }
   void update_theta(const dblvec &theta_){
     model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
   void update_u(const MatrixXd &u_){
@@ -98,7 +102,7 @@ public:
            const rts::RegionData& region_,
            const rts::griddata& grid_) : region(region_), 
             model(formula_,data_,colnames_,family_,link_,T, m, grid_, grid_data_), 
-            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
+            re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re,false,false), 
             optim(model,matrix,re,region) {};
   
   rtsRegionModel(const rts::rtsRegionModel<BitsNNGP>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
@@ -120,6 +124,10 @@ public:
   }
   void update_theta(const dblvec &theta_){
     model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
   void update_u(const MatrixXd &u_){
@@ -178,6 +186,10 @@ public:
     model.covariance.update_parameters(theta_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
   void update_u(const MatrixXd &u_){
     if(u_.cols()!=re.u(false).cols()){
       re.u_.conservativeResize(model.covariance.Q(),u_.cols());
@@ -233,6 +245,10 @@ public:
   }
   void update_theta(const dblvec &theta_){
     model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
   void update_u(const MatrixXd &u_){

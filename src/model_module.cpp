@@ -58,29 +58,31 @@ void GridData__gen_NN(SEXP ptr_, SEXP m_){
 }
 
 // [[Rcpp::export]]
-SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_,
                         SEXP family_, SEXP link_, SEXP beta_,
                         SEXP theta_, SEXP T_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
+  Eigen::ArrayXXd grid_data = as<Eigen::ArrayXXd>(grid_data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
   std::string family = as<std::string>(family_);
   std::string link = as<std::string>(link_);
   std::vector<double> beta = as<std::vector<double> >(beta_);
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int T = as<int>(T_);
-  XPtr<ModelAR>ptr(new ModelAR(formula,data,colnames,family,link,T),true);
+  XPtr<ModelAR>ptr(new ModelAR(formula,data,grid_data,colnames,family,link,T),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
 }
 
 // [[Rcpp::export]]
-SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
+SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_,SEXP grid_data_, SEXP colnames_,
                           SEXP family_, SEXP link_, SEXP beta_,
                           SEXP theta_, SEXP T_, SEXP m_, SEXP gptr_){
   std::string formula = as<std::string>(formula_);
   Eigen::ArrayXXd data = as<Eigen::ArrayXXd>(data_);
+  Eigen::ArrayXXd grid_data = as<Eigen::ArrayXXd>(grid_data_);
   std::vector<std::string> colnames = as<std::vector<std::string> >(colnames_);
   std::string family = as<std::string>(family_);
   std::string link = as<std::string>(link_);
@@ -89,7 +91,7 @@ SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP colnames_,
   int T = as<int>(T_);
   int m = as<int>(m_);
   XPtr<rts::griddata> gptr(gptr_);
-  XPtr<ModelNNGP> ptr(new ModelNNGP(formula,data,colnames,family,link,T,m,*gptr),true);
+  XPtr<ModelNNGP> ptr(new ModelNNGP(formula,data,grid_data,colnames,family,link,T,m,*gptr),true);
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
@@ -305,6 +307,32 @@ void rtsModel__update_beta(SEXP xp, SEXP beta_,SEXP covtype_, SEXP lptype_){
 }
 
 // [[Rcpp::export]]
+void rtsModel__update_rho(SEXP xp, SEXP rho_,SEXP covtype_, SEXP lptype_){
+  double rho = as<double>(rho_);
+  int covtype = as<int>(covtype_);
+  int lptype = as<int>(lptype_);
+  if(covtype == 1 && lptype == 1){
+    XPtr<ModelAR> ptr(xp);
+    ptr->update_rho(rho);
+  } else if(covtype == 2 && lptype == 1){
+    XPtr<ModelNNGP> ptr(xp);
+    ptr->update_rho(rho);
+  } else if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    ptr->update_rho(rho);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    ptr->update_rho(rho);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    ptr->update_rho(rho);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    ptr->update_rho(rho);
+  }
+}
+
+// [[Rcpp::export]]
 void rtsModel__update_theta(SEXP xp, SEXP theta_,SEXP covtype_, SEXP lptype_){
   std::vector<double> theta = as<std::vector<double> >(theta_);
   int covtype = as<int>(covtype_);
@@ -460,6 +488,31 @@ void rtsModel__ml_beta(SEXP xp, SEXP covtype_, SEXP lptype_){
   } else if(covtype == 2 && lptype == 3){
     XPtr<ModelNNGPRegionG> ptr(xp);
     ptr->optim.ml_beta();
+  }
+}
+
+// [[Rcpp::export]]
+void rtsModel__ml_rho(SEXP xp, SEXP covtype_, SEXP lptype_){
+  int covtype = as<int>(covtype_);
+  int lptype = as<int>(lptype_); 
+  if(covtype == 1 && lptype == 1){
+    XPtr<ModelAR> ptr(xp);
+    ptr->optim.ml_rho();
+  } else if(covtype == 2 && lptype == 1){
+    XPtr<ModelNNGP> ptr(xp);
+    ptr->optim.ml_rho();
+  } else if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    ptr->optim.ml_rho();
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    ptr->optim.ml_rho();
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    ptr->optim.ml_rho();
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    ptr->optim.ml_rho();
   }
 }
 

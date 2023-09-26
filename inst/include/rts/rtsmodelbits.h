@@ -37,7 +37,7 @@ public:
                    const ArrayXXd& data_,
                    const std::string& family_,
                    const std::string& link_) : formula(formula_),
-                   data(data_.rows()), family(family_,link_) {};
+                    data(data_.rows()), family(family_,link_) {};
   
   rtsModelBitsBase(const rts::rtsModelBitsBase& bits) : formula(bits.formula),
     data(bits.data), family(bits.family) {};
@@ -69,10 +69,9 @@ public:
                const ArrayXXd& data_,
                const strvec& colnames_,
                std::string family_, 
-               std::string link_,
-               int T) : 
+               std::string link_) : 
     rtsModelBitsBase(formula_,data_,family_,link_),
-    covariance(formula_,data_,colnames_, T),
+    covariance(formula_,data_,colnames_, 1),
     linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
   rtsModelBits(const std::string& formula_,
@@ -122,10 +121,10 @@ public:
                const strvec& colnames_,
                std::string family_, 
                std::string link_,
-               int T, int m,
+               int m,
                const rts::griddata& grid_) : 
     rtsModelBitsBase(formula_,data_,family_,link_),
-    covariance(formula_,data_,colnames_, T, m, grid_),
+    covariance(formula_,data_,colnames_, 1, m, grid_),
     linear_predictor(formula,data_,colnames_) { setup_calculator(); };
   
   rtsModelBits(const std::string& formula_,

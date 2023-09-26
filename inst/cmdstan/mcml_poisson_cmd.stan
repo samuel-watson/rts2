@@ -9,7 +9,7 @@ functions {
 data {
   int N; // sample size
   vector[N] Xb;
-  matrix[N,N] Z;
+  matrix[N,N] ZL;
   array[N] int y;
 }
 parameters {
@@ -18,6 +18,6 @@ parameters {
 model {
   int grainsize = 1;
   target += reduce_sum(partial_sum1_lpdf,gamma,grainsize);
-  target += reduce_sum(partial_sum2_lpmf,y,grainsize,Xb + Z*to_vector(gamma));
+  target += reduce_sum(partial_sum2_lpmf,y,grainsize,Xb + ZL*to_vector(gamma));
 }
 

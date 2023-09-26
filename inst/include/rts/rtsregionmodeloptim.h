@@ -27,6 +27,7 @@ public:
   
   void update_theta(const dblvec &theta) override;
   void update_u(const MatrixXd& u) override;
+  void ml_rho();
   double log_likelihood() override;
   double full_log_likelihood() override;
   ArrayXXd region_intensity(bool uselog = true);
@@ -53,6 +54,23 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_theta(const dblvec &thet
 }
 
 template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_rho(){
+  rho_likelihood ldl(*this);
+  Rbobyqa<L_likelihood,dblvec> opt;
+  opt.control.iprint = trace;
+  dblvec start;
+  start.push_back(this->model.covariance.rho);
+  dblvec lower;
+  lower.push_back(-1.0);
+  dblbec upper;
+  upper.push_back(1.0);
+  opt.set_lower(lower);
+  opt.set_upper(upper);
+  opt.control.iprint = trace;
+  opt.minimize(ldl, start);
+}
+
+template<typename modeltype>
 inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_){
   if(u_.cols()!=this->re.u(false).cols()){
     this->re.u_.conservativeResize(this->model.covariance.Q(),u_.cols());
@@ -68,7 +86,7 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
   if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP >){
     xb = region_intensity();
-  } else if constexpr (std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsNNGPRegion >){
+  } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion >){
     xb = this->model.linear_predictor.xb_region(this->re.u_);
   }
   xb.matrix().colwise() += this->model.data.offset;

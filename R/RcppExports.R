@@ -25,12 +25,12 @@ GridData__gen_NN <- function(ptr_, m_) {
     invisible(.Call(`_rts2_GridData__gen_NN`, ptr_, m_))
 }
 
-Model_ar_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_) {
-    .Call(`_rts2_Model_ar_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_)
+Model_ar_lp__new <- function(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_) {
+    .Call(`_rts2_Model_ar_lp__new`, formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_)
 }
 
-Model_nngp_lp__new <- function(formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, gptr_) {
-    .Call(`_rts2_Model_nngp_lp__new`, formula_, data_, colnames_, family_, link_, beta_, theta_, T_, m_, gptr_)
+Model_nngp_lp__new <- function(formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, m_, gptr_) {
+    .Call(`_rts2_Model_nngp_lp__new`, formula_, data_, grid_data_, colnames_, family_, link_, beta_, theta_, T_, m_, gptr_)
 }
 
 Model_ar_region_grid__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, family_, link_, beta_, theta_, rptr_, T_) {
@@ -63,6 +63,10 @@ rtsModel__set_weights <- function(xp, weights_, covtype_, lptype_) {
 
 rtsModel__update_beta <- function(xp, beta_, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__update_beta`, xp, beta_, covtype_, lptype_))
+}
+
+rtsModel__update_rho <- function(xp, rho_, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__update_rho`, xp, rho_, covtype_, lptype_))
 }
 
 rtsModel__update_theta <- function(xp, theta_, covtype_, lptype_) {
@@ -171,10 +175,6 @@ rtsModel_cov__log_likelihood <- function(xp, covtype_, lptype_, u_) {
 
 rtsModel_cov__set_sparse <- function(ptr_, lptype_, sparse_) {
     invisible(.Call(`_rts2_rtsModel_cov__set_sparse`, ptr_, lptype_, sparse_))
-}
-
-nngp_ldlt <- function(A_, D_, NN_) {
-    .Call(`_rts2_nngp_ldlt`, A_, D_, NN_)
 }
 
 rtsModel__aic <- function(xp, covtype_, lptype_) {

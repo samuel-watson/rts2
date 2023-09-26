@@ -31,6 +31,7 @@ data {
   int nRegion; // number of regions
   int n_Q;
   vector[nRegion*nT] Xb;
+  vector[N*nT] Xb_cell;
   matrix[N*nT,N*nT] ZL;
   array[nRegion*nT] int y;
   array[nRegion+1] int<lower=1> n_cell; //number of cells intersecting region  
@@ -45,7 +46,7 @@ transformed parameters {
 }
 model {
   int grainsize = 1;
-  vector[N*nT] u = ZL*to_vector(gamma);
+  vector[N*nT] u = Xb_cell + ZL*to_vector(gamma);
   vector[nRegion*nT] mu = gen_lambda(nT,nRegion,N,Xb,q_weights,u,cell_id,n_cell);
   target += reduce_sum(partial_sum1_lpdf,gamma,grainsize);
   target += reduce_sum(partial_sum2_lpmf,y,grainsize,mu);

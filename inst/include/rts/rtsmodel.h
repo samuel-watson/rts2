@@ -33,10 +33,11 @@ class rtsModel<BitsAR> {
     
     rtsModel(const std::string& formula_,
              const ArrayXXd& data_,
+             const ArrayXXd& grid_data_,
              const strvec& colnames_,
              std::string family_, 
              std::string link_,
-             int T) : model(formula_,data_,colnames_,family_,link_,T), re(model), matrix(model,re), optim(model,matrix,re) {};
+             int T) : model(formula_,data_,colnames_,family_,link_,T,grid_data_), re(model), matrix(model,re,false,false), optim(model,matrix,re) {};
     
     rtsModel(const rts::rtsModel<BitsAR>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
     
@@ -57,6 +58,10 @@ class rtsModel<BitsAR> {
     }
     void update_theta(const dblvec &theta_){
       model.covariance.update_parameters(theta_);
+      re.zu_ = model.covariance.ZLu(re.u_);
+    }
+    void update_rho(double rho_){
+      model.covariance.update_rho(rho_);
       re.zu_ = model.covariance.ZLu(re.u_);
     }
     void update_u(const MatrixXd &u_){
@@ -82,11 +87,12 @@ public:
   
   rtsModel(const std::string& formula_,
            const ArrayXXd& data_,
+           const ArrayXXd& grid_data_,
            const strvec& colnames_,
            std::string family_, 
            std::string link_,
            int T, int m,
-           const rts::griddata& grid_) : model(formula_,data_,colnames_,family_,link_,T, m, grid_), re(model), matrix(model,re), optim(model,matrix,re) {};
+           const rts::griddata& grid_) : model(formula_,data_,colnames_,family_,link_,T, m, grid_,grid_data_), re(model), matrix(model,re,false,false), optim(model,matrix,re) {};
   
   rtsModel(const rts::rtsModel<BitsNNGP>& mod) : model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
@@ -107,6 +113,10 @@ public:
   }
   void update_theta(const dblvec &theta_){
     model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
   void update_u(const MatrixXd &u_){

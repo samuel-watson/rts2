@@ -135,15 +135,6 @@ void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_){
 }
 
 // [[Rcpp::export]]
-SEXP nngp_ldlt(SEXP A_, SEXP D_, SEXP NN_){
-  Eigen::MatrixXd A = as<Eigen::MatrixXd>(A_);
-  Eigen::VectorXd D = as<Eigen::VectorXd>(D_);
-  Eigen::ArrayXXi NN = as<Eigen::ArrayXXi>(NN_);
-  Eigen::MatrixXd L = rts::inv_ldlt_AD(A,D,NN);
-  return wrap(L);
-}
-
-// [[Rcpp::export]]
 SEXP rtsModel__aic(SEXP xp, SEXP covtype_, SEXP lptype_){
   int covtype = as<int>(covtype_);
   int lptype = as<int>(lptype_);
@@ -330,15 +321,38 @@ SEXP rtsModel__hessian(SEXP xp, SEXP covtype_, SEXP lptype_){
 }
 
 // [[Rcpp::export]]
-SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_){
+SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
   int covtype = as<int>(covtype_);
-  if(covtype == 1){
+  int lptype = as<int>(lptype_);
+  if(covtype == 1 && lptype == 2){
     XPtr<ModelARRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);
-  } else if(covtype == 2){
+  } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  } 
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_){
+  int covtype = as<int>(covtype_);
+  if(covtype == 1){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::VectorXd intens = ptr->model.linear_predictor.grid_predictor.xb();
+    return wrap(intens);
+  } else if(covtype == 2){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::VectorXd intens = ptr->model.linear_predictor.grid_predictor.xb();
     return wrap(intens);
   } 
 }

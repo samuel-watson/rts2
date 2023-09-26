@@ -2,6 +2,7 @@
 
 #include <glmmr/covariance.hpp>
 #include "griddata.h"
+#include "rtsmaths.h"
 
 namespace rts {
 
@@ -10,14 +11,23 @@ using namespace glmmr;
 
 class ar1Covariance : public Covariance {
 public:
-  double rho = 0.0;
+  double rho;
   rts::griddata grid;
   
   ar1Covariance(const str& formula,
                 const ArrayXXd &data,
-                const strvec& colnames, int T) : Covariance(formula, data, colnames), grid(data, T) { isSparse = false; };
+                const strvec& colnames, int T) : Covariance(formula, data, colnames), 
+                  grid(data, T), L(data.rows(),data.rows()),
+                  ar_factor(T,T), ar_factor_chol(T,T) { 
+      isSparse = false;
+      update_rho(0.1);
+      };
   
-  ar1Covariance(const rts::ar1Covariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid) {isSparse = false; };
+  ar1Covariance(const rts::ar1Covariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid), 
+    L(cov.L), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol) {
+    isSparse = false; 
+    update_rho(cov.rho);
+  };
   
   MatrixXd ZL() override;
   MatrixXd LZWZL(const VectorXd& w) override;
@@ -33,6 +43,10 @@ public:
   void update_parameters(const ArrayXd& parameters) override;
   void update_parameters_extern(const dblvec& parameters) override;
   
+protected:
+  MatrixXd L;
+  MatrixXd ar_factor;    
+  MatrixXd ar_factor_chol;  
 };
 
 }
@@ -44,11 +58,13 @@ inline void rts::ar1Covariance::update_grid(int T){
 inline void rts::ar1Covariance::update_parameters_extern(const dblvec& parameters){
   parameters_ = parameters;
   update_parameters_in_calculators();
+  L = Covariance::D(true,false);
 };
 
 inline void rts::ar1Covariance::update_parameters(const dblvec& parameters){
   parameters_ = parameters;
   update_parameters_in_calculators();
+  L = Covariance::D(true,false);
 };
 
 inline void rts::ar1Covariance::update_parameters(const ArrayXd& parameters){
@@ -62,26 +78,13 @@ inline void rts::ar1Covariance::update_parameters(const ArrayXd& parameters){
       parameters_[i] = parameters(i);
     }
     update_parameters_in_calculators();
-  } 
+  }
+  L = Covariance::D(true,false);
 };
 
 inline MatrixXd rts::ar1Covariance::ZL(){
-  MatrixXd L = Covariance::D(true,false);
-  if(grid.T==1){
-    return L;
-  } else {
-    MatrixXd ZL = MatrixXd::Zero(grid.N*grid.T,grid.N*grid.T);
-    for(int t=0; t<grid.T;t++){
-      for(int s=t; s<grid.T;s++){
-        if(t==0){
-          ZL.block(s*grid.N,t*grid.N,grid.N,grid.N) = (pow(rho,s)/(1-rho*rho))*L;
-        } else {
-          ZL.block(s*grid.N,t*grid.N,grid.N,grid.N) = pow(rho,s-t)*L;
-        }
-      }
-    }
-    return ZL;
-  }
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
+  return ZL;
 }
 
 inline MatrixXd rts::ar1Covariance::LZWZL(const VectorXd& w){
@@ -111,26 +114,49 @@ inline int rts::ar1Covariance::Q(){
 }
 
 inline double rts::ar1Covariance::log_likelihood(const VectorXd &u){
+  // need to collapse u to v
   double ll = 0;
-  if(grid.T==1){
-    ll = Covariance::log_likelihood(u);
-  } else {
-    VectorXd usub = u.head(grid.N);
-    ll += Covariance::log_likelihood(usub);
-    for(int t=1; t<grid.T; t++){
-      usub = u.segment(t*grid.N,grid.N);
-      ll += Covariance::log_likelihood(usub);
-    }
+  MatrixXd ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
+  MatrixXd umat(grid.N,grid.T);
+  for(int t = 0; t< grid.T; t++){
+    umat.col(t) = u.segment(t*grid.N,grid.N);
   }
-  return ll;
+  MatrixXd vmat = umat * ar_factor_inverse;
+  double logdet = log_determinant();
+  VectorXd uquad(grid.N);
+  VectorXd vquad(grid.N);
+  for(int t = 0; t< grid.T; t++){
+    uquad = glmmr::algo::forward_sub(L,umat.col(t),grid.N);
+    vquad = glmmr::algo::forward_sub(L,vmat.col(t),grid.N);
+    ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
+  }
+  ll += 0.5*logdet;
+  return -1.0*ll;
 }
 
 inline double rts::ar1Covariance::log_determinant(){
   double logdet = Covariance::log_determinant();
-  return logdet * grid.T;
+  logdet *= grid.T;
+  double logdet_ar = 0;
+  if(grid.T > 1){
+    for(int t = 0; t < grid.T; t++) logdet_ar += 2*log(ar_factor_chol(t,t));
+    logdet_ar *= grid.N;
+  }
+  return logdet + logdet_ar;
 }
 
 inline void rts::ar1Covariance::update_rho(const double rho_){
   rho = rho_;
+  ar_factor.setConstant(1.0);
+  if(grid.T > 1){
+    for(int t = 0; t < (grid.T)-1; t++){
+      for(int s = t+1; s < grid.T; s++){
+        ar_factor(t,s) = pow(rho,s);
+        ar_factor(s,t) = ar_factor(t,s);
+      }
+    }
+  }
+  rts::cholesky(ar_factor_chol, ar_factor);
 }
+
 

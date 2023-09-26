@@ -23,6 +23,7 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     void update_theta(const dblvec &theta) override;
     void update_u(const MatrixXd& u) override;
     void update_rho(const double rho_);
+    void ml_rho();
     
   private:
     class rho_likelihood : public Functor<dblvec> {
@@ -58,6 +59,23 @@ inline void rts::rtsModelOptim<modeltype>::update_u(const MatrixXd& u_){
 template<typename modeltype>
 inline void rts::rtsModelOptim<modeltype>::update_rho(const double rho_){
   this->model.covariance.update_rho(rho_);
+}
+
+template<typename modeltype>
+inline void rts::rtsModelOptim<modeltype>::ml_rho(){
+  rho_likelihood ldl(*this);
+  Rbobyqa<L_likelihood,dblvec> opt;
+  opt.control.iprint = trace;
+  dblvec start;
+  start.push_back(this->model.covariance.rho);
+  dblvec lower;
+  lower.push_back(-1.0);
+  dblbec upper;
+  upper.push_back(1.0);
+  opt.set_lower(lower);
+  opt.set_upper(upper);
+  opt.control.iprint = trace;
+  opt.minimize(ldl, start);
 }
 
 template<typename modeltype>

@@ -4,6 +4,7 @@
 
 #include <glmmr/covariance.hpp>
 #include "griddata.h"
+#include "rtsmaths.h"
 
 namespace rts {
 
@@ -12,7 +13,7 @@ using namespace glmmr;
 
 class nngpCovariance : public Covariance {
 public:
-  double rho = 0.0;
+  double rho;
   rts::griddata grid;
   MatrixXd A;
   VectorXd Dvec;
@@ -25,10 +26,11 @@ public:
                  int T, int m_,
                  const rts::griddata& grid_) : Covariance(formula, data, colnames, parameters),  
                    grid(grid_),
-                   A(m_,data.rows()), Dvec(data.rows()), m(m_) {
+                   A(m_,data.rows()), Dvec(data.rows()), m(m_), ar_factor(T,T), ar_factor_chol(T,T) {
     isSparse = false;
     grid.genNN(m);
     gen_AD();
+    update_rho(0.1);
   }
   
   nngpCovariance(const str& formula,
@@ -37,18 +39,21 @@ public:
                  int T, int m_,
                  const rts::griddata& grid_) : Covariance(formula, data, colnames),  
                  grid(grid_),
-                 A(m_,data.rows()), Dvec(data.rows()), m(m_) {
+                 A(m_,data.rows()), Dvec(data.rows()), m(m_), ar_factor(T,T), ar_factor_chol(T,T) {
     isSparse = false;
     grid.genNN(m);
+    update_rho(0.1);
   }
   
   nngpCovariance(const rts::nngpCovariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_, cov.parameters_),  
-    grid(cov.grid), A(grid.m,grid.N), Dvec(grid.N), m(cov.m) {
+    grid(cov.grid), A(grid.m,grid.N), Dvec(grid.N), m(cov.m), ar_factor(grid.T,grid.T), ar_factor_chol(grid.T,grid.T) {
       isSparse = false;
       grid.genNN(m);
       gen_AD();
+      update_rho(cov.rho);
     }
   
+  MatrixXd inv_ldlt_AD(const MatrixXd &A, const VectorXd &D, const ArrayXXi &NN);
   MatrixXd D(bool chol = true, bool upper = false) override;
   MatrixXd ZL() override;
   MatrixXd LZWZL(const VectorXd& w) override;
@@ -65,16 +70,37 @@ public:
   void update_parameters_extern(const dblvec& parameters) override;
   vector_matrix submatrix(int i);
   
-// private:
-//   //MatrixXd S;
-//   //VectorXd Sv;
-//   double ll1;
+protected:
+  MatrixXd ar_factor;    
+  MatrixXd ar_factor_chol;
 };
 
 }
 
+inline MatrixXd rts::nngpCovariance::inv_ldlt_AD(const MatrixXd &A, 
+                            const VectorXd &D,
+                            const ArrayXXi &NN){
+  int n = A.cols();
+  int m = A.rows();
+  MatrixXd y = MatrixXd::Zero(n,n);
+#pragma omp parallel for  
+  for(int k=0; k<n; k++){
+    int idxlim;
+    for (int i = 0; i < n; i++) {
+      idxlim = i<=m ? i : m;
+      double lsum = 0;
+      for (int j = 0; j < idxlim; j++) {
+        lsum += -1.0 * A(j,i) * y(NN(j,i),k);
+      }
+      y(i,k) = i==k ? (1-lsum)  : (-1.0*lsum);
+    }
+  }
+  
+  return y*D.cwiseSqrt().asDiagonal();
+}
+
 inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
-  MatrixXd As = rts::inv_ldlt_AD(A,Dvec,grid.NN);
+  MatrixXd As = inv_ldlt_AD(A,Dvec,grid.NN);
   if(chol){
     if(upper){
       return As.transpose();
@@ -87,23 +113,8 @@ inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
 }
 
 inline MatrixXd rts::nngpCovariance::ZL(){
-  MatrixXd ZL = MatrixXd::Zero(grid.N*grid.T,grid.N*grid.T);
-  MatrixXd L = D(true,false);
-  
-  if(grid.T==1){
-    ZL = L;
-  } else {
-    for(int t=0; t<grid.T;t++){
-      for(int s=t; s<grid.T;s++){
-        if(t==0){
-          ZL.block(s*grid.N,t*grid.N,grid.N,grid.N) = (pow(rho,s)/(1-rho*rho))*L;
-        } else {
-          ZL.block(s*grid.N,t*grid.N,grid.N,grid.N) = pow(rho,s-t)*L;
-        }
-      }
-    }
-  }
-  
+  MatrixXd L = glmmr::sparse_to_dense(this->matL);
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
   return ZL;
 }
 
@@ -120,10 +131,7 @@ inline MatrixXd rts::nngpCovariance::ZLu(const MatrixXd& u){
 }
 
 inline MatrixXd rts::nngpCovariance::Lu(const MatrixXd& u){
-  MatrixXd LU(u.rows(), u.cols());
-  MatrixXd L = D();
-  for(int t = 0; t<grid.T; t++)LU.block(t*grid.N, 0, grid.N, u.cols()) = L*u;
-  return LU;
+  return rts::nngpCovariance::ZLu(u);
 }
 
 inline sparse rts::nngpCovariance::ZL_sparse(){
@@ -139,16 +147,29 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u){
   double ll1 = 0.0;
   double logdet = log_determinant();
   int idxlim;
-  double au;
+  double au,av;
+  MatrixXd ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
+  // need to collapse u to v
+  MatrixXd umat(grid.N,grid.T);
+  for(int t = 0; t< grid.T; t++){
+    umat.col(t) = u.segment(t*grid.N,grid.N);
+  }
+  MatrixXd vmat = umat * ar_factor_inverse;
   
   for(int t = 0; t<grid.T; t++){
-    double qf = u(t*grid.N)*u(t*grid.N)/Dvec(0);
+    double qf = umat(0,t)*vmat(0,t)/Dvec(0);
+#pragma omp parallel for reduction (+:qf)
     for(int i = 1; i < grid.N; i++){
       idxlim = i <= m ? i : m;
       VectorXd usec(idxlim);
-      for(int j = 0; j < idxlim; j++) usec(j) = u(grid.NN(j,i));
-      au = u(t*grid.N + i) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
-      qf += au*au/Dvec(i);
+      VectorXd vsec(idxlim);
+      for(int j = 0; j < idxlim; j++) {
+        usec(j) = umat(grid.NN(j,i),t);
+        vsec(j) = vmat(grid.NN(j,i),t);
+      }
+      au = umat(i,t) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
+      av = vmat(i,t) - (A.col(i).segment(0,idxlim).transpose() * vsec)(0);
+      qf += au*av/Dvec(i);
     }
     ll1 -= 0.5*qf + 0.5*grid.N*log(2*M_PI); 
   }
@@ -158,18 +179,33 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u){
 
 inline double rts::nngpCovariance::log_determinant(){
   double logdet = Dvec.array().log().sum();
-  return logdet * grid.T;
+  logdet *= grid.T;
+  double logdet_ar = 0;
+  if(grid.T > 1){
+    for(int t = 0; t < grid.T; t++) logdet_ar += 2*log(ar_factor_chol(t,t));
+    logdet_ar *= grid.N;
+  }
+  
+  return logdet + logdet_ar;
 }
 
 inline void rts::nngpCovariance::update_rho(const double rho_){
   rho = rho_;
+  ar_factor.setConstant(1.0);
+  if(grid.T > 1){
+    for(int t = 0; t < (grid.T)-1; t++){
+      for(int s = t+1; s < grid.T; s++){
+        ar_factor(t,s) = pow(rho,s);
+        ar_factor(s,t) = ar_factor(t,s);
+      }
+    }
+  }
+  rts::cholesky(ar_factor_chol, ar_factor);
 }
 
 inline void rts::nngpCovariance::gen_AD(){
   A.setZero();
   Dvec.setZero();
-  // S.setZero();
-  // Sv.setZero();
   
   int idxlim;
   double val = Covariance::get_val(0,0,0);
@@ -178,8 +214,6 @@ inline void rts::nngpCovariance::gen_AD(){
 #pragma omp parallel for
   for(int i = 1; i < grid.N; i++){
     idxlim = i <= m ? i : m;
-    //S.setZero();
-    //Sv.setZero();
     MatrixXd S(idxlim,idxlim);
     VectorXd Sv(idxlim);
     for(int j = 0; j<idxlim; j++){
@@ -196,16 +230,13 @@ inline void rts::nngpCovariance::gen_AD(){
     for(int j = 0; j<idxlim; j++){
       Sv(j) = Covariance::get_val(0,i,grid.NN(j,i));
     }
-    // A.block(0,i,idxlim,1) = S.block(0,0,idxlim,idxlim).ldlt().solve(Sv.segment(0,idxlim));
-    // Dvec(i) = val - (A.col(i).segment(0,idxlim).transpose() * Sv.segment(0,idxlim))(0);
     A.block(0,i,idxlim,1) = S.ldlt().solve(Sv);
     Dvec(i) = val - (A.col(i).segment(0,idxlim).transpose() * Sv)(0);
   }
+  this->matL = glmmr::dense_to_sparse(D(true,false));
 }
 
 inline vector_matrix rts::nngpCovariance::submatrix(int i){
-  // S.setZero();
-  // Sv.setZero();
   int idxlim = i <= m ? i : m;
   double val = Covariance::get_val(0,0,0);
   Dvec(0) = val;
@@ -226,8 +257,6 @@ inline vector_matrix rts::nngpCovariance::submatrix(int i){
     Sv(j) = Covariance::get_val(0,i,grid.NN(j,i));
   }
   vector_matrix result(idxlim);
-  // result.vec = Sv.segment(0,idxlim);
-  // result.mat = S.block(0,0,idxlim,idxlim);
   result.vec = Sv;
   result.mat = S;
   return result;
@@ -259,3 +288,5 @@ inline void rts::nngpCovariance::update_parameters(const ArrayXd& parameters){
   } 
   gen_AD();
 };
+
+

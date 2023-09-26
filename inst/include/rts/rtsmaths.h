@@ -1,71 +1,37 @@
-#ifndef RTSMATHS_H
-#define RTSMATHS_H
+#pragma once
 
-#define _USE_MATH_DEFINES
-
-#include <cmath> 
-#include <glmmr/openmpheader.h>
-#include <RcppEigen.h>
-#include <queue>
-#include <glmmr/algo.h>
-
-// [[Rcpp::depends(RcppEigen)]]
-// [[Rcpp::plugins(openmp)]]
+#include <glmmr.h> 
 
 namespace rts{
 
 using namespace Eigen;
 
-inline MatrixXd inv_ldlt_AD(const MatrixXd &A, 
-                         const VectorXd &D,
-                         const ArrayXXi &NN){
-  int n = A.cols();
-  int m = A.rows();
-  MatrixXd y = MatrixXd::Zero(n,n);
-#pragma omp parallel for  
-  for(int k=0; k<n; k++){
-    int idxlim;
-    for (int i = 0; i < n; i++) {
-      idxlim = i<=m ? i : m;
-      double lsum = 0;
-      for (int j = 0; j < idxlim; j++) {
-        lsum += -1.0 * A(j,i) * y(NN(j,i),k);
-      }
-      y(i,k) = i==k ? (1-lsum)  : (-1.0*lsum);
+//kroenecker product
+inline MatrixXd kronecker(const MatrixXd& A, const MatrixXd& B){
+  MatrixXd result = MatrixXd::Zero(A.rows()*B.rows(), A.cols()*B.cols());
+#pragma omp parallel for collapse(2)
+  for(int i = 0; i < A.rows(); i ++){
+    for(int j = 0; j < A.cols(); j++){
+      if(A(i,j)!=0) result.block(i*B.rows(),j*B.cols(),B.rows(),B.cols()) = A(i,j)*B;
     }
   }
-  
-  return y*D.cwiseSqrt().asDiagonal();
+  return result;
 }
 
-inline ArrayXi top_i_pq(ArrayXd v, int n) {
-  typedef std::pair<double, int> Elt;
-  std::priority_queue< Elt, std::vector<Elt>, std::greater<Elt> > pq;
-  std::vector<int> result;
+inline void cholesky(MatrixXd& B, const MatrixXd& A){
+  int n = A.rows();
+  std::vector<double> L(n * n, 0.0);
   
-  for (int i = 0; i != v.size(); ++i) {
-    if (pq.size() < n)
-      pq.push(Elt(v(i), i));
-    else {
-      Elt elt = Elt(v(i), i);
-      if (pq.top() < elt) {
-        pq.pop();
-        pq.push(elt);
-      }
+  for (int j = 0; j < n; j++) {
+    double s = glmmr::algo::inner_sum(&L[j * n], &L[j * n], j);
+    L[j * n + j] = sqrt(A(j,j) - s);
+    for (int i = j + 1; i < n; i++) {
+      double s = glmmr::algo::inner_sum(&L[j * n], &L[i * n], j);
+      L[i * n + j] = (1.0 / L[j * n + j] * (A(j,i) - s));
     }
   }
-  
-  ArrayXi res(pq.size());
-  int iter = 0;
-  while (!pq.empty()) {
-    res(iter) = pq.top().second;
-    pq.pop();
-    iter++;
-  }
-  
-  return res;
+  B = Map<MatrixXd>(L.data(), n, n);
+  B = B.transpose();
 }
 
 }
-
-#endif

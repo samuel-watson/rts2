@@ -32,7 +32,7 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
       double ll;
     public:
       rho_likelihood(rtsModelOptim<modeltype>& M) :  
-        M_(*this), parrho(0.0), ll(0.0) {};
+        M_(M), parrho(0.0), ll(0.0) {};
       double operator()(const dblvec &par);
     };    
     
@@ -59,22 +59,22 @@ inline void rts::rtsModelOptim<modeltype>::update_u(const MatrixXd& u_){
 template<typename modeltype>
 inline void rts::rtsModelOptim<modeltype>::update_rho(const double rho_){
   this->model.covariance.update_rho(rho_);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
 }
 
 template<typename modeltype>
 inline void rts::rtsModelOptim<modeltype>::ml_rho(){
   rho_likelihood ldl(*this);
-  Rbobyqa<L_likelihood,dblvec> opt;
-  opt.control.iprint = trace;
+  Rbobyqa<rho_likelihood,dblvec> opt;
   dblvec start;
   start.push_back(this->model.covariance.rho);
   dblvec lower;
   lower.push_back(-1.0);
-  dblbec upper;
+  dblvec upper;
   upper.push_back(1.0);
   opt.set_lower(lower);
   opt.set_upper(upper);
-  opt.control.iprint = trace;
+  opt.control.iprint = this->trace;
   opt.minimize(ldl, start);
 }
 

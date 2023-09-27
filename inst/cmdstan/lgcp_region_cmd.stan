@@ -1,45 +1,4 @@
 functions {
-  vector lambda_nD(array[] real L, array[] int m, int D) {
-    vector[D] lam;
-    for(i in 1:D){
-      lam[i] = ((m[i]*pi())/(2*L[i]))^2; }
-
-    return lam;
-  }
-  real spd_nD(real sigma, row_vector phi, vector w, int D, int mod) {
-    real S;
-    real S1;
-    vector[2] phisq; 
-    vector[2] wsq;
-    phisq = (phi .* phi)';
-    wsq = w .* w;
-    
-    if(mod == 0){
-      // squared exponential
-      S = sigma^2 * sqrt(2*pi())^D * prod(phi) * exp(-0.5*((phi .* phi) * (w .* w)));
-    } else {
-      // exponential
-      S1 = sigma^2 * 4 * pi() * tgamma(1.5)/tgamma(0.5);
-      S = S1 * prod(phi) * (1 + phisq' * wsq)^(-2);
-    }
-
-    return S;
-  }
-  vector phi_nD(array[] real L, array[] int m, matrix x) {
-    int c = cols(x);
-    int r = rows(x);
-
-    matrix[r,c] fi;
-    vector[r] fi1;
-    for (i in 1:c){
-      fi[,i] = 1/sqrt(L[i])*sin(m[i]*pi()*(x[,i]+L[i])/(2*L[i]));
-    }
-    fi1 = fi[,1];
-    for (i in 2:c){
-      fi1 = fi1 .* fi[,i];
-    }
-    return fi1;
-  }
   real calc_lambda(real p, real xg, vector w, vector f){
     return p*exp(xg)*(w' * exp(f));
   }
@@ -66,6 +25,9 @@ functions {
     return poisson_lpmf(y | lambda);                  
                               
   }
+  real partial_sum1_lpdf(array[] real y, int start, int end){
+    return std_normal_lpdf(y[start:end]);
+  }
   // real partial_sum2_lpmf(array[] int y,int start, int end, int nT,
   //                       int nR, vector pop, matrix X, 
   //                       vector w, vector f, array[] int cell_id, array[] int n_cell,
@@ -81,8 +43,6 @@ data {
   int<lower=1> Q; //number of covariates
   int<lower=0> Q_g; //number of covariates
   array[D] real L; // boundary condition
-  int<lower=1> M; // number of basis functions (per dimension)
-  int<lower=1> M_nD; //total basis functions m1*m2*...*mD
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
   int n_region; // number of regions
@@ -107,60 +67,44 @@ data {
   int mod;
   int<lower = 0, upper = 1> known_cov;
   real<lower=0> sigma_data; 
-  array[known_cov ? D : 1] real<lower=0> phi_data; 
+  real<lower=0> phi_data; 
 }
 transformed data {
-  matrix[Nsample,M_nD] PHI;
-  real diagSPD_data[known_cov ? M_nD : 0];
-
-  for (m in 1:M_nD){
-    PHI[,m] = phi_nD(L, indices[m,], x_grid);
-  }
   
-  if(known_cov){
-    for(m in 1:M_nD){
-      diagSPD_data[m] =  sqrt(spd_nD(sigma_data, to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
-    }
-  }
 }
 
 parameters {
-  matrix[M_nD,nT] beta;
-  array[known_cov ? 0 : D] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
   array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   vector[Q_g] gamma_g;
   real<lower=-1,upper=1> ar;
+  array[Nsample*nT] real f_raw;
 }
 
 transformed parameters{
+  matrix[Nsample,Nsample] L;
   vector[Nsample*nT] f;
-  vector[M_nD] diagSPD;
-  vector[M_nD] SPD_beta;
   real<lower=1e-05> sigma;
-  row_vector<lower=1e-05>[D] phi;
+  real<lower=1e-05> phi;
   if(known_cov){
     sigma = sigma_data;
-    phi = to_row_vector(phi_data);
-    diagSPD = to_vector(diagSPD_data);
+    phi = phi_data;
   } else {
     sigma = sigma_param[1];
-    phi = to_row_vector(phi_param);
-    for(m in 1:M_nD){
-      diagSPD[m] =  sqrt(spd_nD(sigma, phi, sqrt(lambda_nD(L, indices[m,], D)), D, mod));
-    }
+    phi = phi_param[1];
   }
 
+  L = genChol(Nsample, sigma, phi, x_grid, mod);
   for(t in 1:nT){
-    SPD_beta = diagSPD .* beta[,t];
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = (1/(1-ar^2))*PHI * SPD_beta;
+        f[1:Nsample] = (1/(1-ar^2))*L*to_vector(f_raw[1:Nsample]);
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + PHI * SPD_beta;
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*L*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + L*to_vector(f_raw[(Nsample*(t-1)+1):(t*Nsample)]);
       }
     } else {
-      f[1:Nsample] = PHI * SPD_beta;
+      f = L*to_vector(f_raw);
     }
 
   }
@@ -172,9 +116,8 @@ transformed parameters{
 }
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
-  to_vector(beta) ~ normal(0,1);
   if(!known_cov){
-    to_vector(phi_param) ~ normal(prior_lscale[1],prior_lscale[2]);
+    phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
     sigma_param ~ normal(prior_var[1],prior_var[2]);
   }
   ar ~ normal(0,1);
@@ -185,6 +128,7 @@ model{
     gamma_g ~ normal(0,2);
   }
   array[n_region*nT] int idx = linspaced_int_array(n_region*nT,1,n_region*nT);
+  target += reduce_sum(partial_sum1_lpdf,f_raw,grainsize);
   y ~ poisson_log_block(idx, nT, n_region, Nsample, popdens, X, q_weights, f, cell_id, n_cell, gamma);
 }
 

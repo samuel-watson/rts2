@@ -80,6 +80,7 @@ functions {
 data {
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
+  int<lower=0> Q_g; //number of covariates
   int<lower=1> M; // number of nearest neighbours
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
@@ -94,6 +95,7 @@ data {
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[n_region*nT] popdens; //population density
   matrix[n_region*nT,Q] X;
+  matrix[Nsample*nT,Q_g == 0 ? 1 : Q_g] X_g;
   
   real prior_lscale[2];
   real prior_var[2];
@@ -101,21 +103,22 @@ data {
   real prior_linpred_sd[Q];
   int mod;
   int<lower = 0, upper = 1> known_cov;
-  real<lower=0> sigma_data[known_cov ? 1 : 0]; 
-  real<lower=0> phi_data[known_cov ? 1 : 0]; 
+  real<lower=0> sigma_data; 
+  real<lower=0> phi_data; 
 }
 
 transformed data {
   matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
   if(known_cov){
-    AD_data = getAD(sigma_data[1], phi_data[1], x_grid, NN, mod);
+    AD_data = getAD(sigma_data, phi_data, x_grid, NN, mod);
   }
 }
 
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 1 : 0]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 1 : 0];
+  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
+  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
   vector[Q] gamma;
+  vector[Q_g] gamma_g;
   real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
 }
@@ -126,8 +129,8 @@ transformed parameters {
   real<lower=1e-05> phi; //length scale
   real<lower=1e-05> sigma;
   if(known_cov){
-    sigma = sigma_data[1];
-    phi = phi_data[1];
+    sigma = sigma_data;
+    phi = phi_data;
     AD = AD_data;
   } else {
     sigma = sigma_param[1];
@@ -144,7 +147,10 @@ transformed parameters {
     } else {
       f = f_raw;
     }
-
+  }
+  
+  if(Q_g > 0){
+    f += X_g * gamma_g;
   }
 }
 
@@ -159,7 +165,9 @@ model{
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  
+  if(Q_g > 0){
+    gamma_g ~ normal(0,2);
+  }
   
   for(t in 1:nT){
     if(nT>1){

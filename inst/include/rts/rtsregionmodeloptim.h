@@ -27,6 +27,7 @@ public:
   
   void update_theta(const dblvec &theta) override;
   void update_u(const MatrixXd& u) override;
+  void update_rho(double rho);
   void ml_rho();
   double log_likelihood() override;
   double full_log_likelihood() override;
@@ -39,7 +40,7 @@ public:
       double ll;
     public:
       rho_likelihood(rtsRegionModelOptim<modeltype>& M) :  
-      M_(*this), parrho(0.0), ll(0.0) {};
+      M_(M), parrho(0.0), ll(0.0) {};
       double operator()(const dblvec &par);
     };    
   
@@ -54,19 +55,24 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_theta(const dblvec &thet
 }
 
 template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::update_rho(double rho){
+  this->model.covariance.update_rho(rho);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+template<typename modeltype>
 inline void rts::rtsRegionModelOptim<modeltype>::ml_rho(){
   rho_likelihood ldl(*this);
-  Rbobyqa<L_likelihood,dblvec> opt;
-  opt.control.iprint = trace;
+  Rbobyqa<rho_likelihood,dblvec> opt;
   dblvec start;
   start.push_back(this->model.covariance.rho);
   dblvec lower;
   lower.push_back(-1.0);
-  dblbec upper;
+  dblvec upper;
   upper.push_back(1.0);
   opt.set_lower(lower);
   opt.set_upper(upper);
-  opt.control.iprint = trace;
+  opt.control.iprint = this->trace;
   opt.minimize(ldl, start);
 }
 

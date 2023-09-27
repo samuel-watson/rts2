@@ -94,21 +94,21 @@ data {
   real prior_linpred_sd[Q];
   int mod;
   int<lower = 0, upper = 1> known_cov;
-  real<lower=0> sigma_data[known_cov ? 1 : 0]; 
-  real<lower=0> phi_data[known_cov ? 1 : 0]; 
+  real<lower=0> sigma_data; 
+  real<lower=0> phi_data; 
 }
 
 transformed data {
   vector[Nsample*nT] logpopdens = log(popdens);
   matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
   if(known_cov){
-    AD_data = getAD(sigma_data[1], phi_data[1], x_grid, NN, mod);
+    AD_data = getAD(sigma_data, phi_data, x_grid, NN, mod);
   }
 }
 
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 1 : 0]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 1 : 0];
+  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
+  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
@@ -120,8 +120,8 @@ transformed parameters {
   real<lower=1e-05> phi; //length scale
   real<lower=1e-05> sigma;
   if(known_cov){
-    sigma = sigma_data[1];
-    phi = phi_data[1];
+    sigma = sigma_data;
+    phi = phi_data;
     AD = AD_data;
   } else {
     sigma = sigma_param[1];

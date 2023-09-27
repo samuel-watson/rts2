@@ -22,7 +22,7 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1
 Biarch: true
 Depends: 
-    R (>= 3.4.0)
+    R (>= 3.5.0)
 Imports: 
     methods,
     R6,

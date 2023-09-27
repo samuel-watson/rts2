@@ -35,40 +35,44 @@ functions {
     }
     return L;
   }
+  real partial_sum2_lpmf(array[] int y,int start, int end, vector mu){
+    return poisson_log_lpmf(y[start:end]|mu[start:end]);
+  }
+  real partial_sum1_lpdf(array[] real y, int start, int end){
+    return std_normal_lpdf(y[start:end]);
+  }
 }
 data {
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int y[Nsample*nT]; //outcome
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[Nsample*nT] popdens; //population density
   matrix[Nsample*nT,Q] X;
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
   int<lower = 0, upper = 1> known_cov;
   real<lower=0> sigma_data; 
   real<lower=0> phi_data; 
 }
-
 transformed data {
-  
   vector[Nsample*nT] logpopdens = log(popdens);
 }
 
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
-  vector[Nsample*nT] f_raw;
+  array[Nsample*nT] real f_raw;
 }
 
-transformed parameters {
+transformed parameters{
   matrix[Nsample,Nsample] L;
   vector[Nsample*nT] f;
   real<lower=1e-05> sigma;
@@ -85,49 +89,36 @@ transformed parameters {
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = (1/(1-ar^2))*f_raw[1:Nsample];
+        f[1:Nsample] = (1/(1-ar^2))*L*to_vector(f_raw[1:Nsample]);
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + f_raw[(Nsample*(t-1)+1):(t*Nsample)];
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*L*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + L*to_vector(f_raw[(Nsample*(t-1)+1):(t*Nsample)]);
       }
     } else {
-      f = f_raw;
+      f = L*to_vector(f_raw);
     }
 
   }
 }
-
 model{
-  vector[Nsample] zeros = rep_vector(0,Nsample);
   if(!known_cov){
-    phi ~ normal(prior_lscale[1],prior_lscale[2]);
-    sigma ~ normal(prior_var[1],prior_var[2]);
+    to_vector(phi_param) ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
   }
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
+  int grainsize = 1;
   
-  for(t in 1:nT){
-    if(nT>1){
-      if(t==1){
-        f_raw[1:Nsample] ~ multi_normal_cholesky(zeros,L);
-      } else {
-        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ multi_normal_cholesky(zeros,L);
-      }
-    } else {
-      f_raw ~ multi_normal_cholesky(zeros,L);
-    }
+  target += reduce_sum(partial_sum1_lpdf,f_raw,grainsize);
+  target += reduce_sum(partial_sum2_lpmf,y,grainsize,X*gamma+logpopdens+f);
 
-  }
-  
-  y ~ poisson_log(X*gamma+logpopdens+f);
 }
 
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
-  
+
   for(i in 1:(Nsample*nT)){
     y_grid_predict[i] = exp(X[i,]*gamma+logpopdens[i]+f[i]);
   }
 }
-

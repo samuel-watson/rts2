@@ -93,6 +93,10 @@ rtsModel__ml_beta <- function(xp, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_beta`, xp, covtype_, lptype_))
 }
 
+rtsModel__ml_rho <- function(xp, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__ml_rho`, xp, covtype_, lptype_))
+}
+
 rtsModel__ml_all <- function(xp, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_all`, xp, covtype_, lptype_))
 }
@@ -201,8 +205,12 @@ rtsModel__hessian <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__hessian`, xp, covtype_, lptype_)
 }
 
-rtsModel__region_intensity <- function(xp, covtype_) {
-    .Call(`_rts2_rtsModel__region_intensity`, xp, covtype_)
+rtsModel__region_intensity <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__region_intensity`, xp, covtype_, lptype_)
+}
+
+rtsModel__region_grid_xb <- function(xp, covtype_) {
+    .Call(`_rts2_rtsModel__region_grid_xb`, xp, covtype_)
 }
 
 rtsModel__grid_to_region <- function(xp, u_) {

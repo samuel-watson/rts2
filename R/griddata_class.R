@@ -362,13 +362,14 @@ grid <- R6::R6Class("grid",
                              return(dw)
                            },
                            #' @description
-                           #' Fit an (approximate) log-Gaussian Cox Process model
+                           #' Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
                            #'
                            #' @details
                            #' *BAYESIAN MODEL FITTING*
                            #' The grid data must contain columns `t*`, giving the case
                            #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
-                           #' (see `add_covariates`) and the population density.
+                           #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
+                           #' counts must be in self$region_data
                            #'
                            #' Our statistical model is a Log Gaussian cox process,
                            #' whose realisation is observed on the Cartesian area of interest
@@ -420,6 +421,8 @@ grid <- R6::R6Class("grid",
                            #' include. For temporally-varying covariates only the stem is required and not
                            #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
                            #' `dayMon2`, etc.)
+                           #' @param covs_grid If using a region model, covariates at the level of the grid can also be specified by providing their
+                           #' names to this argument.
                            #' @param approx Either "rank" for reduced rank approximation, or "nngp" for nearest 
                            #' neighbour Gaussian process. 
                            #' @param m integer. Number of basis functions for reduced rank approximation, or
@@ -461,10 +464,11 @@ grid <- R6::R6Class("grid",
                            #'   prior_linpred_mean=c(0),
                            #'   prior_linpred_sd=c(5)
                            #'   )
-                           #' res <- g1$lgcp_fit(popdens="cov")
+                           #' res <- g1$lgcp_bayes(popdens="cov")
                            #' }
                            lgcp_bayes = function(popdens,
                                                covs=NULL,
+                                               covs_grid = NULL,
                                                approx = "nngp",
                                                m=10,
                                                L=1.5,
@@ -485,9 +489,8 @@ grid <- R6::R6Class("grid",
                              if(m<=1 & approx %in% c('nngp','hsgp'))stop("m must be greater than one")
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
-                             
                              #prepare data for model fit
-                             datlist <- private$prepare_data(m,model,approx,popdens,covs,verbose,TRUE)
+                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE)
                              if(!is.null(known_theta)){
                                if(length(known_theta)!=2)stop("Theta should be of length 2")
                                datlist$known_cov <- 1
@@ -499,8 +502,8 @@ grid <- R6::R6Class("grid",
                                }
                              } else {
                                datlist$known_cov <- 0
-                               datlist$sigma_data <- c()
-                               datlist$phi_data <- c()
+                               datlist$sigma_data <- c(1)
+                               datlist$phi_data <- c(1)
                              }
 
                              if(approx == "hsgp"){
@@ -521,10 +524,10 @@ grid <- R6::R6Class("grid",
                                }
                              } else {
                                if(!is.null(self$region_data)){
-                                 filen <- "lgcp_region.stan"
+                                 filen <- "lgcp_region_cmd.stan"
                                  fname <- "lgcp_region"
                                } else {
-                                 filen <- "lgcp.stan"
+                                 filen <- "lgcp_cmd.stan"
                                  fname <- "lgcp"
                                }
                              }
@@ -592,8 +595,74 @@ grid <- R6::R6Class("grid",
 
                              return(res)
                            },
+                           #' @description
+                           #' Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
+                           #'
+                           #' @details
+                           #' *MAXIMUM LIKELIHOOD MODEL FITTING*
+                           #' The grid data must contain columns `t*`, giving the case
+                           #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
+                           #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
+                           #' counts must be in self$region_data. See `lgcp_bayes()` for more details on the model.
+                           #' 
+                           #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
+                           #' to use either a nearest neighbour approximation (`approx='nngp'`) 
+                           #' 
+                           #' Model fitting uses MCMC Maximum likelihood, which has three steps:
+                           #'  1. Sample random effects using MCMC. Using cmdstanr is recommended as it is much faster. The arguments 
+                           #'    `mcmc_warmup` and `mcmc_sampling` specify the warmup and sampling iterations for this step.
+                           #'  2. Fit fixed effect parameters using expectation maximisation.
+                           #'  3. Fit covariance parameters using expectation maximisation. This third step is the slowest. The NNGP approximation
+                           #'     provides some speed improvements. Otherwise this step can be skipped if the covaraince parameters are "known".   
+                           #' 
+                           #' @param popdens character string. Name of the population density column
+                           #' @param covs vector of strings. Base names of the covariates to
+                           #' include. For temporally-varying covariates only the stem is required and not
+                           #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
+                           #' `dayMon2`, etc.)
+                           #' @param covs_grid If using a region model, covariates at the level of the grid can also be specified by providing their
+                           #' names to this argument.
+                           #' @param approx Either "rank" for reduced rank approximation, or "nngp" for nearest 
+                           #' neighbour Gaussian process. 
+                           #' @param m integer. Number of basis functions for reduced rank approximation, or
+                           #' number of nearest neighbours for nearest neighbour Gaussian process. See Details.
+                           #' @param L integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
+                           #' `L=2` is a doubling of the analysis area. See Details.
+                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
+                           #' covariance function
+                           #' @param known_theta An optional vector of two values of the covariance parameters. If these are provided
+                           #' then the covariance parameters are assumed to be known and will not be estimated.
+                           #' @param iter_warmup integer. Number of warmup iterations
+                           #' @param iter_sampling integer. Number of sampling iterations
+                           #' @param verbose logical. Provide feedback on progress
+                           #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
+                           #' instead of rstan.
+                           #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
+                           #' @return A \link[glmmrBase]{mcml} model fit object
+                           #' @seealso points_to_grid, add_covariates
+                           #' @examples
+                           #' \dontrun{
+                           #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+                           #' g1 <- grid$new(b1,0.5)
+                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
+                           #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
+                           #' cov1 <- grid$new(b1,0.8)
+                           #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
+                           #' g1$add_covariates(cov1,
+                           #'                   zcols="cov",
+                           #'                   verbose = FALSE)
+                           #' g1$points_to_grid(dp, laglength=5)
+                           #' g1$priors <- list(
+                           #'   prior_lscale=c(0,0.5),
+                           #'   prior_var=c(0,0.5),
+                           #'   prior_linpred_mean=c(0),
+                           #'   prior_linpred_sd=c(5)
+                           #'   )
+                           #' res <- g1$lgcp_ml(popdens="cov")
+                           #' }
                            lgcp_ml = function(popdens,
                                               covs=NULL,
+                                              covs_grid = NULL,
                                               approx = "nngp",
                                               m=10,
                                               L=1.5,
@@ -612,22 +681,19 @@ grid <- R6::R6Class("grid",
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              
                              #prepare data for model fit
-                             datlist <- private$prepare_data(m,model,approx,popdens,covs,verbose,TRUE)
+                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE)
                              if(!is.null(known_theta)){
-                               if(length(known_theta)!=2)stop("Theta should be of length 2")
+                               if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
                                datlist$known_cov <- 1
                                datlist$sigma_data <- as.array(known_theta[1])
-                               if(approx=="hsgp"){
-                                 datlist$phi_data <- as.array(c(known_theta[2],known_theta[2]))
-                               } else {
-                                 datlist$phi_data <- as.array(known_theta[2])
-                               }
+                               datlist$phi_data <- as.array(known_theta[2])
+                               rtsModel__update_theta(private$ptr,known_theta[1:2],private$cov_type,private$lp_type)
+                               if(datlist$nT>1)rtsModel__update_rho(private$ptr,known_theta[3],private$cov_type,private$lp_type)
                              } else {
                                datlist$known_cov <- 0
                                datlist$sigma_data <- c()
                                datlist$phi_data <- c()
                              }
-                             
                              
                              trace <- ifelse(verbose,2,0)
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
@@ -724,10 +790,11 @@ grid <- R6::R6Class("grid",
                                
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                theta_new <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
-                               rho_new <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
-
                                all_pars_new <- c(beta_new,theta_new)
-                               if(var_par_family)all_pars_new <- c(all_pars_new,var_par_new)
+                               if(datlist$nT > 1){
+                                 rho_new <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
+                                 all_pars_new <- c(all_pars_new,rho_new)
+                               }
                                if(trace==2)t3 <- Sys.time()
                                if(trace==2)cat("\nModel fitting took: ",t3-t2,"s")
                                if(verbose){
@@ -739,53 +806,22 @@ grid <- R6::R6Class("grid",
                                }
                                
                              }
-                             ##UPDATE FROM HERE###
                              not_conv <- iter > max.iter|any(abs(all_pars-all_pars_new)>tol)
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
-                             if(sim.lik.step){
-                               if(verbose)cat("\n\n")
-                               if(verbose)message("Optimising simulated likelihood")
-                               Model__ml_all(private$ptr,private$model_type())
-                               beta_new <- Model__get_beta(private$ptr,private$model_type())
-                               theta_new <- Model__get_theta(private$ptr,private$model_type())
-                               var_par_new <- Model__get_var_par(private$ptr,private$model_type())
-                             }
-                             self$update_parameters(mean.pars = beta_new,
-                                                    cov.pars = theta_new)
                              if(verbose)cat("\n\nCalculating standard errors...\n")
-                             self$var_par <- var_par_new
-                             u <- Model__u(private$ptr, TRUE,private$model_type())
-                             if(se == "gls" || se == "bw"){
-                               M <- Matrix::solve(Model__obs_information_matrix(private$ptr,private$model_type()))[1:length(beta),1:length(beta)]
-                               if(se.theta){
-                                 SE_theta <- tryCatch(sqrt(diag(solve(Model__infomat_theta(private$ptr,private$model_type())))), error = rep(NA, ncovpar))
-                               } else {
-                                 SE_theta <- rep(NA, ncovpar)
-                               }
-                             } else if(se == "robust" || se == "bwrobust"){
-                               M <- Model__sandwich(private$ptr,private$model_type())
-                               if(se.theta){
-                                 SE_theta <- tryCatch(sqrt(diag(solve(Model__infomat_theta(private$ptr,private$model_type())))), error = rep(NA, ncovpar))
-                               } else {
-                                 SE_theta <- rep(NA, ncovpar)
-                               }
-                             } else if(se == "kr"){
-                               Mout <- Model__kenward_roger(private$ptr,private$model_type())
-                               M <- Mout[[1]]
-                               SE_theta <- sqrt(diag(Mout[[2]]))
-                             }
+                             u <- rtsModel__u(private$ptr, TRUE,private$cov_type,private$lp_type)
+                             M <- Matrix::solve(rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type))
                              SE <- sqrt(diag(M))
-                             repar_table <- self$covariance$parameter_table()
-                             beta_names <- Model__beta_parameter_names(private$ptr,private$model_type())
-                             theta_names <- repar_table$term
-                             if(self$family[[1]]%in%c("Gamma","beta")){
-                               mf_pars_names <- c(beta_names,theta_names,"sigma")
-                               SE <- c(SE,rep(NA,length(theta_new)+1))
+                             if(se.theta){
+                               SE_theta <- tryCatch(sqrt(diag(solve(Model__infomat_theta(private$ptr,private$cov_type,private$lp_type)))), error = rep(NA, ncovpar))
                              } else {
-                               mf_pars_names <- c(beta_names,theta_names)
-                               if(self$family[[1]]=="gaussian") mf_pars_names <- c(mf_pars_names,"sigma")
-                               SE <- c(SE,SE_theta)
+                               SE_theta <- rep(NA, ncovpar)
                              }
+                             beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
+                             theta_names <- c("theta_1","theta_2")
+                             rho_names <- "rho"
+                             mf_pars_names <- c(beta_names, theta_names)
+                             if(datlist$nT > 1) mf_pars_names <- c(mf_pars_names, rho_names)
                              res <- data.frame(par = c(mf_pars_names,paste0("d",1:nrow(u))),
                                                est = c(all_pars_new,rowMeans(u)),
                                                SE=c(SE,rep(NA,nrow(u))),
@@ -793,64 +829,42 @@ grid <- R6::R6Class("grid",
                                                p = NA,
                                                lower = NA,
                                                upper = NA)
-                             dof <- rep(self$n(),length(beta))
-                             if(se == "kr"){
-                               for(i in 1:length(beta)){
-                                 if(!is.na(res$SE[i])){
-                                   res$t[i] <- (res$est[i]/res$SE[i])#*sqrt(lambda)
-                                   res$p[i] <- 2*(1-stats::pt(abs(res$t[i]),Mout$dof[i],lower.tail=FALSE))
-                                   res$lower[i] <- res$est[i] - stats::qt(0.975,Mout$dof[i],lower.tail=FALSE)*res$SE[i]
-                                   res$upper[i] <- res$est[i] + stats::qt(0.975,Mout$dof[i],lower.tail=FALSE)*res$SE[i]
-                                 }
-                                 dof[i] <- Mout$dof[i]
-                               }
-                             } else if(se=="bw" || se == "bwrobust"){
-                               res$t <- res$est/res$SE
-                               bwdof <- sum(repar_table$count) - length(beta)
-                               res$p <- 2*(1-stats::pt(abs(res$t),bwdof,lower.tail=FALSE))
-                               res$lower <- res$est - qt(1-0.05/2,bwdof,lower.tail=FALSE)*res$SE
-                               res$upper <- res$est + qt(1-0.05/2,bwdof,lower.tail=FALSE)*res$SE
-                               dof <- rep(bwdof,length(beta))
-                             } else {
-                               res$t <- res$est/res$SE
-                               res$p <- 2*(1-stats::pnorm(abs(res$t)))
-                               res$lower <- res$est - qnorm(1-0.05/2)*res$SE
-                               res$upper <- res$est + qnorm(1-0.05/2)*res$SE
-                             }
-                             repar_table <- repar_table[!duplicated(repar_table$id),]
-                             rownames(u) <- rep(repar_table$term,repar_table$count)
-                             aic <- Model__aic(private$ptr,private$model_type())
-                             xb <- Model__xb(private$ptr,private$model_type())
-                             zd <- self$covariance$Z %*% rowMeans(u)
-                             wdiag <- Matrix::diag(self$w_matrix())
+                             res$t <- res$est/res$SE
+                             res$p <- 2*(1-stats::pnorm(abs(res$t)))
+                             res$lower <- res$est - qnorm(1-0.05/2)*res$SE
+                             res$upper <- res$est + qnorm(1-0.05/2)*res$SE
+                             aic <- rtsModel__aic(private$ptr,private$cov_type,private$lp_type)
+                             xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
+                             zd <- rowMeans(u)
+                             wdiag <- Matrix::diag(rtsModel__get_W(private$ptr,private$cov_type,private$lp_type))
                              total_var <- var(Matrix::drop(xb)) + var(Matrix::drop(zd)) + mean(wdiag)
                              condR2 <- (var(Matrix::drop(xb)) + var(Matrix::drop(zd)))/total_var
                              margR2 <- var(Matrix::drop(xb))/total_var
                              out <- list(coefficients = res,
                                          converged = !not_conv,
-                                         method = method,
+                                         method = "mcem",
                                          m = dim(u)[2],
                                          tol = tol,
                                          sim_lik = sim.lik.step,
                                          aic = aic,
                                          se=se,
                                          Rsq = c(cond = condR2,marg=margR2),
-                                         logl = Model__log_likelihood(private$ptr,private$model_type()),
+                                         logl = rtsModel__log_likelihood(private$ptr,private$cov_type,private$lp_type),
                                          mean_form = self$mean$formula,
                                          cov_form = self$covariance$formula,
-                                         family = self$family[[1]],
-                                         link = self$family[[2]],
+                                         family = "poisson",
+                                         link = "log",
                                          re.samps = u,
                                          iter = iter,
-                                         dof = dof,
-                                         P = length(self$mean$parameters),
-                                         Q = length(self$covariance$parameters),
-                                         var_par_family = var_par_family,
-                                         y=y)
+                                         dof = length(xb),
+                                         P = length(beta_new),
+                                         Q = 2,
+                                         var_par_family = FALSE,
+                                         y=datlist$y)
                              class(out) <- "mcml"
                              return(out)
                              
-                           }
+                           },
                            #' @description
                            #' Extract predictions
                            #'
@@ -1287,181 +1301,6 @@ grid <- R6::R6Class("grid",
                              yrange <- range(x_grid[,2])
                              std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
                              return(std_val)
-                           },
-                           #' @description
-                           #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
-                           #' 
-                           #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
-                           #' regional models, and using a full LGCP or nearest neighbour approximation.
-                           #' 
-                           #' @details
-                           #' *MAXIMUM LIKELIHOOD MODEL FITTING*
-                           #' The arguments `mcml_options` and `la_options` for the functions `lgcp_fit_ml` and `lgcp_fit_la` are named lists 
-                           #' with the options of whether to use NNGP (`useNN`), whether to use 
-                           #' Newton-Raphson (`mcnr`), whether to treat the covariance parameters as known (`known_theta`), whether to provide
-                           #' more detailed output (`trace`), the number of nearest neighbours if using NNGP (`nNN`), the tolerance for when to 
-                           #' terminate the algorithm (`tol`), and the maximum number of algorithm iterations (`maxiter`). The argument 
-                           #' `mcmc_options` is a named list with the number of warmup and sampling iterations for the MCMC sampler.
-                           #' @param popdens character string. Name of the population density column
-                           #' @param covs vector of character string. Base names of the covariates to
-                           #' include. For temporally-varying covariates only the stem is required and not
-                           #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
-                           #' `dayMon2`, etc.)
-                           #' @param start Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1
-                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
-                           #' covariance function
-                           #' @param mcml_options List of options for the algorithm. See details.
-                           #' @param mcmc_options List of options for the MCMC sampling. See details.
-                           #' @param verbose logical. Provide feedback on progress
-                           #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
-                           #' instead of rstan.
-                           #' @return A named list with the estimated parameters, number of iterations, whether the algorithm converged, and 
-                           #' the random effect samples.
-                           lgcp_fit_ml = function(popdens,
-                                                  covs=NULL,
-                                                  start,
-                                                  model = "exp",
-                                                  mcml_options = list(useNN=FALSE,mcnr=FALSE,known_theta=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
-                                                  mcmc_options = list(warmup = 100, sampling = 100),
-                                                  verbose=TRUE,
-                                                  use_cmdstanr = FALSE
-                                                  ){
-                             
-                             if(mcml_options$nNN<1)stop("number of nearest neighbours must be positive")
-                             if(!all(c("useNN","mcnr","known_theta","trace","nNN","tol","maxiter")%in%names(mcml_options)))stop("mcml options does not have all options specified")
-                             if(!all(c("warmup","sampling")%in%names(mcmc_options)))stop("mcmc options does not have all options specified")
-                             
-                             if(!is.null(self$region_data)&verbose)message("Using regional data model.")
-                             approx <- ifelse(mcml_options$useNN,"nngp","none")
-                             datlist <- private$prepare_data(mcml_options$nNN,model,approx,popdens,covs,verbose,FALSE)
-                             npar <- ncol(datlist$X) + 2
-                             if(datlist$nT > 1)npar = npar + 1
-                             if(length(start) != npar)stop("Wrong number of starting values")
-                             
-                             args <- list(y= datlist$y,
-                                          X = datlist$X,
-                                          coords = datlist$x_grid,
-                                          popdens = log(datlist$popdens),
-                                          nT = datlist$nT,
-                                          start = start,
-                                          mod = model,
-                                          mcml_options = mcml_options,
-                                          mcmc_options = mcmc_options,
-                                          verbose = verbose,
-                                          use_cmdstanr = use_cmdstanr)
-                             
-                             if(!is.null(self$region_data)){
-                               regiondat <- list(ncell = datlist$n_cell,
-                                                   cell_id = datlist$cell_id,
-                                                   q_weights = datlist$q_weights)
-                               args <- append(args,list(region_data = regiondat))
-                             }
-                             
-                             out <- do.call("lgcp_mcmcml",args)
-                             
-                             xb <- datlist$X%*%out$beta
-                             zu <- get_ZLu(diag(nrow(datlist$x_grid)),u = out$u,nT = datlist$nT,rho = out$rho)
-                             
-                             if(is.null(self$region_data)){
-                               y <- zu
-                               for(i in 1:ncol(y)){
-                                 y[,i] <- exp(y[,i] + xb + log(datlist$popdens))
-                               } 
-                             } else {
-                               y <- region_intensity(xb = xb,y = datlist$y,zu = zu,
-                                                     offset = log(datlist$popdens),nT = datlist$nT,
-                                                     n_cell = regiondat$ncell,cell_id = regiondat$cell_id,
-                                                     q_weights = regiondat$q_weights)
-                             }
-                             
-                             out$y_grid_predict <- y
-                             
-                             
-                             class(out) <- "lgcp_mcmcml"
-                             return(out)
-                           },
-                           #' @description 
-                           #' Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
-                           #' 
-                           #' Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and 
-                           #' regional models, and using a full LGCP or nearest neighbour approximation.
-                           #' 
-                           #' @param popdens character string. Name of the population density column
-                           #' @param covs vector of character string. Base names of the covariates to
-                           #' include. For temporally-varying covariates only the stem is required and not
-                           #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
-                           #' `dayMon2`, etc.)
-                           #' @param start Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1
-                           #' @param model Either "exp" for exponential covariance function or "sqexp" for squared exponential
-                           #' covariance function
-                           #' @param la_options List of options for the algorithm. See details.
-                           #' @param verbose logical. Provide feedback on progress
-                           #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
-                           #' instead of rstan to sample random effects at the end of the algorithm
-                           #' @return A named list with the estimated parameters, number of iterations, whether the algorithm converged, and 
-                           #' the random effect samples.
-                           lgcp_fit_la = function(popdens,
-                                                  covs=NULL,
-                                                  start,
-                                                  model = "exp",
-                                                  la_options = list(useNN=FALSE,known_theta=FALSE,nr=FALSE,trace=1,nNN=10,tol=1e-2, maxiter=10),
-                                                  verbose=TRUE,
-                                                  use_cmdstanr = TRUE
-                           ){
-                             
-                             if(!is.null(self$region_data)&verbose)stop("Laplace approximation model fitting not available for regional data model.")
-                             if(la_options$nNN<1)stop("Number of nearest neighbours must be positive")
-                             if(!all(c("useNN","known_theta","nr","trace","nNN","tol","maxiter")%in%names(la_options)))stop("la options does not have all options specified")
-                             
-                             approx <- ifelse(la_options$useNN,"nngp","none")
-                             datlist <- private$prepare_data(la_options$nNN,model,approx,popdens,covs,verbose,FALSE)
-                             npar <- ncol(datlist$X) + 2
-                             if(datlist$nT > 1)npar = npar + 1
-                             if(length(start) != npar)stop("Wrong number of starting values")
-                             
-                             
-                             args <- list(y= datlist$y,
-                                          X = datlist$X,
-                                          coords = datlist$x_grid,
-                                          popdens = log(datlist$popdens),
-                                          nT = datlist$nT,
-                                          start = start,
-                                          mod = model,
-                                          la_options = la_options,
-                                          verbose = verbose)
-                             
-                             out <- do.call("lgcp_la",args)
-                             ## sample the random effects
-                             coords <- as.data.frame(datlist$x_grid)
-                             colnames(coords) <- c('X','Y')
-                             
-                             f1 <- ifelse(model=="exp","~(1|fexp(X,Y))","~(1|sqexp(X,Y))")
-                             
-                             cov <- glmmrBase::Covariance$new(
-                               formula =formula(f1),
-                               parameters = out$theta,
-                               data=coords
-                             )
-                             
-                             
-                             L <- cov$get_chol_D()
-                             xb <- datlist$X%*%out$beta + log(datlist$popdens)
-                             v <- sample_u(y = datlist$y, xb =xb, coords = coords,
-                                           nT = datlist$nT,
-                                           start = c(out$theta,out$rho),verbose=verbose,
-                                           use_cmdstanr = use_cmdstanr)
-                             v <- get_ZLu(L,v,datlist$nT,out$rho)
-                             out$u_la <- out$u
-                             out$u <- v
-                             y <- v
-                             for(i in 1:ncol(y)){
-                               y[,i] <- exp(y[,i] + xb)
-                             } 
-                             
-                             out$y_grid_predict <- y
-                             
-                             class(out) <- "lgcp_la"
-                             return(out)
                            },
                            #' @description 
                            #' Returns summary data of the region/grid intersections
@@ -1948,11 +1787,31 @@ grid <- R6::R6Class("grid",
                                   X[,i+1] <- as.data.frame(self$region_data)[,covs[i]]
                                 }
                               }
-                              Q <- nQ+1
                             }
+                            Q <- nQ+1
                           } else {
                             X <- matrix(1,nrow=length(y),ncol=1)
                             Q <- 1
+                          }
+                          if(length(covs_grid)>0){
+                            nG <- length(covs_grid)
+                            X_g <- matrix(NA,nrow=nrow(self$grid_data)*nT,ncol=nG)
+                            for(i in 1:nG){
+                              nColV <- sum(grepl(covs_grid[i],colnames(self$grid_data)))
+                              if(nColV==1){
+                                X_g[,i] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
+                              } else if(nColV==0){
+                                stop(paste0(covs_grid[i]," not found in grid data"))
+                              } else {
+                                if(nT>1){
+                                  X_g[,i] <- stack(as.data.frame(self$grid_data)[,paste0(covs_grid[i],1:nT)])[,1]
+                                } else {
+                                  X_g[,i] <- as.data.frame(self$grid_data)[,covs_grid[i]]
+                                }
+                              }
+                            }
+                          } else {
+                            X_g <- matrix(0,nrow=nrow(self$grid_data)*nT,ncol=1)
                           }
                         }
                         
@@ -1995,6 +1854,8 @@ grid <- R6::R6Class("grid",
                             ncell <- unname(table(private$intersection_data$region_id))
                             ncell <- c(1, cumsum(ncell)+1)
                             datlist <- append(datlist,list(
+                              Q_g = nG,
+                              X_g = X_g,
                               n_region = nrow(self$region_data),
                               n_Q = nrow(private$intersection_data),
                               n_cell = ncell,
@@ -2029,6 +1890,8 @@ grid <- R6::R6Class("grid",
                             ncell <- unname(table(private$intersection_data$region_id))
                             ncell <- c(1,cumsum(ncell)+1)
                             datlist <- append(datlist,list(
+                              Q_g = nG,
+                              X_g = X_g,
                               n_region = nrow(self$region_data),
                               n_Q = nrow(private$intersection_data),
                               n_cell = ncell,
@@ -2056,6 +1919,8 @@ grid <- R6::R6Class("grid",
                             ncell <- unname(table(private$intersection_data$region_id))
                             ncell <- c(1,cumsum(ncell)+1)
                             datlist <- append(datlist,list(
+                              Q_g = nG,
+                              X_g = X_g,
                               n_region = nrow(self$region_data),
                               n_Q = nrow(private$intersection_data),
                               n_cell = ncell,

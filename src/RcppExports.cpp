@@ -358,6 +358,18 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// rtsModel__ml_rho
+void rtsModel__ml_rho(SEXP xp, SEXP covtype_, SEXP lptype_);
+RcppExport SEXP _rts2_rtsModel__ml_rho(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    rtsModel__ml_rho(xp, covtype_, lptype_);
+    return R_NilValue;
+END_RCPP
+}
 // rtsModel__ml_all
 void rtsModel__ml_all(SEXP xp, SEXP covtype_, SEXP lptype_);
 RcppExport SEXP _rts2_rtsModel__ml_all(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -704,14 +716,27 @@ BEGIN_RCPP
 END_RCPP
 }
 // rtsModel__region_intensity
-SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_);
-RcppExport SEXP _rts2_rtsModel__region_intensity(SEXP xpSEXP, SEXP covtype_SEXP) {
+SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_);
+RcppExport SEXP _rts2_rtsModel__region_intensity(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
     Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__region_intensity(xp, covtype_));
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__region_intensity(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel__region_grid_xb
+SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_);
+RcppExport SEXP _rts2_rtsModel__region_grid_xb(SEXP xpSEXP, SEXP covtype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__region_grid_xb(xp, covtype_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -774,6 +799,7 @@ RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_region_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_region_mod();
 
@@ -801,6 +827,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__get_W", (DL_FUNC) &_rts2_rtsModel__get_W, 3},
     {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 3},
     {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 3},
+    {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 3},
     {"_rts2_rtsModel__ml_all", (DL_FUNC) &_rts2_rtsModel__ml_all, 3},
     {"_rts2_rtsModel__laplace_ml_beta_u", (DL_FUNC) &_rts2_rtsModel__laplace_ml_beta_u, 3},
     {"_rts2_rtsModel__laplace_ml_theta", (DL_FUNC) &_rts2_rtsModel__laplace_ml_theta, 3},
@@ -828,7 +855,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__sandwich", (DL_FUNC) &_rts2_rtsModel__sandwich, 3},
     {"_rts2_rtsModel__infomat_theta", (DL_FUNC) &_rts2_rtsModel__infomat_theta, 3},
     {"_rts2_rtsModel__hessian", (DL_FUNC) &_rts2_rtsModel__hessian, 3},
-    {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 2},
+    {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 3},
+    {"_rts2_rtsModel__region_grid_xb", (DL_FUNC) &_rts2_rtsModel__region_grid_xb, 2},
     {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
@@ -838,6 +866,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4lgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4lgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_region_mod, 0},
     {"_rcpp_module_boot_stan_fit4mcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_mod, 0},
     {"_rcpp_module_boot_stan_fit4mcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_region_mod, 0},
     {NULL, NULL, 0}

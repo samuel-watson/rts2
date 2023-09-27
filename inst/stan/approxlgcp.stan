@@ -60,8 +60,8 @@ data {
   real prior_linpred_sd[Q];
   int mod;
   int<lower = 0, upper = 1> known_cov;
-  real<lower=0> sigma_data[known_cov ? 1 : 0]; 
-  real<lower=0> phi_data[known_cov ? D : 0]; 
+  real<lower=0> sigma_data; 
+  real<lower=0> phi_data[known_cov ? D : 1]; 
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
@@ -74,15 +74,15 @@ transformed data {
   
   if(known_cov){
     for(m in 1:M_nD){
-      diagSPD_data[m] =  sqrt(spd_nD(sigma_data[1], to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
+      diagSPD_data[m] =  sqrt(spd_nD(sigma_data, to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
     }
   }
 }
 
 parameters {
   matrix[M_nD,nT] beta;
-  real<lower=1e-05> phi_param[known_cov ? D : 0]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 1 : 0];
+  real<lower=1e-05> phi_param[known_cov ? 0 : D]; //length scale
+  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
   vector[Q] gamma;
   real<lower=-1,upper=1> ar;
 }
@@ -94,7 +94,7 @@ transformed parameters{
   real<lower=1e-05> sigma;
   row_vector<lower=1e-05>[D] phi;
   if(known_cov){
-    sigma = sigma_data[1];
+    sigma = sigma_data;
     phi = to_row_vector(phi_data);
     diagSPD = to_vector(diagSPD_data);
   } else {

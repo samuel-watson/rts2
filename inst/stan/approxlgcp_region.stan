@@ -45,6 +45,7 @@ data {
   // define the model and problem
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
+  int<lower=0> Q_g; //number of covariates
   real L[D]; // boundary condition
   int<lower=1> M; // number of basis functions (per dimension)
   int<lower=1> M_nD; //total basis functions m1*m2*...*mD
@@ -62,6 +63,7 @@ data {
   int indices[M_nD,D]; //indices
   vector[n_region*nT] popdens; //population density
   matrix[n_region*nT,Q] X;
+  matrix[Nsample*nT,Q_g == 0 ? 1 : Q_g] X_g;
   
   // distribution parameters
   real prior_lscale[2];
@@ -70,8 +72,8 @@ data {
   real prior_linpred_sd[Q];
   int mod;
   int<lower = 0, upper = 1> known_cov;
-  real<lower=0> sigma_data[known_cov ? 1 : 0]; 
-  real<lower=0> phi_data[known_cov ? D : 0]; 
+  real<lower=0> sigma_data; 
+  real<lower=0> phi_data[known_cov ? D : 1]; 
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
@@ -83,16 +85,17 @@ transformed data {
   
   if(known_cov){
     for(m in 1:M_nD){
-      diagSPD_data[m] =  sqrt(spd_nD(sigma_data[1], to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
+      diagSPD_data[m] =  sqrt(spd_nD(sigma_data, to_row_vector(phi_data), sqrt(lambda_nD(L, indices[m,], D)), D, mod));
     }
   }
 }
 
 parameters {
   matrix[M_nD,nT] beta;
-  real<lower=1e-05> phi_param[known_cov ? D : 0]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 1 : 0];
+  real<lower=1e-05> phi_param[known_cov ? 0 : D]; //length scale
+  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
   vector[Q] gamma;
+  vector[Q_g] gamma_g;
   real<lower=-1,upper=1> ar;
 }
 
@@ -103,7 +106,7 @@ transformed parameters{
   real<lower=1e-05> sigma;
   row_vector<lower=1e-05>[D] phi;
   if(known_cov){
-    sigma = sigma_data[1];
+    sigma = sigma_data;
     phi = to_row_vector(phi_data);
     diagSPD = to_vector(diagSPD_data);
   } else {
@@ -125,7 +128,10 @@ transformed parameters{
     } else {
       f[1:Nsample] = PHI * SPD_beta;
     }
-
+  }
+  
+  if(Q_g > 0){
+    f += X_g * gamma_g;
   }
 
 }
@@ -139,6 +145,9 @@ model{
   ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
+  }
+  if(Q_g > 0){
+    gamma_g ~ normal(0,2);
   }
   
   for(r in 1:n_region){

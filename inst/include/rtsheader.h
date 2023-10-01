@@ -52,5 +52,7 @@ struct TypeSelector
       ptr = newptr;
     }
   }
-  
 };
+
+using returns = std::variant<int, double, Eigen::VectorXd, Eigen::MatrixXd, std::vector<double>, std::vector<std::string>, vector_matrix >;
+ 

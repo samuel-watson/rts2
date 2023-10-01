@@ -726,19 +726,6 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__hessian
-SEXP rtsModel__hessian(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__hessian(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__hessian(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rtsModel__region_intensity
 SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_);
 RcppExport SEXP _rts2_rtsModel__region_intensity(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -879,7 +866,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__beta_parameter_names", (DL_FUNC) &_rts2_rtsModel__beta_parameter_names, 3},
     {"_rts2_rtsModel__theta_parameter_names", (DL_FUNC) &_rts2_rtsModel__theta_parameter_names, 3},
     {"_rts2_rtsModel__infomat_theta", (DL_FUNC) &_rts2_rtsModel__infomat_theta, 3},
-    {"_rts2_rtsModel__hessian", (DL_FUNC) &_rts2_rtsModel__hessian, 3},
     {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 3},
     {"_rts2_rtsModel__region_grid_xb", (DL_FUNC) &_rts2_rtsModel__region_grid_xb, 2},
     {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},

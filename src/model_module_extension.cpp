@@ -91,13 +91,11 @@ SEXP rtsModel_cov__log_likelihood(SEXP xp, int covtype_, int lptype_, SEXP u_){
   Eigen::VectorXd u = as<Eigen::VectorXd>(u_);
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      return 0.0;
-    }, 
-    [&u](auto mptr){return mptr->model.covariance.log_likelihood(u);}
+    [](int) {return returns(0); }, 
+    [&u](auto mptr){return returns(mptr->model.covariance.log_likelihood(u));}
   };
-  double ll = std::visit(functor,model.ptr);
-  return wrap(ll);
+  auto ll = std::visit(functor,model.ptr);
+  return wrap(std::get<double>(ll));
 }
 
 // [[Rcpp::export]]
@@ -120,70 +118,59 @@ void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_){
 SEXP rtsModel__aic(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      return 0.0;
-    }, 
-    [](auto mptr){return mptr->optim.aic();}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->optim.aic());}
   };
-  double aic = std::visit(functor,model.ptr);
-  return wrap(aic);
+  auto aic = std::visit(functor,model.ptr);
+  return wrap(std::get<double>(aic));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__beta_parameter_names(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      strvec val = {"a"};
-      return val;
-    }, 
-    [](auto mptr){return mptr->model.linear_predictor.parameter_names();}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.linear_predictor.parameter_names());}
   };
-  strvec parnames = std::visit(functor,model.ptr);
-  return wrap(parnames);
+  auto parnames = std::visit(functor,model.ptr);
+  return wrap(std::get<std::vector<std::string> >(parnames));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__theta_parameter_names(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      strvec val = {"a"};
-      return val;
-    }, 
-    [](auto mptr){return mptr->model.covariance.parameter_names();}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.parameter_names());}
   };
-  strvec parnames = std::visit(functor,model.ptr);
-  return wrap(parnames);
+  auto parnames = std::visit(functor,model.ptr);
+  return wrap(std::get<std::vector<std::string> >(parnames));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__infomat_theta(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->matrix.information_matrix_theta();}
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->matrix.information_matrix_theta());}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
-// [[Rcpp::export]]
-SEXP rtsModel__hessian(SEXP xp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {
-      vector_matrix hess(1);
-      return hess;
-    }, 
-    [](auto mptr){return mptr->matrix.re_score();}
-  };
-  vector_matrix hess = std::visit(functor,model.ptr);
-  return wrap(hess);
-}
+// // [[Rcpp::export]]
+// SEXP rtsModel__hessian(SEXP xp, int covtype_, int lptype_){
+//   TypeSelector model(xp,covtype_,lptype_);
+//   auto functor = overloaded {
+//     [](int) {
+//       vector_matrix hess(1);
+//       return hess;
+//     }, 
+//     [](auto mptr){return vector_matrix(mptr->matrix.re_score());}
+//   };
+//   vector_matrix hess = std::visit(functor,model.ptr);
+//   return wrap(hess);
+// }
 
 // [[Rcpp::export]]
 SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
@@ -252,30 +239,24 @@ SEXP rtsModel__predict(SEXP xp, SEXP newdata_,
   
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      vector_matrix res(1);
-      return res;
-    }, 
-    [&](auto mptr){return mptr->re.predict_re(newdata,newoffset);}
+    [](int) {return returns(0);}, 
+    [&](auto mptr){return returns(mptr->re.predict_re(newdata,newoffset));}
   };
   auto functor2 = overloaded {
-    [](int) {
-      Eigen::VectorXd S = Eigen::VectorXd::Zero(1);
-      return res;
-    }, 
-    [&](auto mptr){return mptr->model.linear_predictor.predict_xb(newdata,newoffset);}
+    [](int) {return returns(0); }, 
+    [&](auto mptr){return returns(mptr->model.linear_predictor.predict_xb(newdata,newoffset));}
   };
   
-  vector_matrix res = std::visit(functor,model.ptr);
-  Eigen::VectorXd xb = std::visit(functor2,model.ptr);
+  auto res = std::visit(functor,model.ptr);
+  auto xb = std::visit(functor2,model.ptr);
   if(m>0){
-    samps = glmmr::maths::sample_MVN(res,m);
+    samps = glmmr::maths::sample_MVN(std::get<vector_matrix>(res),m);
   } else {
     samps.setZero();
   }
   return Rcpp::List::create(
-    Rcpp::Named("linear_predictor") = wrap(xb),
-    Rcpp::Named("re_parameters") = wrap(res),
+    Rcpp::Named("linear_predictor") = wrap(std::get<Eigen::VectorXd>(xb)),
+    Rcpp::Named("re_parameters") = wrap(std::get<vector_matrix>(res)),
     Rcpp::Named("samples") = wrap(samps)
   );
   

@@ -341,14 +341,11 @@ void rtsModel__use_attenuation(SEXP xp, SEXP use_,int covtype_, int lptype_){
 SEXP rtsModel__get_W(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      VectorXd tmp = VectorXd::Constant(1);
-      return tmp;
-    }, 
-    [](auto mptr){return mptr->matrix.W.W();}
+    [](int) {return returns(0);  }, 
+    [](auto mptr){return returns(mptr->matrix.W.W());}
   };
-  VectorXd W = std::visit(functor,model.ptr);
-  return wrap(W);
+  auto W = std::visit(functor,model.ptr);
+  return wrap(std::get<VectorXd>(W));
 }
 
 // [[Rcpp::export]]
@@ -435,56 +432,44 @@ void rtsModel__laplace_nr_beta_u(SEXP xp, int covtype_, int lptype_){
 SEXP rtsModel__Sigma(SEXP xp, bool inverse, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [inverse](auto mptr){return mptr->matrix.Sigma(inverse);}
+    [](int) { return returns(0);}, 
+    [inverse](auto mptr){return returns(mptr->matrix.Sigma(inverse));}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__information_matrix(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->matrix.information_matrix();}
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->matrix.information_matrix());}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get< Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__u(SEXP xp, bool scaled_, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [scaled_](auto mptr){return mptr->re.u(scaled_);}
+    [](int) {  return returns(0);}, 
+    [scaled_](auto mptr){return returns(mptr->re.u(scaled_));}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__X(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->model.linear_predictor.X();}
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.linear_predictor.X());}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
@@ -502,68 +487,53 @@ void rtsModel__set_trace(SEXP xp, SEXP trace_, int covtype_, int lptype_){
 SEXP rtsModel__get_beta(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::VectorXd S = Eigen::VectorXd::Zero(1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->model.linear_predictor.parameter_vector();}
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.linear_predictor.parameter_vector());}
   };
-  Eigen::VectorXd beta = std::visit(functor,model.ptr);
-  return wrap(beta);
+  auto beta = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::VectorXd>(beta));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__get_theta(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      std::vector<double> theta = {0};
-      return theta;
-    }, 
-    [](auto mptr){return mptr->model.covariance.parameters_;}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.parameters_);}
   };
-  std::vector<double> theta = std::visit(functor,model.ptr);
-  return wrap(theta);
+  auto theta = std::visit(functor,model.ptr);
+  return wrap(std::get<std::vector<double> >(theta));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__ZL(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->model.covariance.ZL();}
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.ZL());}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__D(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::MatrixXd S = Eigen::MatrixXd::Zero(1,1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->model.covariance.D(false,false);}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.D(false,false));}
   };
-  Eigen::MatrixXd S = std::visit(functor,model.ptr);
-  return wrap(S);
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
 // [[Rcpp::export]]
 SEXP rtsModel__xb(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
-    [](int) {
-      Eigen::VectorXd S = Eigen::VectorXd::Zero(1);
-      return S;
-    }, 
-    [](auto mptr){return mptr->model.xb();}
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(Eigen::VectorXd((mptr->model.xb()).matrix()));}
   };
-  Eigen::VectorXd xb = std::visit(functor,model.ptr);
-  return wrap(xb);
+  auto xb = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::VectorXd>(xb));
 }

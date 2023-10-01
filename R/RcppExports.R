@@ -205,10 +205,6 @@ rtsModel__infomat_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__infomat_theta`, xp, covtype_, lptype_)
 }
 
-rtsModel__hessian <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__hessian`, xp, covtype_, lptype_)
-}
-
 rtsModel__region_intensity <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__region_intensity`, xp, covtype_, lptype_)
 }

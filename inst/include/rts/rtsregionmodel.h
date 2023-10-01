@@ -37,11 +37,9 @@ public:
            const ArrayXXd& data_,
            const ArrayXXd& grid_data_,
            const strvec& colnames_,
-           std::string family_, 
-           std::string link_,
            int T,
            const rts::RegionData& region_) : region(region_), 
-            model(formula_,data_,colnames_,family_,link_,T,grid_data_), 
+            model(formula_,data_,colnames_,T,grid_data_), 
             re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re,false,false), 
             optim(model,matrix,re,region) {};
   
@@ -96,16 +94,72 @@ public:
            const ArrayXXd& data_,
            const ArrayXXd& grid_data_,
            const strvec& colnames_,
-           std::string family_, 
-           std::string link_,
            int T, int m,
            const rts::RegionData& region_,
            const rts::griddata& grid_) : region(region_), 
-            model(formula_,data_,colnames_,family_,link_,T, m, grid_, grid_data_), 
+            model(formula_,data_,colnames_,T, m, grid_, grid_data_), 
             re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re,false,false), 
             optim(model,matrix,re,region) {};
   
   rtsRegionModel(const rts::rtsRegionModel<BitsNNGP>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  
+  void set_offset(const VectorXd& offset_){
+    model.data.set_offset(offset_);
+  }
+  void set_weights(const ArrayXd& weights_){
+    model.data.set_weights(weights_);
+    if((weights_ != 1.0).any()){
+      model.weighted = true;
+    }
+  }
+  void set_y(const VectorXd& y_){
+    model.data.update_y(y_);
+  }
+  void update_beta(const dblvec &beta_){
+    model.linear_predictor.update_parameters(beta_);
+  }
+  void update_theta(const dblvec &theta_){
+    model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_u(const MatrixXd &u_){
+    if(u_.cols()!=re.u(false).cols()){
+      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
+      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+    }
+    re.u_ = u_;
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void set_trace(int trace_){
+    optim.trace = trace_;
+  }
+};
+
+template<>
+class rtsRegionModel<BitsHSGP> {
+public:
+  rts::RegionData region;
+  BitsHSGP model;
+  glmmr::RandomEffects<BitsHSGP> re;
+  glmmr::ModelMatrix<BitsHSGP> matrix;
+  rts::rtsRegionModelOptim<BitsHSGP> optim;
+  
+  rtsRegionModel(const std::string& formula_,
+                 const ArrayXXd& data_,
+                 const ArrayXXd& grid_data_,
+                 const strvec& colnames_,
+                 int T, int m,
+                 const ArrayXd& L,
+                 const rts::RegionData& region_) : region(region_), 
+                 model(formula_,data_,colnames_,T, m, L, grid_data_), 
+                 re(model,grid_data_.rows()*T,model.covariance.Q()), matrix(model,re,false,false), 
+                 optim(model,matrix,re,region) {};
+  
+  rtsRegionModel(const rts::rtsRegionModel<BitsHSGP>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);
@@ -158,10 +212,8 @@ public:
                  const Eigen::ArrayXXd &data_grid,
                  const strvec& colnames_region,
                  const strvec& colnames_grid,
-                 std::string family_, 
-                 std::string link_,
                  int T,
-                 rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,T,region), 
+                 rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,T,region), 
                     re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
                     optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
   
@@ -218,15 +270,72 @@ public:
                  const Eigen::ArrayXXd &data_grid,
                  const strvec& colnames_region,
                  const strvec& colnames_grid,
-                 std::string family_, 
-                 std::string link_,
                  rts::RegionData& region_,
                  const rts::griddata& grid_,
-                 int T, int m) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,family_,link_,region,grid_,T,m), 
+                 int T, int m) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,region,grid_,T,m), 
                     re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
                     optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
   
   rtsRegionModel(const rts::rtsRegionModel<BitsNNGPRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
+  
+  void set_offset(const VectorXd& offset_){
+    model.data.set_offset(offset_);
+  }
+  void set_weights(const ArrayXd& weights_){
+    model.data.set_weights(weights_);
+    if((weights_ != 1.0).any()){
+      model.weighted = true;
+    }
+  }
+  void set_y(const VectorXd& y_){
+    model.data.update_y(y_);
+  }
+  void update_beta(const dblvec &beta_){
+    model.linear_predictor.update_parameters(beta_);
+  }
+  void update_theta(const dblvec &theta_){
+    model.covariance.update_parameters(theta_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_rho(double rho_){
+    model.covariance.update_rho(rho_);
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void update_u(const MatrixXd &u_){
+    if(u_.cols()!=re.u(false).cols()){
+      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
+      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+    }
+    re.u_ = u_;
+    re.zu_ = model.covariance.ZLu(re.u_);
+  }
+  void set_trace(int trace_){
+    optim.trace = trace_;
+  }
+};
+
+template<>
+class rtsRegionModel<BitsHSGPRegion> {
+public:
+  rts::RegionData region;
+  BitsHSGPRegion model;
+  glmmr::RandomEffects<BitsHSGPRegion> re;
+  glmmr::ModelMatrix<BitsHSGPRegion> matrix;
+  rts::rtsRegionModelOptim<BitsHSGPRegion> optim;
+  
+  rtsRegionModel(const std::string& form_region,
+                 const std::string& form_grid,
+                 const Eigen::ArrayXXd &data_region,
+                 const Eigen::ArrayXXd &data_grid,
+                 const strvec& colnames_region,
+                 const strvec& colnames_grid,
+                 int T, int m,
+                 const ArrayXd& L,
+                 rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,T,m, L,region), 
+                 re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
+                 optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
+  
+  rtsRegionModel(const rts::rtsRegionModel<BitsHSGPRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
   void set_offset(const VectorXd& offset_){
     model.data.set_offset(offset_);

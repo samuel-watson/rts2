@@ -1,11 +1,12 @@
 data {
   int N; // sample size
+  int Q; // number of random effects, normally N=Q
   vector[N] Xb;
-  matrix[N,N] ZL;
+  matrix[N,Q] ZL;
   int y[N];
 }
 parameters {
-  vector[N] gamma;
+  vector[Q] gamma;
 }
 model {
   gamma ~ std_normal();

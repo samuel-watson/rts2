@@ -21,19 +21,20 @@ functions {
 }
 data {
   int N; // number of cells
+  int Q; // number of random effects, normally N=Q
   int nT; // number of time periods 
   int nRegion; // number of regions
   int n_Q;
   vector[nRegion*nT] Xb;
   vector[N*nT] Xb_cell;
-  matrix[N*nT,N*nT] ZL;
+  matrix[N*nT,Q*nT] ZL;
   int y[nRegion*nT];
   int<lower=1> n_cell[nRegion+1]; //number of cells intersecting region  
   int<lower=1> cell_id[n_Q]; // IDs of the cells intersecting the region
   vector[n_Q] q_weights; 
 }
 parameters {
-  vector[N*nT] gamma;
+  vector[Q*nT] gamma;
 }
 model {
   vector[N*nT] u = Xb_cell + ZL*gamma;

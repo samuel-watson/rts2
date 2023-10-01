@@ -8,12 +8,13 @@ functions {
 }
 data {
   int N; // sample size
+  int Q; // number of random effects, normally N=Q
   vector[N] Xb;
-  matrix[N,N] ZL;
+  matrix[N,Q] ZL;
   array[N] int y;
 }
 parameters {
-  array[N] real gamma;
+  array[Q] real gamma;
 }
 model {
   int grainsize = 1;

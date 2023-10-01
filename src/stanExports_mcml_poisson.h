@@ -75,22 +75,24 @@ using stan::math::pow;
 stan::math::profile_map profiles__;
 static int current_statement__= 0;
 static const std::vector<string> locations_array__ = {" (found before start of program)",
-                                                      " (in 'string', line 8, column 2 to column 18)",
-                                                      " (in 'string', line 11, column 2 to column 23)",
-                                                      " (in 'string', line 12, column 2 to column 33)",
+                                                      " (in 'string', line 9, column 2 to column 18)",
+                                                      " (in 'string', line 12, column 2 to column 23)",
+                                                      " (in 'string', line 13, column 2 to column 33)",
                                                       " (in 'string', line 2, column 2 to column 8)",
-                                                      " (in 'string', line 3, column 9 to column 10)",
-                                                      " (in 'string', line 3, column 2 to column 15)",
+                                                      " (in 'string', line 3, column 2 to column 8)",
                                                       " (in 'string', line 4, column 9 to column 10)",
-                                                      " (in 'string', line 4, column 11 to column 12)",
-                                                      " (in 'string', line 4, column 2 to column 17)",
-                                                      " (in 'string', line 5, column 8 to column 9)",
-                                                      " (in 'string', line 5, column 2 to column 11)",
-                                                      " (in 'string', line 8, column 9 to column 10)"};
+                                                      " (in 'string', line 4, column 2 to column 15)",
+                                                      " (in 'string', line 5, column 9 to column 10)",
+                                                      " (in 'string', line 5, column 11 to column 12)",
+                                                      " (in 'string', line 5, column 2 to column 17)",
+                                                      " (in 'string', line 6, column 8 to column 9)",
+                                                      " (in 'string', line 6, column 2 to column 11)",
+                                                      " (in 'string', line 9, column 9 to column 10)"};
 #include <stan_meta_header.hpp>
 class model_mcml_poisson final : public model_base_crtp<model_mcml_poisson> {
 private:
   int N;
+  int Q;
   Eigen::Matrix<double, -1, 1> Xb;
   Eigen::Matrix<double, -1, -1> ZL;
   std::vector<int> y;
@@ -129,8 +131,15 @@ public:
       current_statement__ = 4;
       N = context__.vals_i("N")[(1 - 1)];
       current_statement__ = 5;
-      validate_non_negative_index("Xb", "N", N);
+      context__.validate_dims("data initialization","Q","int",
+          context__.to_vec());
+      Q = std::numeric_limits<int>::min();
+      
+      current_statement__ = 5;
+      Q = context__.vals_i("Q")[(1 - 1)];
       current_statement__ = 6;
+      validate_non_negative_index("Xb", "N", N);
+      current_statement__ = 7;
       context__.validate_dims("data initialization","Xb","double",
           context__.to_vec(N));
       Xb = Eigen::Matrix<double, -1, 1>(N);
@@ -138,60 +147,60 @@ public:
       
       {
         std::vector<local_scalar_t__> Xb_flat__;
-        current_statement__ = 6;
+        current_statement__ = 7;
         assign(Xb_flat__, nil_index_list(), context__.vals_r("Xb"),
           "assigning variable Xb_flat__");
-        current_statement__ = 6;
+        current_statement__ = 7;
         pos__ = 1;
-        current_statement__ = 6;
+        current_statement__ = 7;
         for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
-          current_statement__ = 6;
+          current_statement__ = 7;
           assign(Xb, cons_list(index_uni(sym1__), nil_index_list()),
             Xb_flat__[(pos__ - 1)], "assigning variable Xb");
-          current_statement__ = 6;
+          current_statement__ = 7;
           pos__ = (pos__ + 1);}
       }
-      current_statement__ = 7;
-      validate_non_negative_index("ZL", "N", N);
       current_statement__ = 8;
       validate_non_negative_index("ZL", "N", N);
       current_statement__ = 9;
+      validate_non_negative_index("ZL", "Q", Q);
+      current_statement__ = 10;
       context__.validate_dims("data initialization","ZL","double",
-          context__.to_vec(N, N));
-      ZL = Eigen::Matrix<double, -1, -1>(N, N);
+          context__.to_vec(N, Q));
+      ZL = Eigen::Matrix<double, -1, -1>(N, Q);
       stan::math::fill(ZL, std::numeric_limits<double>::quiet_NaN());
       
       {
         std::vector<local_scalar_t__> ZL_flat__;
-        current_statement__ = 9;
+        current_statement__ = 10;
         assign(ZL_flat__, nil_index_list(), context__.vals_r("ZL"),
           "assigning variable ZL_flat__");
-        current_statement__ = 9;
+        current_statement__ = 10;
         pos__ = 1;
-        current_statement__ = 9;
-        for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
-          current_statement__ = 9;
+        current_statement__ = 10;
+        for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
+          current_statement__ = 10;
           for (int sym2__ = 1; sym2__ <= N; ++sym2__) {
-            current_statement__ = 9;
+            current_statement__ = 10;
             assign(ZL,
               cons_list(index_uni(sym2__),
                 cons_list(index_uni(sym1__), nil_index_list())),
               ZL_flat__[(pos__ - 1)], "assigning variable ZL");
-            current_statement__ = 9;
+            current_statement__ = 10;
             pos__ = (pos__ + 1);}}
       }
-      current_statement__ = 10;
-      validate_non_negative_index("y", "N", N);
       current_statement__ = 11;
+      validate_non_negative_index("y", "N", N);
+      current_statement__ = 12;
       context__.validate_dims("data initialization","y","int",
           context__.to_vec(N));
       y = std::vector<int>(N, std::numeric_limits<int>::min());
       
-      current_statement__ = 11;
+      current_statement__ = 12;
       assign(y, nil_index_list(), context__.vals_i("y"),
         "assigning variable y");
-      current_statement__ = 12;
-      validate_non_negative_index("gamma", "N", N);
+      current_statement__ = 13;
+      validate_non_negative_index("gamma", "Q", Q);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
       // Next line prevents compiler griping about no return
@@ -200,7 +209,7 @@ public:
     num_params_r__ = 0U;
     
     try {
-      num_params_r__ += N;
+      num_params_r__ += Q;
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
       // Next line prevents compiler griping about no return
@@ -223,11 +232,11 @@ public:
     
     try {
       Eigen::Matrix<local_scalar_t__, -1, 1> gamma;
-      gamma = Eigen::Matrix<local_scalar_t__, -1, 1>(N);
+      gamma = Eigen::Matrix<local_scalar_t__, -1, 1>(Q);
       stan::math::fill(gamma, DUMMY_VAR__);
       
       current_statement__ = 1;
-      gamma = in__.vector(N);
+      gamma = in__.vector(Q);
       {
         current_statement__ = 2;
         lp_accum__.add(std_normal_lpdf<propto__>(gamma));
@@ -264,12 +273,12 @@ public:
     
     try {
       Eigen::Matrix<double, -1, 1> gamma;
-      gamma = Eigen::Matrix<double, -1, 1>(N);
+      gamma = Eigen::Matrix<double, -1, 1>(Q);
       stan::math::fill(gamma, std::numeric_limits<double>::quiet_NaN());
       
       current_statement__ = 1;
-      gamma = in__.vector(N);
-      for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
+      gamma = in__.vector(Q);
+      for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
         vars__.emplace_back(gamma[(sym1__ - 1)]);}
       if (logical_negation((primitive_value(emit_transformed_parameters__) ||
             primitive_value(emit_generated_quantities__)))) {
@@ -299,7 +308,7 @@ public:
       
       pos__ = 1;
       Eigen::Matrix<double, -1, 1> gamma;
-      gamma = Eigen::Matrix<double, -1, 1>(N);
+      gamma = Eigen::Matrix<double, -1, 1>(Q);
       stan::math::fill(gamma, std::numeric_limits<double>::quiet_NaN());
       
       {
@@ -310,14 +319,14 @@ public:
         current_statement__ = 1;
         pos__ = 1;
         current_statement__ = 1;
-        for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
+        for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
           current_statement__ = 1;
           assign(gamma, cons_list(index_uni(sym1__), nil_index_list()),
             gamma_flat__[(pos__ - 1)], "assigning variable gamma");
           current_statement__ = 1;
           pos__ = (pos__ + 1);}
       }
-      for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
+      for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
         vars__.emplace_back(gamma[(sym1__ - 1)]);}
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
@@ -334,7 +343,7 @@ public:
     
   inline void get_dims(std::vector<std::vector<size_t>>& dimss__) const {
     dimss__.clear();
-    dimss__.emplace_back(std::vector<size_t>{static_cast<size_t>(N)});
+    dimss__.emplace_back(std::vector<size_t>{static_cast<size_t>(Q)});
     
     } // get_dims() 
     
@@ -344,7 +353,7 @@ public:
                                       bool emit_generated_quantities__ = true) const
     final {
     
-    for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
+    for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
       {
         param_names__.emplace_back(std::string() + "gamma" + '.' + std::to_string(sym1__));
       }}
@@ -364,7 +373,7 @@ public:
                                         bool emit_generated_quantities__ = true) const
     final {
     
-    for (int sym1__ = 1; sym1__ <= N; ++sym1__) {
+    for (int sym1__ = 1; sym1__ <= Q; ++sym1__) {
       {
         param_names__.emplace_back(std::string() + "gamma" + '.' + std::to_string(sym1__));
       }}
@@ -380,13 +389,13 @@ public:
     
   inline std::string get_constrained_sizedtypes() const {
     stringstream s__;
-    s__ << "[{\"name\":\"gamma\",\"type\":{\"name\":\"vector\",\"length\":" << N << "},\"block\":\"parameters\"}]";
+    s__ << "[{\"name\":\"gamma\",\"type\":{\"name\":\"vector\",\"length\":" << Q << "},\"block\":\"parameters\"}]";
     return s__.str();
     } // get_constrained_sizedtypes() 
     
   inline std::string get_unconstrained_sizedtypes() const {
     stringstream s__;
-    s__ << "[{\"name\":\"gamma\",\"type\":{\"name\":\"vector\",\"length\":" << N << "},\"block\":\"parameters\"}]";
+    s__ << "[{\"name\":\"gamma\",\"type\":{\"name\":\"vector\",\"length\":" << Q << "},\"block\":\"parameters\"}]";
     return s__.str();
     } // get_unconstrained_sizedtypes() 
     

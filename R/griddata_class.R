@@ -188,8 +188,6 @@ grid <- R6::R6Class("grid",
 
                                tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
 
-
-
                                for(i in 1:length(tuniq))
                                {
                                  self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,
@@ -490,16 +488,12 @@ grid <- R6::R6Class("grid",
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              #prepare data for model fit
-                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE)
+                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE,L)
                              if(!is.null(known_theta)){
                                if(length(known_theta)!=2)stop("Theta should be of length 2")
                                datlist$known_cov <- 1
-                               datlist$sigma_data <- as.array(known_theta[1])
-                               if(approx=="hsgp"){
-                                 datlist$phi_data <- as.array(c(known_theta[2],known_theta[2]))
-                               } else {
-                                 datlist$phi_data <- as.array(known_theta[2])
-                               }
+                               datlist$sigma_data <- known_theta[1]
+                               datlist$phi_data <- known_theta[2]
                              } else {
                                datlist$known_cov <- 0
                                datlist$sigma_data <- c(1)
@@ -541,6 +535,7 @@ grid <- R6::R6Class("grid",
                                #used for debugging without installing package
                                #model_file <- paste0("D:/Documents/R/rts2/inst/cmdstan/",filen)
                                model <- cmdstanr::cmdstan_model(model_file)
+                               dat <<- datlist
                                if(!vb){
                                  res <- model$sample(
                                    data=datlist,
@@ -675,13 +670,13 @@ grid <- R6::R6Class("grid",
                                               verbose=TRUE,
                                               use_cmdstanr = FALSE){
                              
-                             if(!approx%in%c('nngp','none'))stop("approx must be one of nngp or none (HSGP not available with ML)")
+                             if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              
                              #prepare data for model fit
-                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE)
+                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE,L)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
                                datlist$known_cov <- 1
@@ -707,6 +702,7 @@ grid <- R6::R6Class("grid",
                              
                              data <- list(
                                N = datlist$nCell * datlist$nT,
+                               Q = ifelse(approx=="hsgp", m * m * datlist$nT, datlist$nCell * datlist$nT),
                                Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type),
                                ZL = L,
                                y = datlist$y
@@ -1489,6 +1485,7 @@ grid <- R6::R6Class("grid",
                                             popdens,
                                             covs,
                                             covs_grid,
+                                            L = 1.5,
                                             update = TRUE){
 
                         data <- private$prepare_data(m,
@@ -1498,7 +1495,8 @@ grid <- R6::R6Class("grid",
                                                      covs,
                                                      covs_grid,
                                                      FALSE,
-                                                     FALSE)
+                                                     FALSE,
+                                                     L)
 
                         if(is.null(private$grid_ptr)){
                           private$grid_ptr <- GridData__new(as.matrix(data$x_grid),data$nT)
@@ -1545,7 +1543,7 @@ grid <- R6::R6Class("grid",
                           } else if(approx == "lgcp"){
                             private$cov_type <- 1
                           } else {
-                            stop("Only nngp or lgcp for ML available")
+                            private$cov_type <- 3
                           }
                           if(!is.null(self$region_data)){
                             if(length(covs_grid) > 0){
@@ -1594,6 +1592,17 @@ grid <- R6::R6Class("grid",
                                                             beta,
                                                             theta,
                                                             data$nT)
+                          } else if(private$cov_type == 3 & private$lp_type == 1){
+                            private$ptr <- Model_hsgp_lp__new(f1,
+                                                            as.matrix(cbind(data$X,data$x_grid)),
+                                                            c("intercept",covs,"X","Y"),
+                                                            "poisson",
+                                                            "log",
+                                                            beta,
+                                                            theta,
+                                                            data$nT,
+                                                            m,
+                                                            data$L_boundary)
                           } else if(private$cov_type == 1 & private$lp_type == 2){
                             private$ptr <- Model_ar_region__new(f1,
                                                                 as.matrix(data$X),
@@ -1616,7 +1625,20 @@ grid <- R6::R6Class("grid",
                                                               private$region_ptr,
                                                               private$grid_ptr
                                                               )
-                          }else if(private$cov_type == 1 & private$lp_type == 3){
+                          } else if(private$cov_type == 3 & private$lp_type == 2){
+                            private$ptr <- Model_hsgp_region__new(f1,
+                                                                  as.matrix(data$X),
+                                                                  as.matrix(data$x_grid),
+                                                                  c("intercept",covs),
+                                                                  "poisson","log",
+                                                                  beta,
+                                                                  theta,
+                                                                  data$nT,
+                                                                  m,
+                                                                  data$L_boundary,
+                                                                  private$region_ptr
+                            )
+                          } else if(private$cov_type == 1 & private$lp_type == 3){
 
                             private$ptr <- Model_ar_region_grid__new(f1,
                                                                 f2,
@@ -1641,6 +1663,18 @@ grid <- R6::R6Class("grid",
                                                               theta,
                                                               private$region_ptr,
                                                               data$nT,m)
+                          } else if(private$cov_type == 3 & private$lp_type == 3){
+                            private$ptr <- Model_hsgp_region_grid__new(f1,
+                                                                       f2,
+                                                                       as.matrix(data$X),
+                                                                       as.matrix(data$x_grid),
+                                                                       c("intercept",covs),
+                                                                       colnames(data$x_grid),
+                                                                       "poisson","log",
+                                                                       beta,
+                                                                       theta,
+                                                                       private$region_ptr,
+                                                                       data$nT,m,data$L_boundary)
                           }
 
                           rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)
@@ -1654,7 +1688,8 @@ grid <- R6::R6Class("grid",
                                               covs,
                                               covs_grid,
                                               verbose,
-                                              bayes){
+                                              bayes,
+                                              L = 1.5){
                         
                         mod <- NA
                         if(model == "exp"){
@@ -1695,9 +1730,12 @@ grid <- R6::R6Class("grid",
                           xrange <- range(x_grid[,1])
                           yrange <- range(x_grid[,2])
                           std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
-                          
-                          x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
-                          x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
+                          diffs <- c((xrange[1]+xrange[2])/2, (yrange[1]+yrange[2])/2)
+                          # x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
+                          # x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
+                          x_grid[,1] <- (x_grid[,1]- diffs[1])
+                          x_grid[,2] <- (x_grid[,2]- diffs[2])
+                          L_boundary <- c(L*(xrange[2]-xrange[1])/2, L*(yrange[2]-yrange[1])/2)
                         }
                         
                         
@@ -1837,7 +1875,7 @@ grid <- R6::R6Class("grid",
                           datlist <- list(
                             D = 2,
                             Q = Q,
-                            L = c(L,L),
+                            L = L_boundary,
                             M = m,
                             M_nD = m^2,
                             nT= nT,

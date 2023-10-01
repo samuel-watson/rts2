@@ -1,56 +1,50 @@
 functions {
-  matrix getAD(real alpha, real theta, 
-                 matrix x, int[,] NN, int mod){
-                   int n = rows(x);
-    int M = size(NN);
-    matrix[M,n] A = rep_matrix(0,M,n);
-    row_vector[n] D = rep_row_vector(0,n);
-    matrix[M+1,n] AD;
-    int idxlim;
-    matrix[M,M] smat;
-    vector[M] svec;
+  matrix getAD(real alpha, real theta, int M, int n,
+                 real[] dists, int[,] NN, int mod){
+    matrix[M+1,n] AD = rep_matrix(0,M+1,n);
+    int idxlim; 
+    int idx1; 
+    int idx2;
     real dist;
-    
-    D[1] = alpha;
+    AD[M+1,1] = alpha;
+    matrix[M,M] smat = rep_matrix(0,M,M);
+    vector[M] svec = rep_vector(0,M);
+    int index;
     
     for(i in 2:n){
       idxlim = i<=(M) ? i-1 : M;
-      smat[1:idxlim,1:idxlim] = rep_matrix(0,idxlim,idxlim);
-      svec[1:idxlim] = rep_vector(0,idxlim);
       for(j in 1:idxlim){
         smat[j,j] = alpha;
       }
       if(idxlim > 1){
         for(j in 1:(idxlim-1)){
           for(k in (j+1):idxlim){
-            dist = sqrt((x[NN[j,i],1] - x[NN[k,i],1]) * (x[NN[j,i],1] - x[NN[k,i],1]) +
-              (x[NN[j,i],2] - x[NN[k,i],2]) * (x[NN[j,i],2] - x[NN[k,i],2]));
+            idx1 = NN[j,i] < NN[k,i] ? NN[j,i] : NN[k,i];
+            idx2 = NN[j,i] < NN[k,i] ? NN[k,i] : NN[j,i];
+            index = (n-1)*(idx1-1)-(((idx1-2)*(idx1-1))%/%2)+(idx2-idx1-1)+1;
+            dist = dists[index];
             if(mod == 0){
-              smat[j,k] = alpha * alpha * exp(-(dist*dist)/(theta*theta));
-              smat[k,j] = alpha * alpha * exp(-(dist*dist)/(theta*theta));
+              smat[j,k] = alpha * exp(-1.0*(dist*dist)/(theta*theta));
+              smat[k,j] = smat[j,k];
             } else {
-              smat[j,k] = alpha * alpha * exp(-dist/theta);
-              smat[k,j] = alpha * alpha * exp(-dist/theta);
+              smat[j,k] = alpha * exp(-1.0*dist/theta);
+              smat[k,j] = smat[j,k];
             }
-            
-          }        
+          }
         }
       }
       for(j in 1:idxlim){
-        dist = sqrt((x[NN[j,i],1] - x[i,1])^2 + (x[NN[j,i],2] - x[i,2])^2);
-        svec[j] = alpha * alpha * exp(-dist/theta);
+        index = n*(NN[j,i]-1)-(((NN[j,i]-2)*(NN[j,i]-1))%/%2)+(i - NN[j,i])+1;
+        dist = dists[index];
+        svec[j] = mod == 0 ? alpha * exp(-1.0*(dist*dist)/(theta*theta)) : alpha * exp(-1.0*dist/theta);
       }
-      A[1:idxlim,i] = mdivide_left_spd(smat[1:idxlim,1:idxlim] , svec[1:idxlim]);
-      D[i] = alpha - dot_product(A[1:idxlim,i],svec[1:idxlim]);
+      AD[1:idxlim,i] = mdivide_left_spd(smat[1:idxlim,1:idxlim] , svec[1:idxlim]);
+      AD[M+1,i] = alpha - dot_product(AD[1:idxlim,i],svec[1:idxlim]);
     }
-    
-    AD = append_row(A,D);
-    
     return(AD);
-    
    }
    
-   real nngp_lpdf(vector u, matrix AD, int[,] NN){
+   real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
     int n = cols(AD);
     int M = rows(AD) - 1;
     real logdetD;
@@ -58,20 +52,25 @@ functions {
     real au;
     real ll;
     int idxlim;
-    matrix[M,n] A = AD[1:M,];
-    vector[n] D = AD[M+1,]';
-    
-     logdetD = 0;
+    if(start <= M){
+      idxlim = start - 1;
+    } else {
+      idxlim = M;
+    }
+    logdetD = 0;
     for(i in 1:n){
-      logdetD += log(D[i]);
+      logdetD += log(AD[M+1,i]);
     }
-    qf = u[1]*u[1]/D[1];
+    qf = u[1]*u[1]/AD[M+1,1];
     for(i in 2:n){
-      idxlim = i<=(M) ? i-1 : M;
-      au = u[i] - dot_product(A[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
-      qf += au*au/D[i];
+      au = u[i] - dot_product(AD[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
+      qf += au*au/AD[M+1,i];
+      if(idxlim < M){
+        idxlim+=1;
+      }
     }
-    ll = -0.5*logdetD - 0.5*qf - 0.5*n*pi();
+    
+    ll = -0.5*logdetD - 0.5*qf - 0.5*n*log(2*pi());
     return ll;
    }
   
@@ -101,8 +100,16 @@ data {
 transformed data {
   vector[Nsample*nT] logpopdens = log(popdens);
   matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
+  real dists[(Nsample*(Nsample-1))%/%2];
+  for(i in 1:(Nsample-1)){
+    for(j in (i+1):Nsample){
+      dists[(Nsample-1)*(i-1)-(((i-2)*(i-1))%/%2)+(j-i-1)+1] = sqrt((x_grid[i,1] - x_grid[j,1]) * (x_grid[i,1] - x_grid[j,1]) +
+              (x_grid[i,2] - x_grid[j,2]) * (x_grid[i,2] - x_grid[j,2]));
+    }
+  }
+  
   if(known_cov){
-    AD_data = getAD(sigma_data, phi_data, x_grid, NN, mod);
+    AD_data = getAD(sigma_data, phi_data, M, Nsample, dists, NN, mod);
   }
 }
 
@@ -110,15 +117,15 @@ parameters {
   real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
   real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
   vector[Q] gamma;
-  real<lower=-1,upper=1> ar;
+  real<lower=-1,upper=1> ar[nT > 1 ? 1 : 0];
   vector[Nsample*nT] f_raw;
 }
 
 transformed parameters {
   matrix[M +1,Nsample] AD;
-  vector[Nsample*nT] f;
   real<lower=1e-05> phi; //length scale
   real<lower=1e-05> sigma;
+  vector[Nsample*nT] f;
   if(known_cov){
     sigma = sigma_data;
     phi = phi_data;
@@ -126,21 +133,19 @@ transformed parameters {
   } else {
     sigma = sigma_param[1];
     phi = phi_param[1];
-    AD = getAD(sigma, phi, x_grid, NN, mod);
+    AD = getAD(sigma, phi, M, Nsample, dists, NN, mod);
   }
-  
   
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = (1/(1-ar^2))*f_raw[1:Nsample];
+        f[1:Nsample] = (1/(1-ar[1]^2))*f_raw[1:Nsample];
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + f_raw[(Nsample*(t-1)+1):(t*Nsample)];
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + f_raw[(Nsample*(t-1)+1):(t*Nsample)];
       }
     } else {
       f = f_raw;
     }
-
   }
 }
 
@@ -150,25 +155,21 @@ model{
     sigma_param ~ normal(prior_var[1],prior_var[2]);
   }
   
-  ar ~ normal(0,1);
+  if(nT>1)ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  
-  
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f_raw[1:Nsample] ~ nngp(AD, NN);
+        target += nngp_split_lpdf(to_array_1d(f_raw[1:Nsample])|AD,NN,1);
       } else {
-        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ nngp(AD, NN);
+        target += nngp_split_lpdf(to_array_1d(f_raw[(Nsample*(t-1)+1):(t*Nsample)])|AD,NN,1);
       }
     } else {
-      f_raw ~ nngp(AD, NN);
+      target += nngp_split_lpdf(to_array_1d(f_raw)|AD,NN,1);
     }
-
   }
-  
   y ~ poisson_log(X*gamma+logpopdens+f);
 }
 

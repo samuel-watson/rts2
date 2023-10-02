@@ -34,7 +34,7 @@ functions {
         }
       }
       for(j in 1:idxlim){
-        index = n*(NN[j,i]-1)-(((NN[j,i]-2)*(NN[j,i]-1))%/%2)+(i - NN[j,i])+1;
+        index = (n-1)*(NN[j,i]-1)-(((NN[j,i]-2)*(NN[j,i]-1))%/%2)+(i - NN[j,i] -1)+1;
         dist = dists[index];
         svec[j] = mod == 0 ? alpha * exp(-1.0*(dist*dist)/(theta*theta)) : alpha * exp(-1.0*dist/theta);
       }
@@ -143,7 +143,6 @@ transformed parameters {
     phi = phi_param[1];
     AD = getAD(sigma, phi, M, Nsample, dists, NN, mod);
   }
-  
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
@@ -166,7 +165,6 @@ model{
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  
   int grainsize = 1;
   for(t in 1:nT){
     if(nT>1){

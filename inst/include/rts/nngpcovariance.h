@@ -83,20 +83,21 @@ inline MatrixXd rts::nngpCovariance::inv_ldlt_AD(const MatrixXd &A,
   int n = A.cols();
   int m = A.rows();
   MatrixXd y = MatrixXd::Zero(n,n);
+  ArrayXd dsqrt = Dvec.array().sqrt();
 #pragma omp parallel for  
   for(int k=0; k<n; k++){
     int idxlim;
-    for (int i = 0; i < n; i++) {
+    for (int i = k; i < n; i++) {
       idxlim = i<=m ? i : m;
       double lsum = 0;
       for (int j = 0; j < idxlim; j++) {
-        lsum += -1.0 * A(j,i) * y(NN(j,i),k);
+        lsum += A(j,i) * y(NN(j,i),k);
       }
-      y(i,k) = i==k ? (1-lsum)  : (-1.0*lsum);
+      y(i,k) = i==k ? (1+lsum)*dsqrt(k)  : lsum*dsqrt(k) ;
     }
   }
   
-  return y*D.cwiseSqrt().asDiagonal();
+  return y;
 }
 
 inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
@@ -113,7 +114,7 @@ inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
 }
 
 inline MatrixXd rts::nngpCovariance::ZL(){
-  MatrixXd L = glmmr::sparse_to_dense(this->matL);
+  MatrixXd L = glmmr::sparse_to_dense(this->matL,false);
   MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
   return ZL;
 }
@@ -233,7 +234,7 @@ inline void rts::nngpCovariance::gen_AD(){
     A.block(0,i,idxlim,1) = S.ldlt().solve(Sv);
     Dvec(i) = val - (A.col(i).segment(0,idxlim).transpose() * Sv)(0);
   }
-  this->matL = glmmr::dense_to_sparse(D(true,false));
+  this->matL = glmmr::dense_to_sparse(D(true,false),false);
 }
 
 inline vector_matrix rts::nngpCovariance::submatrix(int i){

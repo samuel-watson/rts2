@@ -2,7 +2,7 @@ functions {
   vector lambda_nD(real[] L, int[] m, int D) {
     vector[D] lam;
     for(i in 1:D){
-      lam[i] = ((m[i]*pi())/(2*L[i]))^2; 
+      lam[i] = ((m[i]*pi())/(2*L[i]))^2 ; 
     }
 
     return lam;

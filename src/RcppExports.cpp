@@ -67,6 +67,183 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Model_ar_lp__new
+SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T);
+RcppExport SEXP _rts2_Model_ar_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_ar_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_nngp_lp__new
+SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP gptr_);
+RcppExport SEXP _rts2_Model_nngp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP gptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_nngp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, gptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_hsgp_lp__new
+SEXP Model_hsgp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP L_);
+RcppExport SEXP _rts2_Model_hsgp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_hsgp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, L_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_ar_region_grid__new
+SEXP Model_ar_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, int T);
+RcppExport SEXP _rts2_Model_ar_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP TSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_ar_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_nngp_region_grid__new
+SEXP Model_nngp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, SEXP gptr_, int T, int m);
+RcppExport SEXP _rts2_Model_nngp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP, SEXP TSEXP, SEXP mSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_nngp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, gptr_, T, m));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_hsgp_region_grid__new
+SEXP Model_hsgp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, int T, int m, SEXP L_);
+RcppExport SEXP _rts2_Model_hsgp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T, m, L_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_ar_region__new
+SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, SEXP rptr_);
+RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP rptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_ar_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, rptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_nngp_region__new
+SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP rptr_, SEXP gptr_);
+RcppExport SEXP _rts2_Model_nngp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP rptr_SEXP, SEXP gptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_nngp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, rptr_, gptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_hsgp_region__new
+SEXP Model_hsgp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP rptr_, SEXP L_);
+RcppExport SEXP _rts2_Model_hsgp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP rptr_SEXP, SEXP L_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, rptr_, L_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // GridData__NN
 SEXP GridData__NN(SEXP ptr_);
 RcppExport SEXP _rts2_GridData__NN(SEXP ptr_SEXP) {
@@ -87,183 +264,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
     GridData__gen_NN(ptr_, m_);
     return R_NilValue;
-END_RCPP
-}
-// Model_ar_lp__new
-SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_);
-RcppExport SEXP _rts2_Model_ar_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_lp__new
-SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP gptr_);
-RcppExport SEXP _rts2_Model_nngp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP gptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_, m_, gptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_lp__new
-SEXP Model_hsgp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_, m_, L_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_ar_region_grid__new
-SEXP Model_ar_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, SEXP T_);
-RcppExport SEXP _rts2_Model_ar_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP T_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_region_grid__new
-SEXP Model_nngp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, SEXP gptr_, SEXP T_, SEXP m_);
-RcppExport SEXP _rts2_Model_nngp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP, SEXP T_SEXP, SEXP m_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, gptr_, T_, m_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_region_grid__new
-SEXP Model_hsgp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, SEXP T_, SEXP m_, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T_, m_, L_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_ar_region__new
-SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_, SEXP rptr_);
-RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP rptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_, rptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_region__new
-SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP gptr_);
-RcppExport SEXP _rts2_Model_nngp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_, m_, rptr_, gptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_region__new
-SEXP Model_hsgp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, SEXP T_, SEXP m_, SEXP rptr_, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP rptr_SEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T_, m_, rptr_, L_));
-    return rcpp_result_gen;
 END_RCPP
 }
 // rtsModel__set_y
@@ -819,8 +819,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
     {"_rts2_GridData_nn__new", (DL_FUNC) &_rts2_GridData_nn__new, 3},
     {"_rts2_RegionData__new", (DL_FUNC) &_rts2_RegionData__new, 5},
-    {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},
-    {"_rts2_GridData__gen_NN", (DL_FUNC) &_rts2_GridData__gen_NN, 2},
     {"_rts2_Model_ar_lp__new", (DL_FUNC) &_rts2_Model_ar_lp__new, 7},
     {"_rts2_Model_nngp_lp__new", (DL_FUNC) &_rts2_Model_nngp_lp__new, 9},
     {"_rts2_Model_hsgp_lp__new", (DL_FUNC) &_rts2_Model_hsgp_lp__new, 9},
@@ -830,6 +828,8 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_Model_ar_region__new", (DL_FUNC) &_rts2_Model_ar_region__new, 8},
     {"_rts2_Model_nngp_region__new", (DL_FUNC) &_rts2_Model_nngp_region__new, 10},
     {"_rts2_Model_hsgp_region__new", (DL_FUNC) &_rts2_Model_hsgp_region__new, 10},
+    {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},
+    {"_rts2_GridData__gen_NN", (DL_FUNC) &_rts2_GridData__gen_NN, 2},
     {"_rts2_rtsModel__set_y", (DL_FUNC) &_rts2_rtsModel__set_y, 4},
     {"_rts2_rtsModel__set_offset", (DL_FUNC) &_rts2_rtsModel__set_offset, 4},
     {"_rts2_rtsModel__set_weights", (DL_FUNC) &_rts2_rtsModel__set_weights, 4},

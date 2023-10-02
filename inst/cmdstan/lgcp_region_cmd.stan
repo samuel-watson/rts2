@@ -36,7 +36,6 @@ functions {
     int idx;
     
     for(i in 2:n){
-      //dist = sqrt((x[1,1] - x[i,1]) * (x[1,1] - x[i,1]) + (x[1,2] - x[i,2]) * (x[1,2] - x[i,2]));
       idx = i-1;
       dist = dists[idx];
       if(mod == 0){
@@ -55,7 +54,6 @@ functions {
       if(j < n){
         for(i in (j+1):n){
           idx = (n-1)*(j-1)-(((j-2)*(j-1))%/%2)+(i-j-1)+1;
-          //dist = sqrt((x[j,1] - x[i,1]) * (x[j,1] - x[i,1]) + (x[j,2] - x[i,2]) * (x[j,2] - x[i,2]));
           dist = dists[idx];
           s = 0;
           for(k in 1:(j-1)){

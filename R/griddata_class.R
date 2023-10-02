@@ -675,8 +675,7 @@ grid <- R6::R6Class("grid",
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              
-                             #prepare data for model fit
-                             datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE,L)
+                             datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
                                datlist$known_cov <- 1
@@ -747,6 +746,7 @@ grid <- R6::R6Class("grid",
                              }
                              
                              iter <- 0
+                             datlist <<- datlist
                              while(any(abs(all_pars-all_pars_new)>tol)&iter < max.iter){
                                all_pars <- all_pars_new
                                iter <- iter + 1
@@ -1497,7 +1497,7 @@ grid <- R6::R6Class("grid",
                                                      FALSE,
                                                      FALSE,
                                                      L)
-
+                        dat1 <<- data
                         if(is.null(private$grid_ptr)){
                           private$grid_ptr <- GridData__new(as.matrix(data$x_grid),data$nT)
                         }
@@ -1560,24 +1560,11 @@ grid <- R6::R6Class("grid",
                           beta <- rnorm(P,0,0.5)
                           theta <- runif(2,0,0.5)
                           
-                          # out <<- list(f1,
-                          #             as.matrix(data$X),
-                          #             as.matrix(data$x_grid),
-                          #             c("intercept",covs,"X","Y"),
-                          #             "poisson","log",
-                          #             beta,
-                          #             theta,
-                          #             data$nT,
-                          #             private$region_ptr)
-                          # 
-                          # outd <<- data
-
                           if(private$cov_type == 2 & private$lp_type == 1){
                             private$ptr <- Model_nngp_lp__new(f1,
-                                                              as.matrix(cbind(data$X,data$x_grid)),
+                                                              as.matrix(data$X),
+                                                              as.matrix(data$x_grid),
                                                               c("intercept",covs,"X","Y"),
-                                                              "poisson",
-                                                              "log",
                                                               beta,
                                                               theta,
                                                               data$nT,
@@ -1585,30 +1572,27 @@ grid <- R6::R6Class("grid",
                                                               private$grid_ptr)
                           } else if(private$cov_type == 1 & private$lp_type == 1){
                             private$ptr <- Model_ar_lp__new(f1,
-                                                            as.matrix(cbind(data$X,data$x_grid)),
+                                                            as.matrix(data$X),
+                                                            as.matrix(data$x_grid),
                                                             c("intercept",covs,"X","Y"),
-                                                            "poisson",
-                                                            "log",
                                                             beta,
                                                             theta,
                                                             data$nT)
                           } else if(private$cov_type == 3 & private$lp_type == 1){
                             private$ptr <- Model_hsgp_lp__new(f1,
-                                                            as.matrix(cbind(data$X,data$x_grid)),
+                                                              as.matrix(data$X),
+                                                              as.matrix(data$x_grid),
                                                             c("intercept",covs,"X","Y"),
-                                                            "poisson",
-                                                            "log",
                                                             beta,
                                                             theta,
                                                             data$nT,
                                                             m,
-                                                            data$L_boundary)
+                                                            as.array(data$L_boundary))
                           } else if(private$cov_type == 1 & private$lp_type == 2){
                             private$ptr <- Model_ar_region__new(f1,
                                                                 as.matrix(data$X),
                                                                 as.matrix(data$x_grid),
                                                                 c("intercept",covs),
-                                                                "poisson","log",
                                                                 beta,
                                                                 theta,
                                                                 data$nT,
@@ -1618,26 +1602,23 @@ grid <- R6::R6Class("grid",
                                                               as.matrix(data$X),
                                                               as.matrix(data$x_grid),
                                                               c("intercept",covs),
-                                                              "poisson","log",
                                                               beta,
                                                               theta,
-                                                              data$nT,m,
+                                                              data$nT,
+                                                              m,
                                                               private$region_ptr,
-                                                              private$grid_ptr
-                                                              )
+                                                              private$grid_ptr)
                           } else if(private$cov_type == 3 & private$lp_type == 2){
                             private$ptr <- Model_hsgp_region__new(f1,
                                                                   as.matrix(data$X),
                                                                   as.matrix(data$x_grid),
                                                                   c("intercept",covs),
-                                                                  "poisson","log",
                                                                   beta,
                                                                   theta,
                                                                   data$nT,
                                                                   m,
-                                                                  data$L_boundary,
-                                                                  private$region_ptr
-                            )
+                                                                  as.array(data$L_boundary),
+                                                                  private$region_ptr )
                           } else if(private$cov_type == 1 & private$lp_type == 3){
 
                             private$ptr <- Model_ar_region_grid__new(f1,
@@ -1646,7 +1627,6 @@ grid <- R6::R6Class("grid",
                                                                 as.matrix(data$x_grid),
                                                                 c("intercept",covs),
                                                                 colnames(data$x_grid),
-                                                                "poisson","log",
                                                                 beta,
                                                                 theta,
                                                                 private$region_ptr,
@@ -1658,11 +1638,11 @@ grid <- R6::R6Class("grid",
                                                               as.matrix(data$x_grid),
                                                               c("intercept",covs),
                                                               colnames(data$x_grid),
-                                                              "poisson","log",
                                                               beta,
                                                               theta,
                                                               private$region_ptr,
-                                                              data$nT,m)
+                                                              data$nT,
+                                                              m)
                           } else if(private$cov_type == 3 & private$lp_type == 3){
                             private$ptr <- Model_hsgp_region_grid__new(f1,
                                                                        f2,
@@ -1670,15 +1650,17 @@ grid <- R6::R6Class("grid",
                                                                        as.matrix(data$x_grid),
                                                                        c("intercept",covs),
                                                                        colnames(data$x_grid),
-                                                                       "poisson","log",
                                                                        beta,
                                                                        theta,
                                                                        private$region_ptr,
-                                                                       data$nT,m,data$L_boundary)
+                                                                       data$nT,
+                                                                       m,
+                                                                       as.array(data$L_boundary))
                           }
 
                           rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)
                           rtsModel__set_y(private$ptr,data$y,private$cov_type,private$lp_type)
+                          return(data)
                         }
                       },
                       prepare_data = function(m,

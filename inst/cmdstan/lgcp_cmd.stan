@@ -7,7 +7,6 @@ functions {
     int idx;
     
     for(i in 2:n){
-      //dist = sqrt((x[1,1] - x[i,1]) * (x[1,1] - x[i,1]) + (x[1,2] - x[i,2]) * (x[1,2] - x[i,2]));
       idx = i-1;
       dist = dists[idx];
       if(mod == 0){

@@ -823,7 +823,7 @@ grid <- R6::R6Class("grid",
                              condR2 <- (var(Matrix::drop(xb)) + var(Matrix::drop(zd)))/total_var
                              margR2 <- var(Matrix::drop(xb))/total_var
                              # now get predictions
-                             if(private$lptype == 1){
+                             if(private$lp_type == 1){
                                ypred <- u
                                for(i in 1:ncol(ypred)){
                                  ypred[,i] <- exp(ypred[,i] + xb)

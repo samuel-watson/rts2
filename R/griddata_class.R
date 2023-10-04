@@ -60,7 +60,6 @@ grid <- R6::R6Class("grid",
                                boundary <- sf::st_union(poly)
                                boundary <- sf::st_sfc(boundary)
                                self$boundary <- sf::st_sf(boundary)
-                               bboundary<<-boundary
                                bgrid <- sf::st_make_grid(self$boundary,cellsize = cellsize)
                                bgrid <- sf::st_sf(bgrid)
                                idx1<- sf::st_contains(y=bgrid,x=self$boundary)
@@ -535,7 +534,6 @@ grid <- R6::R6Class("grid",
                                #used for debugging without installing package
                                #model_file <- paste0("D:/Documents/R/rts2/inst/cmdstan/",filen)
                                model <- cmdstanr::cmdstan_model(model_file)
-                               dat <<- datlist
                                if(!vb){
                                  res <- model$sample(
                                    data=datlist,
@@ -747,7 +745,6 @@ grid <- R6::R6Class("grid",
                              }
                              
                              iter <- 0
-                             datlist <<- datlist
                              while(any(abs(all_pars-all_pars_new)>tol)&iter < max.iter){
                                all_pars <- all_pars_new
                                iter <- iter + 1
@@ -809,11 +806,6 @@ grid <- R6::R6Class("grid",
                              u <- rtsModel__u(private$ptr, TRUE,private$cov_type,private$lp_type)
                              M <- Matrix::solve(rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type))
                              SE <- sqrt(diag(M))
-                             if(se.theta){
-                               SE_theta <- tryCatch(sqrt(diag(solve(Model__infomat_theta(private$ptr,private$cov_type,private$lp_type)))), error = rep(NA, ncovpar))
-                             } else {
-                               SE_theta <- rep(NA, ncovpar)
-                             }
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
                              theta_names <- c("theta_1","theta_2")
                              rho_names <- "rho"
@@ -821,7 +813,7 @@ grid <- R6::R6Class("grid",
                              if(datlist$nT > 1) mf_pars_names <- c(mf_pars_names, rho_names)
                              res <- data.frame(par = c(mf_pars_names,paste0("d",1:nrow(u))),
                                                est = c(all_pars_new,rowMeans(u)),
-                                               SE=c(SE,rep(NA,nrow(u))),
+                                               SE=c(SE,NA,NA,rep(NA,nrow(u))),
                                                t = NA,
                                                p = NA,
                                                lower = NA,
@@ -1561,7 +1553,6 @@ grid <- R6::R6Class("grid",
                           beta <- c(mean(log(mean(data$y)) - log(data$popdens)))
                           if(P>0)beta <- c(beta, rnorm(P,0,0.1))
                           theta <- runif(2,0.1,0.5)
-                          dat1 <<- data
                           if(private$cov_type == 2 & private$lp_type == 1){
                             private$ptr <- Model_nngp_lp__new(f1,
                                                               as.matrix(data$X),

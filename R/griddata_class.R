@@ -667,12 +667,10 @@ grid <- R6::R6Class("grid",
                                               iter_sampling=500,
                                               verbose=TRUE,
                                               use_cmdstanr = FALSE){
-                             
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
-                             
                              datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
@@ -688,8 +686,6 @@ grid <- R6::R6Class("grid",
                              }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
-                             # get some sensible starting values
-                             
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
@@ -728,13 +724,11 @@ grid <- R6::R6Class("grid",
                                filecmd <- "mcml_poisson_cmd.stan"
                                filers <- "mcml_poisson"
                              }
-                             
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr")){
                                  stop("cmdstanr is required to use Stan for sampling. See https://mc-stan.org/cmdstanr/ for details on how to install.\n
                                     Set option usestan=FALSE to use rstan instead.")
                                } else {
-                                 
                                  if(verbose)message("If this is the first time running this model, it will be compiled by cmdstan.")
                                  model_file <- system.file("cmdstan",
                                                            filecmd,
@@ -781,7 +775,6 @@ grid <- R6::R6Class("grid",
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
                                if(is.null(known_theta))rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
                                if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
-                               
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                theta_new <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                                all_pars_new <- c(beta_new,theta_new)
@@ -829,18 +822,27 @@ grid <- R6::R6Class("grid",
                              total_var <- var(Matrix::drop(xb)) + var(Matrix::drop(zd)) + mean(wdiag)
                              condR2 <- (var(Matrix::drop(xb)) + var(Matrix::drop(zd)))/total_var
                              margR2 <- var(Matrix::drop(xb))/total_var
+                             # now get predictions
+                             if(private$lptype == 1){
+                               ypred <- u
+                               for(i in 1:ncol(ypred)){
+                                 ypred[,i] <- exp(ypred[,i] + xb)
+                               }
+                             } else {
+                               ypred <- rtsModel__y_pred(private$ptr,private$cov_type,private$lp_type)
+                             }
                              out <- list(coefficients = res,
                                          converged = !not_conv,
                                          method = "mcem",
                                          m = dim(u)[2],
                                          tol = tol,
-                                         sim_lik = sim.lik.step,
+                                         sim_lik = FALSE,
                                          aic = aic,
-                                         se=se,
+                                         se="gls",
                                          Rsq = c(cond = condR2,marg=margR2),
                                          logl = rtsModel__log_likelihood(private$ptr,private$cov_type,private$lp_type),
-                                         mean_form = self$mean$formula,
-                                         cov_form = self$covariance$formula,
+                                         mean_form = "",
+                                         cov_form = "",
                                          family = "poisson",
                                          link = "log",
                                          re.samps = u,
@@ -849,7 +851,8 @@ grid <- R6::R6Class("grid",
                                          P = length(beta_new),
                                          Q = 2,
                                          var_par_family = FALSE,
-                                         y=datlist$y)
+                                         y=datlist$y,
+                                         y_predicted  = ypred)
                              class(out) <- "mcml"
                              return(out)
                              
@@ -926,8 +929,7 @@ grid <- R6::R6Class("grid",
 
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
                              if(!(is(fit,"CmdStanMCMC")|is(fit,"stanfit")|
-                                  is(fit,"CmdStanVB")|is(fit,"lgcp_mcmcml")|
-                                  is(fit,"lgcp_la")))stop("stan fit or MCMCML fit required")
+                                  is(fit,"CmdStanVB")|is(fit,"mcml")))stop("stan fit or MCMCML fit required")
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
@@ -953,9 +955,9 @@ grid <- R6::R6Class("grid",
                                } else {
                                  stop("No cmdstanr package")
                                }
-                             } else if(is(fit,"lgcp_mcmcml")|is(fit,"lgcp_la")){
-                               ypred <- t(fit$y_grid_predict)
-                               f <- t(fit$u)
+                             } else if(is(fit,"mcml")){
+                               ypred <- t(fit$y_predicted)
+                               f <- t(fit$re.samps)
                                nT <- ncol(f)/nCells
                                cmdst <- FALSE
                              }
@@ -1127,7 +1129,7 @@ grid <- R6::R6Class("grid",
 
                              if(all(is.null(incidence.threshold),is.null(irr.threshold),is.null(rr.threshold)))stop("At least one criterion required.")
                              if(!is.null(irr.threshold)&is.null(irr.lag))stop("irr.lag must be set")
-                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")))stop("stan fit required")
+                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")|is(stan_fit,"mcml")))stop("model fit required")
 
                              nCells <- nrow(self$grid_data)
                              nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
@@ -1144,9 +1146,11 @@ grid <- R6::R6Class("grid",
                                  f <- f[,,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                                  f <- matrix(f, prod(dim(f)[1:2]), dim(f)[3])
                                }
+                             } else if(is(fit,"mcml")){
+                               ypred <- t(fit$y_predicted)
+                               f <- t(fit$re.samps)
+                               f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                              }
-                             
-                             #nT <- dim(ypred)[3]/nCells
 
                              nCr <- sum(c(!is.null(incidence.threshold),
                                           !is.null(irr.threshold),

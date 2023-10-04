@@ -209,20 +209,6 @@ SEXP rtsModel__infomat_theta(SEXP xp, int covtype_, int lptype_){
   return wrap(std::get<Eigen::MatrixXd>(S));
 }
 
-// // [[Rcpp::export]]
-// SEXP rtsModel__hessian(SEXP xp, int covtype_, int lptype_){
-//   TypeSelector model(xp,covtype_,lptype_);
-//   auto functor = overloaded {
-//     [](int) {
-//       vector_matrix hess(1);
-//       return hess;
-//     }, 
-//     [](auto mptr){return vector_matrix(mptr->matrix.re_score());}
-//   };
-//   vector_matrix hess = std::visit(functor,model.ptr);
-//   return wrap(hess);
-// }
-
 // [[Rcpp::export]]
 SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
   int covtype = as<int>(covtype_);
@@ -250,6 +236,38 @@ SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
   } else if(covtype == 2 && lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
+    return wrap(intens);
+  }
+}
+
+
+// [[Rcpp::export]]
+SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_){
+  int covtype = as<int>(covtype_);
+  int lptype = as<int>(lptype_);
+  if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
+    return wrap(intens);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
+    return wrap(intens);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
+    return wrap(intens);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
+    return wrap(intens);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
+    return wrap(intens);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(xp);
+    Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
   }
 }

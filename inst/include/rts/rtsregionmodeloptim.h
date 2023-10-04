@@ -32,6 +32,7 @@ public:
   double log_likelihood() override;
   double full_log_likelihood() override;
   ArrayXXd region_intensity(bool uselog = true);
+  ArrayXXd y_predicted(bool uselog = true);
   
   private:
     class rho_likelihood : public Functor<dblvec> {
@@ -89,13 +90,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_){
 template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
   double ll = 0;
-  ArrayXXd xb(this->model.n(), this->re.u_.cols());
-  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP >){
-    xb = region_intensity();
-  } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion >){
-    xb = this->model.linear_predictor.xb_region(this->re.u_);
-  }
-  xb.matrix().colwise() += this->model.data.offset;
+  ArrayXXd xb = y_predicted(true);
   if(this->model.weighted){
 #pragma omp parallel for reduction (+:ll) collapse(2)
     for(int j=0; j<xb.cols() ; j++){
@@ -112,8 +107,20 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
     }
   }
 }
-  
   return ll/xb.cols();
+}
+
+template<typename modeltype>
+inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
+  ArrayXXd xb(this->model.n(), this->re.u_.cols());
+  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP >){
+    xb = region_intensity();
+  } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion >){
+    xb = this->model.linear_predictor.xb_region(this->re.u_);
+  }
+  xb.matrix().colwise() += this->model.data.offset;
+  if(!uselog)xb = xb.exp();
+  return xb;
 }
 
 template<typename modeltype>

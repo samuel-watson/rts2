@@ -688,8 +688,10 @@ grid <- R6::R6Class("grid",
                                datlist$sigma_data <- c()
                                datlist$phi_data <- c()
                              }
-                             
                              trace <- ifelse(verbose,2,0)
+                             rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
+                             # get some sensible starting values
+                             
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
@@ -697,18 +699,17 @@ grid <- R6::R6Class("grid",
                              if(datlist$nT > 1) all_pars <- c(all_pars, rho = rho)
                              all_pars_new <- rep(1,length(all_pars))
                              if(verbose)cat("\nStart: ",all_pars,"\n")
-                             L <- Matrix::Matrix(rtsModel__ZL(private$ptr,private$cov_type,private$lp_type))
+                             L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
                              
                              data <- list(
-                               N = datlist$nCell * datlist$nT,
-                               Q = ifelse(approx=="hsgp", m * m * datlist$nT, datlist$nCell * datlist$nT),
+                               N = datlist$Nsample * datlist$nT,
+                               Q = ifelse(approx=="hsgp", m * m * datlist$nT, datlist$Nsample * datlist$nT),
                                Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type),
-                               ZL = L,
+                               ZL = as.matrix(L),
                                y = datlist$y
                              )
-                             
                              if(!is.null(self$region_data)){
-                               filecmd <- "mcml_poisson_region_cmd"
+                               filecmd <- "mcml_poisson_region_cmd.stan"
                                filers <- "mcml_poisson_region"
                                if(private$lp_type == 3){
                                  xb_grid <- rtsModel__region_grid_xb(private$ptr,private$cov_type)
@@ -726,7 +727,7 @@ grid <- R6::R6Class("grid",
                                                 q_weights = datlist$q_weights
                                               ))
                              } else {
-                               filecmd <- "mcml_poisson_cmd"
+                               filecmd <- "mcml_poisson_cmd.stan"
                                filers <- "mcml_poisson"
                              }
                              
@@ -781,7 +782,7 @@ grid <- R6::R6Class("grid",
                                if(trace==2)t2 <- Sys.time()
                                if(trace==2)cat("\nMCMC sampling took: ",t2-t1,"s")
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
-                               if(!known_theta)rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
+                               if(is.null(known_theta))rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
                                if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
                                
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
@@ -1497,7 +1498,7 @@ grid <- R6::R6Class("grid",
                                                      FALSE,
                                                      FALSE,
                                                      L)
-                        dat1 <<- data
+                        
                         if(is.null(private$grid_ptr)){
                           private$grid_ptr <- GridData__new(as.matrix(data$x_grid),data$nT)
                         }
@@ -1540,7 +1541,7 @@ grid <- R6::R6Class("grid",
 
                           if(approx == "nngp"){
                             private$cov_type <- 2
-                          } else if(approx == "lgcp"){
+                          } else if(approx == "lgcp" || approx == "none"){
                             private$cov_type <- 1
                           } else {
                             private$cov_type <- 3
@@ -1555,16 +1556,17 @@ grid <- R6::R6Class("grid",
                             private$lp_type <- 1
                           }
                           
-                          # use random starting values for now
-                          P <- length(covs) + length(covs_grid) + 1
-                          beta <- rnorm(P,0,0.5)
-                          theta <- runif(2,0,0.5)
-                          
+                          # use random starting values with sensible intercept
+                          P <- length(covs) + length(covs_grid)
+                          beta <- c(mean(log(mean(data$y)) - log(data$popdens)))
+                          if(P>0)beta <- c(beta, rnorm(P,0,0.1))
+                          theta <- runif(2,0.1,0.5)
+                          dat1 <<- data
                           if(private$cov_type == 2 & private$lp_type == 1){
                             private$ptr <- Model_nngp_lp__new(f1,
                                                               as.matrix(data$X),
                                                               as.matrix(data$x_grid),
-                                                              c("intercept",covs,"X","Y"),
+                                                              c("intercept",covs),
                                                               beta,
                                                               theta,
                                                               data$nT,
@@ -1574,7 +1576,7 @@ grid <- R6::R6Class("grid",
                             private$ptr <- Model_ar_lp__new(f1,
                                                             as.matrix(data$X),
                                                             as.matrix(data$x_grid),
-                                                            c("intercept",covs,"X","Y"),
+                                                            c("intercept",covs),
                                                             beta,
                                                             theta,
                                                             data$nT)
@@ -1582,12 +1584,12 @@ grid <- R6::R6Class("grid",
                             private$ptr <- Model_hsgp_lp__new(f1,
                                                               as.matrix(data$X),
                                                               as.matrix(data$x_grid),
-                                                            c("intercept",covs,"X","Y"),
+                                                            c("intercept",covs),
                                                             beta,
                                                             theta,
                                                             data$nT,
                                                             m,
-                                                            as.array(data$L_boundary))
+                                                            data$L)
                           } else if(private$cov_type == 1 & private$lp_type == 2){
                             private$ptr <- Model_ar_region__new(f1,
                                                                 as.matrix(data$X),
@@ -1617,7 +1619,7 @@ grid <- R6::R6Class("grid",
                                                                   theta,
                                                                   data$nT,
                                                                   m,
-                                                                  as.array(data$L_boundary),
+                                                                  data$L,
                                                                   private$region_ptr )
                           } else if(private$cov_type == 1 & private$lp_type == 3){
 
@@ -1655,7 +1657,7 @@ grid <- R6::R6Class("grid",
                                                                        private$region_ptr,
                                                                        data$nT,
                                                                        m,
-                                                                       as.array(data$L_boundary))
+                                                                       data$L)
                           }
 
                           rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)

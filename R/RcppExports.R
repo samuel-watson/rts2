@@ -153,6 +153,10 @@ rtsModel__get_beta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_beta`, xp, covtype_, lptype_)
 }
 
+rtsModel__get_rho <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__get_rho`, xp, covtype_, lptype_)
+}
+
 rtsModel__get_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_theta`, xp, covtype_, lptype_)
 }
@@ -179,6 +183,18 @@ rtsModel_nngp__D <- function(ptr_, lptype_) {
 
 rtsModel_nngp__submatrix <- function(ptr_, lptype_, i_) {
     .Call(`_rts2_rtsModel_nngp__submatrix`, ptr_, lptype_, i_)
+}
+
+rtsModel_hsgp__Phi <- function(ptr_, lptype_, lambda, inverse) {
+    .Call(`_rts2_rtsModel_hsgp__Phi`, ptr_, lptype_, lambda, inverse)
+}
+
+rtsModel_hsgp__Lambda <- function(ptr_, lptype_) {
+    .Call(`_rts2_rtsModel_hsgp__Lambda`, ptr_, lptype_)
+}
+
+rtsModel_hsgp__set_function <- function(ptr_, lptype_, sqexp) {
+    invisible(.Call(`_rts2_rtsModel_hsgp__set_function`, ptr_, lptype_, sqexp))
 }
 
 rtsModel_cov__log_likelihood <- function(xp, covtype_, lptype_, u_) {

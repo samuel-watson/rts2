@@ -210,10 +210,19 @@ SEXP rtsModel__information_matrix(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) { return returns(0);}, 
-    [](auto mptr){return returns(mptr->matrix.information_matrix());}
+    [](auto mptr){return returns(mptr->matrix.Sigma(true));}
+  };
+  auto functorx = overloaded {
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.linear_predictor.X());}
   };
   auto S = std::visit(functor,model.ptr);
-  return wrap(std::get< Eigen::MatrixXd>(S));
+  auto X = std::visit(functorx,model.ptr);
+  Eigen::MatrixXd Sigma = std::get< Eigen::MatrixXd>(S);
+  Eigen::MatrixXd Xm = std::get< Eigen::MatrixXd>(X);
+  Eigen::MatrixXd M = Xm.transpose()*Sigma*Xm;
+  M = M.llt().solve(Eigen::MatrixXd::Identity(M.rows(),M.cols()));
+  return wrap(M);
 }
 
 // [[Rcpp::export]]

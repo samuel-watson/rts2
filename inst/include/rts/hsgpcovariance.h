@@ -23,8 +23,8 @@ public:
                 int m_,
                 const ArrayXd& L_boundary_) : Covariance(formula, data, colnames),
                 grid(data, T), m(m_), L_boundary(L_boundary_),
-                L(m*m,m*m), Lambda(m*m),
-                ar_factor(T,T), ar_factor_chol(T,T),
+                L(grid.N,m*m), Lambda(m*m),
+                ar_factor(T,T), ar_factor_chol(T,T),ar_factor_inverse(T,T),
                 indices(m*m,2), Phi(grid.N,m*m), PhiT(m*m,m*m) {
     gen_indices();
     gen_phi_prod();
@@ -34,13 +34,12 @@ public:
 
   hsgpCovariance(const rts::hsgpCovariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid),
   L_boundary(cov.L_boundary), L(cov.L), Lambda(cov.Lambda), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol),
-  indices(cov.indices), Phi(cov.Phi), PhiT(cov.PhiT) {
+  ar_factor_inverse(cov.ar_factor_inverse), indices(cov.indices), Phi(cov.Phi), PhiT(cov.PhiT) {
     isSparse = false;
     update_rho(cov.rho);
   };
 
-  Vector2d lambda_nD(int i);
-  double spd_nD(Vector2d w);
+  double spd_nD(int i);
   ArrayXd phi_nD(int i);
   MatrixXd ZL() override;
   MatrixXd LZWZL(const VectorXd& w) override;
@@ -56,45 +55,41 @@ public:
   void update_parameters(const ArrayXd& parameters) override;
   void update_parameters_extern(const dblvec& parameters) override;
   void set_function(bool squared_exp);
-  MatrixXd PhiSPD();
+  MatrixXd PhiSPD(bool lambda = true, bool inverse = false);
+  ArrayXd LambdaSPD();
 
 protected:
   MatrixXd L; // cholesky decomposition of Lambda + PhiTPhi m^2 * m^2
   ArrayXd Lambda;
   MatrixXd ar_factor;
   MatrixXd ar_factor_chol;
+  MatrixXd ar_factor_inverse;
   ArrayXXi indices;
   MatrixXd Phi;
   MatrixXd PhiT;
   bool sq_exp = false;
   void gen_indices();
   void gen_phi_prod();
-  void Z_chol();
+  //void Z_chol();
   void update_lambda();
 };
 
 }
 
-inline Vector2d rts::hsgpCovariance::lambda_nD(int i){
-  Vector2d lambda;
-  lambda(0) = (indices(i,0)*M_PI)/(2*L_boundary(0));
-  lambda(1) = (indices(i,1)*M_PI)/(2*L_boundary(1));
-  lambda(0) *= lambda(0);
-  lambda(1) *= lambda(1);
-  return lambda;
-}
-
-inline double rts::hsgpCovariance::spd_nD(Vector2d w){
+inline double rts::hsgpCovariance::spd_nD(int i){
+  Array2d w;
+  w(0) = (indices(i,0)*M_PI)/(2*L_boundary(0));
+  w(1) = (indices(i,1)*M_PI)/(2*L_boundary(1));
+  w(0) = w(0)*w(0);
+  w(1) = w(1)*w(1);
   double S;
-  Vector2d phisq;
-  phisq(0) = this->parameters_[1] * this->parameters_[1];
-  phisq(1) = phisq(0);
-  Vector2d wsq = (w.array() * w.array()).matrix();
+  double phisq = parameters_[1] * parameters_[1];
   if(sq_exp){
-    S = this->parameters_[0] * 2 * M_PI * phisq(0) * exp(-0.5 * (2*phisq(0)) * (w(0) * w(0) + w(1) * w(1)));
+    S = parameters_[0] * 2 * M_PI * phisq * exp(-0.5 * phisq * (w(0) + w(1)));
   } else {
-    double S1 = this->parameters_[0] * 4 * tgamma(1.5)/tgamma(0.5);
-    S = S1 * phisq(0) * 1 /((1 + phisq.transpose() * wsq)*(1 + phisq.transpose() * wsq));
+    double S1 = parameters_[0] * 2 * M_PI / parameters_[1];
+    double S2 = (1 / phisq) + (w(0) + w(1));
+    S = S1 * pow(S2,-1.5);
   }
   return S;
 }
@@ -170,36 +165,29 @@ inline int rts::hsgpCovariance::Q(){
 
 inline double rts::hsgpCovariance::log_likelihood(const VectorXd &u){
   double ll = 0;
-  Z_chol(); //ADD PARAMETERS
-  MatrixXd ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
+  // need to collapse u to v
   MatrixXd umat(grid.N,grid.T);
   for(int t = 0; t< grid.T; t++){
     umat.col(t) = u.segment(t*grid.N,grid.N);
   }
   MatrixXd vmat = umat * ar_factor_inverse;
   double logdet = log_determinant();
-  VectorXd uquad(m*m);
-  VectorXd vquad(m*m);
-  VectorXd uphi(m*m);
-  VectorXd vphi(m*m);
+  VectorXd uquad(grid.N);
+  VectorXd vquad(grid.N);
   for(int t = 0; t< grid.T; t++){
-    uphi = Phi.transpose() * umat.col(t);
-    vphi = Phi.transpose() * vmat.col(t);
-    uquad = glmmr::algo::forward_sub(L,uphi,m*m);
-    vquad = glmmr::algo::forward_sub(L,vphi,m*m);
-    ll += (-0.5*grid.N * log(2*M_PI) - 0.5*(umat.col(t).transpose() * vmat.col(t) - uquad.transpose()*vquad)(0));
+    uquad = umat.col(t) * L;
+    vquad = vmat.col(t) * L;
+    ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
   }
   ll += 0.5*logdet;
   return -1.0*ll;
 }
 
 inline double rts::hsgpCovariance::log_determinant(){
-  double logdet = (grid.N - (m*m))*log(this->parameters_[0]);
+  double logdet = 0;
   for(int i = 0; i < (m*m); i++){
-    logdet += 2*log(L(i,i));
     logdet += log(Lambda(i));
   }
-  
   logdet *= grid.T;
   double logdet_ar = 0;
   if(grid.T > 1){
@@ -219,8 +207,12 @@ inline void rts::hsgpCovariance::update_rho(const double rho_){
         ar_factor(s,t) = ar_factor(t,s);
       }
     }
+    rts::cholesky(ar_factor_chol, ar_factor);
+    ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
+  } else {
+    ar_factor_chol.setConstant(1.0);
+    ar_factor_inverse.setConstant(1.0);
   }
-  rts::cholesky(ar_factor_chol, ar_factor);
 }
 
 inline void rts::hsgpCovariance::set_function(bool squared_exp){
@@ -229,8 +221,8 @@ inline void rts::hsgpCovariance::set_function(bool squared_exp){
 
 inline void rts::hsgpCovariance::gen_indices(){
   int counter = 0;
-  for(int i = 0; i < m; i++){
-    for(int j = 0; j< m; j++){
+  for(int i = 1; i <= m; i++){
+    for(int j = 1; j<= m; j++){
       indices(counter,0) = i;
       indices(counter,1) = j;
       counter++;
@@ -246,24 +238,31 @@ inline void rts::hsgpCovariance::gen_phi_prod(){
   PhiT = Phi.transpose() * Phi;
 }
 
-inline void rts::hsgpCovariance::Z_chol(){
-  MatrixXd pnew = PhiT;
-  for(int i = 0; i < (m*m); i++){
-    pnew(i,i) += sqrt(Lambda(i));
-  }
-  rts::cholesky(L, pnew);
-}
+// inline void rts::hsgpCovariance::Z_chol(){
+//   MatrixXd pnew = PhiT;
+//   for(int i = 0; i < (m*m); i++){
+//     pnew(i,i) += sqrt(Lambda(i));
+//   }
+//   rts::cholesky(L, pnew);
+// }
 
-inline MatrixXd rts::hsgpCovariance::PhiSPD(){
+inline MatrixXd rts::hsgpCovariance::PhiSPD(bool lambda, bool inverse){
   ArrayXXd pnew = Phi.array();
-  for(int i = 0; i < (m*m); i++){
-    pnew.col(i) *= sqrt(Lambda(i));
+  if(lambda){
+    for(int i = 0; i < (m*m); i++){
+      pnew.col(i) *= inverse ? 1/sqrt(Lambda(i)) : sqrt(Lambda(i));
+    }
   }
   return pnew.matrix();
 }
 
+inline ArrayXd rts::hsgpCovariance::LambdaSPD(){
+  return Lambda;
+}
+
 inline void rts::hsgpCovariance::update_lambda(){
   for(int i = 0; i < (m*m); i++){
-    Lambda(i) = spd_nD((lambda_nD(i)).array().sqrt().matrix());
+    Lambda(i) = spd_nD(i);
   }
+  L = PhiSPD(true,true);
 }

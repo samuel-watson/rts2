@@ -87,6 +87,57 @@ SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel_hsgp__Phi(SEXP ptr_, SEXP lptype_, bool lambda, bool inverse){
+  int lptype = as<int>(lptype_);
+  if(lptype == 1){
+    XPtr<ModelHSGP> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.PhiSPD(lambda,inverse);
+    return wrap(A);
+  } else if(lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.PhiSPD(lambda,inverse);
+    return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(ptr_);
+    Eigen::MatrixXd A = ptr->model.covariance.PhiSPD(lambda,inverse);
+    return wrap(A);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel_hsgp__Lambda(SEXP ptr_, SEXP lptype_){
+  int lptype = as<int>(lptype_);
+  if(lptype == 1){
+    XPtr<ModelHSGP> ptr(ptr_);
+    Eigen::ArrayXd A = ptr->model.covariance.LambdaSPD();
+    return wrap(A);
+  } else if(lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(ptr_);
+    Eigen::ArrayXd A = ptr->model.covariance.LambdaSPD();
+    return wrap(A);
+  } else if(lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(ptr_);
+    Eigen::ArrayXd A = ptr->model.covariance.LambdaSPD();
+    return wrap(A);
+  }
+}
+
+// [[Rcpp::export]]
+void rtsModel_hsgp__set_function(SEXP ptr_, SEXP lptype_, bool sqexp){
+  int lptype = as<int>(lptype_);
+  if(lptype == 1){
+    XPtr<ModelHSGP> ptr(ptr_);
+    ptr->model.covariance.set_function(sqexp);
+  } else if(lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(ptr_);
+    ptr->model.covariance.set_function(sqexp);
+  } else if(lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(ptr_);
+    ptr->model.covariance.set_function(sqexp);
+  }
+}
+
+// [[Rcpp::export]]
 SEXP rtsModel_cov__log_likelihood(SEXP xp, int covtype_, int lptype_, SEXP u_){
   Eigen::VectorXd u = as<Eigen::VectorXd>(u_);
   TypeSelector model(xp,covtype_,lptype_);

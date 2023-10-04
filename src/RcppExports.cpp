@@ -559,6 +559,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__get_rho
+SEXP rtsModel__get_rho(SEXP xp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__get_rho(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__get_rho(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__get_theta
 SEXP rtsModel__get_theta(SEXP xp, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__get_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -646,6 +659,44 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type i_(i_SEXP);
     rcpp_result_gen = Rcpp::wrap(rtsModel_nngp__submatrix(ptr_, lptype_, i_));
     return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel_hsgp__Phi
+SEXP rtsModel_hsgp__Phi(SEXP ptr_, SEXP lptype_, bool lambda, bool inverse);
+RcppExport SEXP _rts2_rtsModel_hsgp__Phi(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP lambdaSEXP, SEXP inverseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    Rcpp::traits::input_parameter< bool >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< bool >::type inverse(inverseSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel_hsgp__Phi(ptr_, lptype_, lambda, inverse));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel_hsgp__Lambda
+SEXP rtsModel_hsgp__Lambda(SEXP ptr_, SEXP lptype_);
+RcppExport SEXP _rts2_rtsModel_hsgp__Lambda(SEXP ptr_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel_hsgp__Lambda(ptr_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel_hsgp__set_function
+void rtsModel_hsgp__set_function(SEXP ptr_, SEXP lptype_, bool sqexp);
+RcppExport SEXP _rts2_rtsModel_hsgp__set_function(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP sqexpSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    Rcpp::traits::input_parameter< bool >::type sqexp(sqexpSEXP);
+    rtsModel_hsgp__set_function(ptr_, lptype_, sqexp);
+    return R_NilValue;
 END_RCPP
 }
 // rtsModel_cov__log_likelihood
@@ -853,6 +904,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__X", (DL_FUNC) &_rts2_rtsModel__X, 3},
     {"_rts2_rtsModel__set_trace", (DL_FUNC) &_rts2_rtsModel__set_trace, 4},
     {"_rts2_rtsModel__get_beta", (DL_FUNC) &_rts2_rtsModel__get_beta, 3},
+    {"_rts2_rtsModel__get_rho", (DL_FUNC) &_rts2_rtsModel__get_rho, 3},
     {"_rts2_rtsModel__get_theta", (DL_FUNC) &_rts2_rtsModel__get_theta, 3},
     {"_rts2_rtsModel__ZL", (DL_FUNC) &_rts2_rtsModel__ZL, 3},
     {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
@@ -860,6 +912,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel_nngp__A", (DL_FUNC) &_rts2_rtsModel_nngp__A, 2},
     {"_rts2_rtsModel_nngp__D", (DL_FUNC) &_rts2_rtsModel_nngp__D, 2},
     {"_rts2_rtsModel_nngp__submatrix", (DL_FUNC) &_rts2_rtsModel_nngp__submatrix, 3},
+    {"_rts2_rtsModel_hsgp__Phi", (DL_FUNC) &_rts2_rtsModel_hsgp__Phi, 4},
+    {"_rts2_rtsModel_hsgp__Lambda", (DL_FUNC) &_rts2_rtsModel_hsgp__Lambda, 2},
+    {"_rts2_rtsModel_hsgp__set_function", (DL_FUNC) &_rts2_rtsModel_hsgp__set_function, 3},
     {"_rts2_rtsModel_cov__log_likelihood", (DL_FUNC) &_rts2_rtsModel_cov__log_likelihood, 4},
     {"_rts2_rtsModel_cov__set_sparse", (DL_FUNC) &_rts2_rtsModel_cov__set_sparse, 3},
     {"_rts2_rtsModel__aic", (DL_FUNC) &_rts2_rtsModel__aic, 3},

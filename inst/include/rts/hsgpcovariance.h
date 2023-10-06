@@ -238,12 +238,12 @@ inline void rts::hsgpCovariance::gen_phi_prod(){
 }
 
 inline MatrixXd rts::hsgpCovariance::PhiSPD(bool lambda, bool inverse){
-  ArrayXXd pnew = Phi.array();
+  MatrixXd pnew = Phi;
   if(lambda){
     if(!inverse){
-      pnew *= Lambda.sqrt().asDiagonal();
+      pnew *= Lambda.sqrt().matrix().asDiagonal();
     } else {
-      pnew *= Lambda.sqrt().inverse().asDiagonal();
+      pnew *= Lambda.sqrt().inverse().matrix().asDiagonal();
     }
   }
 // #pragma omp parallel for
@@ -251,7 +251,7 @@ inline MatrixXd rts::hsgpCovariance::PhiSPD(bool lambda, bool inverse){
 //       pnew.col(i) *= inverse ? 1/sqrt(Lambda(i)) : sqrt(Lambda(i));
 //     }
 //   }
-  return pnew.matrix();
+  return pnew;
 }
 
 inline ArrayXd rts::hsgpCovariance::LambdaSPD(){

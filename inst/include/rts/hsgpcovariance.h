@@ -70,7 +70,6 @@ protected:
   bool sq_exp = false;
   void gen_indices();
   void gen_phi_prod();
-  //void Z_chol();
   void update_lambda();
 };
 
@@ -87,8 +86,8 @@ inline double rts::hsgpCovariance::spd_nD(int i){
   if(sq_exp){
     S = parameters_[0] * 2 * M_PI * phisq * exp(-0.5 * phisq * (w(0) + w(1)));
   } else {
-    double S1 = parameters_[0] * 2 * M_PI / parameters_[1];
-    double S2 = (1 / phisq) + (w(0) + w(1));
+    double S1 = parameters_[0] * 2 * M_PI * phisq;
+    double S2 = 1 + phisq * (w(0) + w(1));
     S = S1 * pow(S2,-1.5);
   }
   return S;
@@ -238,21 +237,20 @@ inline void rts::hsgpCovariance::gen_phi_prod(){
   PhiT = Phi.transpose() * Phi;
 }
 
-// inline void rts::hsgpCovariance::Z_chol(){
-//   MatrixXd pnew = PhiT;
-//   for(int i = 0; i < (m*m); i++){
-//     pnew(i,i) += sqrt(Lambda(i));
-//   }
-//   rts::cholesky(L, pnew);
-// }
-
 inline MatrixXd rts::hsgpCovariance::PhiSPD(bool lambda, bool inverse){
   ArrayXXd pnew = Phi.array();
   if(lambda){
-    for(int i = 0; i < (m*m); i++){
-      pnew.col(i) *= inverse ? 1/sqrt(Lambda(i)) : sqrt(Lambda(i));
+    if(!inverse){
+      pnew *= Lambda.sqrt().asDiagonal();
+    } else {
+      pnew *= Lambda.sqrt().inverse().asDiagonal();
     }
   }
+// #pragma omp parallel for
+//     for(int i = 0; i < (m*m); i++){
+//       pnew.col(i) *= inverse ? 1/sqrt(Lambda(i)) : sqrt(Lambda(i));
+//     }
+//   }
   return pnew.matrix();
 }
 

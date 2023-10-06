@@ -1,8 +1,7 @@
 # pragma once
 
 #include <glmmr/modeloptim.hpp>
-#include "ar1covariance.h"
-#include "nngpcovariance.h"
+#include "rtsmodelbits.h"
 #include "griddata.h"
 #include "regiondata.h"
 #include "regionlinearpredictor.h"
@@ -29,6 +28,7 @@ public:
   void update_u(const MatrixXd& u) override;
   void update_rho(double rho);
   void ml_rho();
+  void ml_theta() override;
   double log_likelihood() override;
   double full_log_likelihood() override;
   ArrayXXd region_intensity(bool uselog = true);
@@ -43,7 +43,17 @@ public:
       rho_likelihood(rtsRegionModelOptim<modeltype>& M) :  
       M_(M), parrho(0.0), ll(0.0) {};
       double operator()(const dblvec &par);
-    };    
+    };
+    
+    class D_likelihood_hsgp : public Functor<dblvec> {
+      rtsRegionModelOptim<modeltype>& M;
+      double logl;
+    public:
+      D_likelihood_hsgp(rtsRegionModelOptim<modeltype>& M_) :
+      M(M_),
+      logl(0.0) {};
+      double operator()(const dblvec &par);
+    };
   
 };
 
@@ -113,10 +123,10 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
 template<typename modeltype>
 inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
-  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP >){
+  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsHSGP >){
     xb = region_intensity();
-  } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion >){
-    xb = this->model.linear_predictor.xb_region(this->re.u_);
+  } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion > || std::is_same_v<modeltype, BitsHSGPRegion >){
+    xb = this->model.linear_predictor.xb_region(this->re.zu_);
   }
   xb.matrix().colwise() += this->model.data.offset;
   if(!uselog)xb = xb.exp();
@@ -125,7 +135,7 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
 
 template<typename modeltype>
 inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselog){
-  MatrixXd regionu = region.grid_to_region(this->re.u_);
+  MatrixXd regionu = region.grid_to_region(this->re.zu_);
   ArrayXXd intens = ArrayXXd::Zero(region.nRegion,this->re.u_.cols());
   ArrayXd expxb = this->model.linear_predictor.xb().array().exp();
   for(int j=0; j<intens.cols(); j++){
@@ -157,4 +167,41 @@ inline double rts::rtsRegionModelOptim<modeltype>::rho_likelihood::operator()(co
   M_.update_rho(parrho);
   ll = M_.log_likelihood();
   return -1*ll;
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
+  glmmr::ModelOptim<modeltype>::ml_theta();
+}
+
+template<>
+inline void rts::rtsRegionModelOptim<BitsHSGP>::ml_theta(){
+  D_likelihood_hsgp ddl(*this);
+  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+  dblvec lower = this->get_lower_values(false,true,false);
+  opt.set_lower(lower);
+  opt.control.iprint = trace;
+  dblvec start_t = this->get_start_values(false,true,false);
+  opt.minimize(ddl, start_t);
+}
+
+template<>
+inline void rts::rtsRegionModelOptim<BitsHSGPRegion>::ml_theta(){
+  D_likelihood_hsgp ddl(*this);
+  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+  dblvec lower = this->get_lower_values(false,true,false);
+  opt.set_lower(lower);
+  opt.control.iprint = trace;
+  dblvec start_t = this->get_start_values(false,true,false);
+  opt.minimize(ddl, start_t);
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {
+  M.update_theta(par);
+  logl = M.log_likelihood();
+  // ArrayXXd u = M.re.u_.array();
+  // u = u.square();
+  // logl -= u.matrix().sum();
+  return -1*logl;
 }

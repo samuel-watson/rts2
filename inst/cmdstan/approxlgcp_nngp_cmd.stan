@@ -115,7 +115,6 @@ transformed data {
               (x_grid[i,2] - x_grid[j,2]) * (x_grid[i,2] - x_grid[j,2]));
     }
   }
-  //print(dists);
   if(known_cov){
     AD_data = getAD(sigma_data, phi_data, M, Nsample, dists, NN, mod);
   }

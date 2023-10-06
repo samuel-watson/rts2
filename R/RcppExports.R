@@ -157,6 +157,10 @@ rtsModel__get_rho <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_rho`, xp, covtype_, lptype_)
 }
 
+rtsModel__log_likelihood <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__log_likelihood`, xp, covtype_, lptype_)
+}
+
 rtsModel__get_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_theta`, xp, covtype_, lptype_)
 }
@@ -223,6 +227,10 @@ rtsModel__infomat_theta <- function(xp, covtype_, lptype_) {
 
 rtsModel__region_intensity <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__region_intensity`, xp, covtype_, lptype_)
+}
+
+rtsModel__y_pred <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__y_pred`, xp, covtype_, lptype_)
 }
 
 rtsModel__region_grid_xb <- function(xp, covtype_) {

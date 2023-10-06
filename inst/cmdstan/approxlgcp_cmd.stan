@@ -8,10 +8,7 @@ functions {
   }
   real spd_nD(real sigma, real phi, vector w, int D, int mod) {
     real S;
-    real S1;
-    //vector[2] phisq; 
     vector[2] wsq;
-    //phisq = (phi .* phi)';
     wsq = w .* w;
     
     if(mod == 0){
@@ -19,8 +16,7 @@ functions {
       S = sigma * sqrt(2*pi())^D * phi * phi * exp(-0.5*(phi*phi*(wsq[1] + wsq[2])));
     } else {
       // exponential
-      S1 = sigma * 4 * pi() * tgamma(1.5)/tgamma(0.5);
-      S = S1 * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-2);
+      S = sigma * 2 * pi() * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-2);
     }
 
     return S;

@@ -572,6 +572,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__log_likelihood
+SEXP rtsModel__log_likelihood(SEXP xp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__log_likelihood(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__log_likelihood(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__get_theta
 SEXP rtsModel__get_theta(SEXP xp, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__get_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -790,6 +803,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__y_pred
+SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_);
+RcppExport SEXP _rts2_rtsModel__y_pred(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__y_pred(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__region_grid_xb
 SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_);
 RcppExport SEXP _rts2_rtsModel__region_grid_xb(SEXP xpSEXP, SEXP covtype_SEXP) {
@@ -905,6 +931,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__set_trace", (DL_FUNC) &_rts2_rtsModel__set_trace, 4},
     {"_rts2_rtsModel__get_beta", (DL_FUNC) &_rts2_rtsModel__get_beta, 3},
     {"_rts2_rtsModel__get_rho", (DL_FUNC) &_rts2_rtsModel__get_rho, 3},
+    {"_rts2_rtsModel__log_likelihood", (DL_FUNC) &_rts2_rtsModel__log_likelihood, 3},
     {"_rts2_rtsModel__get_theta", (DL_FUNC) &_rts2_rtsModel__get_theta, 3},
     {"_rts2_rtsModel__ZL", (DL_FUNC) &_rts2_rtsModel__ZL, 3},
     {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
@@ -922,6 +949,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__theta_parameter_names", (DL_FUNC) &_rts2_rtsModel__theta_parameter_names, 3},
     {"_rts2_rtsModel__infomat_theta", (DL_FUNC) &_rts2_rtsModel__infomat_theta, 3},
     {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 3},
+    {"_rts2_rtsModel__y_pred", (DL_FUNC) &_rts2_rtsModel__y_pred, 3},
     {"_rts2_rtsModel__region_grid_xb", (DL_FUNC) &_rts2_rtsModel__region_grid_xb, 2},
     {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},

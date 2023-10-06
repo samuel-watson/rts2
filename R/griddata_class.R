@@ -800,7 +800,8 @@ grid <- R6::R6Class("grid",
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
                              } else if(private$lp_type == 2){
                                #M <- rtsModel__information_matrix_region(private$ptr,private$region_ptr,private$cov_type,private$lp_type)
-                               v <- rtsModel__grid_to_region(private$region_ptr,u)
+                               L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
+                               v <- rtsModel__grid_to_region(private$region_ptr,L%*%u)
                                vmeans <- rowMeans(v)
                                zdz <- matrix(0,nrow = nrow(v), ncol=nrow(v))
                                X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)

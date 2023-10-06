@@ -158,7 +158,7 @@ transformed parameters {
 
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
-  vector[Nsample*nT] region_mean = rep_vector(0,n_region*nT);
+  vector[Nsample*nT] region_mean = rep_vector(0,Nsample*nT);
   real accum = 0;
   if(!known_cov){
     phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
@@ -202,7 +202,7 @@ model{
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
   vector[n_region*nT] region_predict;
-  vector[Nsample*nT] region_mean_predict = rep_vector(0,n_region*nT);
+  vector[Nsample*nT] region_mean_predict = rep_vector(0,Nsample*nT);
 
   for(i in 1:(Nsample*nT)){
     y_grid_predict[i] = exp(f[i]);

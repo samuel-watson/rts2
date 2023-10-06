@@ -696,8 +696,8 @@ grid <- R6::R6Class("grid",
                              L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
                              
                              data <- list(
-                               N = datlist$Nsample * datlist$nT,
-                               Q = ifelse(approx=="hsgp", m * m * datlist$nT, datlist$Nsample * datlist$nT),
+                               N = datlist$Nsample,
+                               Q = ifelse(approx=="hsgp", m * m, datlist$Nsample),
                                Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type),
                                ZL = as.matrix(L),
                                y = datlist$y
@@ -708,14 +708,14 @@ grid <- R6::R6Class("grid",
                                if(private$lp_type == 3){
                                  xb_grid <- rtsModel__region_grid_xb(private$ptr,private$cov_type)
                                } else {
-                                 xb_grid <- matrix(0,nrow=datlist$nCell*datlist$nT,ncol=1)
+                                 xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
                                }
                                data <- append(data,
                                               list(
                                                 nT = datlist$nT,
                                                 nRegion = datlist$n_region,
                                                 n_Q = datlist$n_Q,
-                                                Xb_cell = xb_grid,
+                                                Xb_cell = c(drop(xb_grid)),
                                                 n_cell = datlist$n_cell,
                                                 cell_id = datlist$cell_id,
                                                 q_weights = datlist$q_weights
@@ -726,8 +726,8 @@ grid <- R6::R6Class("grid",
                              }
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr")){
-                                 stop("cmdstanr is required to use Stan for sampling. See https://mc-stan.org/cmdstanr/ for details on how to install.\n
-                                    Set option usestan=FALSE to use rstan instead.")
+                                 stop("cmdstanr is recommended but not installed, see https://mc-stan.org/cmdstanr/ for details on how to install.\n
+                                    Set option use_cmdstanr=FALSE to use rstan instead.")
                                } else {
                                  if(verbose)message("If this is the first time running this model, it will be compiled by cmdstan.")
                                  model_file <- system.file("cmdstan",
@@ -769,7 +769,6 @@ grid <- R6::R6Class("grid",
                                  dsamps <- dsamps[,1,]
                                  rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),private$cov_type,private$lp_type)
                                }
-                               
                                if(trace==2)t2 <- Sys.time()
                                if(trace==2)cat("\nMCMC sampling took: ",t2-t1,"s")
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
@@ -797,7 +796,28 @@ grid <- R6::R6Class("grid",
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
                              if(verbose)cat("\n\nCalculating standard errors...\n")
                              u <- rtsModel__u(private$ptr, TRUE,private$cov_type,private$lp_type)
-                             M <- Matrix::solve(rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type))
+                             if(private$lp_type == 1){
+                               M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
+                             } else if(private$lp_type == 2){
+                               #M <- rtsModel__information_matrix_region(private$ptr,private$region_ptr,private$cov_type,private$lp_type)
+                               v <- rtsModel__grid_to_region(private$region_ptr,u)
+                               vmeans <- rowMeans(v)
+                               zdz <- matrix(0,nrow = nrow(v), ncol=nrow(v))
+                               X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)
+                               for(i in 1:ncol(v)){
+                                 vcol <- v[,i,drop=FALSE] - vmeans
+                                 zdz <- zdz + t(vcol)%*%vcol
+                               }
+                               zdz <- zdz / ncol(v)
+                               w <- rtsModel__W(private$ptr,private$cov_type,private$lp_type)
+                               w <- 1/w
+                               zdz <- zdz + diag(w)
+                               zdz <- solve(zdz)
+                               M <- t(X)%*%zdz%*%X
+                               M <- solve(M)
+                             } else if(private$lp_type == 3){
+                               M <- diag(length(beta))
+                             }
                              SE <- sqrt(diag(M))
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
                              theta_names <- c("theta_1","theta_2")
@@ -855,7 +875,6 @@ grid <- R6::R6Class("grid",
                                          y_predicted  = ypred)
                              class(out) <- "mcml"
                              return(out)
-                             
                            },
                            #' @description
                            #' Extract predictions
@@ -1614,8 +1633,8 @@ grid <- R6::R6Class("grid",
                                                                   theta,
                                                                   data$nT,
                                                                   m,
-                                                                  data$L,
-                                                                  private$region_ptr )
+                                                                  private$region_ptr,
+                                                                  data$L)
                           } else if(private$cov_type == 1 & private$lp_type == 3){
 
                             private$ptr <- Model_ar_region_grid__new(f1,
@@ -1638,6 +1657,7 @@ grid <- R6::R6Class("grid",
                                                               beta,
                                                               theta,
                                                               private$region_ptr,
+                                                              private$grid_ptr,
                                                               data$nT,
                                                               m)
                           } else if(private$cov_type == 3 & private$lp_type == 3){
@@ -1828,6 +1848,7 @@ grid <- R6::R6Class("grid",
                               }
                             }
                           } else {
+                            nG <- 0
                             X_g <- matrix(0,nrow=nrow(self$grid_data)*nT,ncol=1)
                           }
                         }

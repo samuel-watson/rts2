@@ -137,6 +137,10 @@ rtsModel__information_matrix <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__information_matrix`, xp, covtype_, lptype_)
 }
 
+rtsModel__information_matrix_region <- function(xp, rxp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__information_matrix_region`, xp, rxp, covtype_, lptype_)
+}
+
 rtsModel__u <- function(xp, scaled_, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__u`, xp, scaled_, covtype_, lptype_)
 }

@@ -506,6 +506,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__information_matrix_region
+SEXP rtsModel__information_matrix_region(SEXP xp, SEXP rxp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__information_matrix_region(SEXP xpSEXP, SEXP rxpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rxp(rxpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__information_matrix_region(xp, rxp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__u
 SEXP rtsModel__u(SEXP xp, bool scaled_, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__u(SEXP xpSEXP, SEXP scaled_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -926,6 +940,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__laplace_nr_beta_u", (DL_FUNC) &_rts2_rtsModel__laplace_nr_beta_u, 3},
     {"_rts2_rtsModel__Sigma", (DL_FUNC) &_rts2_rtsModel__Sigma, 4},
     {"_rts2_rtsModel__information_matrix", (DL_FUNC) &_rts2_rtsModel__information_matrix, 3},
+    {"_rts2_rtsModel__information_matrix_region", (DL_FUNC) &_rts2_rtsModel__information_matrix_region, 4},
     {"_rts2_rtsModel__u", (DL_FUNC) &_rts2_rtsModel__u, 4},
     {"_rts2_rtsModel__X", (DL_FUNC) &_rts2_rtsModel__X, 3},
     {"_rts2_rtsModel__set_trace", (DL_FUNC) &_rts2_rtsModel__set_trace, 4},

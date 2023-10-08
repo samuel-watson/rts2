@@ -42,6 +42,7 @@ public:
   double spd_nD(int i);
   ArrayXd phi_nD(int i);
   MatrixXd ZL() override;
+  MatrixXd D(bool chol = true, bool upper = false) override;
   MatrixXd LZWZL(const VectorXd& w) override;
   MatrixXd ZLu(const MatrixXd& u) override;
   MatrixXd Lu(const MatrixXd& u) override;
@@ -100,6 +101,19 @@ inline ArrayXd rts::hsgpCovariance::phi_nD(int i){
   fi2 = (1/sqrt(L_boundary(1))) * sin(indices(i,1)*M_PI*(grid.X.col(1)+L_boundary(1))/(2*L_boundary(1)));
   fi1 *= fi2;
   return fi1;
+}
+
+inline MatrixXd rts::hsgpCovariance::D(bool chol, bool upper){
+  MatrixXd As = rts::hsgpCovariance::ZL();
+  if(chol){
+    if(upper){
+      return As.transpose();
+    } else {
+      return As;
+    }
+  } else {
+    return As * As.transpose();
+  }
 }
 
 inline void rts::hsgpCovariance::update_grid(int T){

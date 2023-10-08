@@ -25,8 +25,36 @@ public:
   RegionData(const rts::RegionData& region) : n_cell(region.n_cell), cell_id(region.cell_id),
     q_weights(region.q_weights), gridT(region.gridT), gridN(region.gridN), nRegion(region.nRegion) {};
   MatrixXd grid_to_region(const MatrixXd& u);
+  MatrixXd region_design_matrix();
+  MatrixXd grid_design_matrix();
 };
 
+}
+
+inline MatrixXd rts::RegionData::region_design_matrix(){
+  MatrixXd A = MatrixXd::Zero(q_weights.size(),nRegion*gridT);
+  int nInter, r, t, l, idx1;
+  for(r = 0; r < nRegion; r++){
+    nInter = n_cell(r+1) - n_cell(r);
+    for(l = 0; l < nInter; l++){
+      idx1 = n_cell(r) + l;
+      for(t = 0; t < gridT; t++){
+        A(idx1,r+nRegion*t) = 1;
+      }
+    }
+  }
+  return A;
+}
+
+inline MatrixXd rts::RegionData::grid_design_matrix(){
+  MatrixXd A = MatrixXd::Zero(q_weights.size(),gridN*gridT);
+  for(int i = 0; i < q_weights.size(); i++){
+    for(int t = 0; t < gridT; t++){
+      A(i,cell_id(i)+t*gridN) = 1;
+    }
+  }
+  
+  return A;
 }
 
 inline MatrixXd rts::RegionData::grid_to_region(const MatrixXd& u){

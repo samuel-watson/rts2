@@ -226,39 +226,32 @@ SEXP rtsModel__information_matrix(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
-SEXP rtsModel__information_matrix_region(SEXP xp, SEXP rxp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  XPtr<rts::RegionData> rptr(rxp);
-  auto functorx = overloaded {
-    [](int) { return returns(0);}, 
-    [](auto mptr){return returns(mptr->model.linear_predictor.X());}
-  };
-  auto functorw = overloaded {
-    [](int) {return returns(0);  }, 
-    [](auto mptr){return returns(mptr->matrix.W.W());}
-  };
-  auto functoru = overloaded {
-    [](int) {  return returns(0);}, 
-    [](auto mptr){return returns(mptr->re.u(true));}
-  };
-  auto W = std::visit(functorw,model.ptr);
-  auto X = std::visit(functorx,model.ptr);
-  auto U = std::visit(functoru,model.ptr);
-  Eigen::VectorXd Wvec = std::get<VectorXd>(W);
-  Eigen::MatrixXd Xm = std::get< Eigen::MatrixXd>(X);
-  Eigen::MatrixXd Um = std::get< Eigen::MatrixXd>(U);
-  Eigen::MatrixXd Urm = rptr->grid_to_region(Um);
-  Eigen::VectorXd Umeans = Urm.rowwise().mean();
-  Eigen::MatrixXd ZDZ = Eigen::MatrixXd::Zero(Xm.rows(),Xm.rows());
-  for(int i = 0; i < Urm.cols(); i++){
-    ZDZ += (Urm.col(i) - Umeans) * (Urm.col(i) - Umeans).transpose();
+SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype){
+  if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(xp);
+    Eigen::ArrayXXd M = ptr->intersection_infomat();
+    return wrap(M);
   }
-  ZDZ *= 1/Urm.cols();
-  ZDZ += Wvec.array().inverse().matrix().asDiagonal();
-  ZDZ = ZDZ.llt().solve(Eigen::MatrixXd::Identity(ZDZ.rows(),ZDZ.cols()));
-  Eigen::MatrixXd M = Xm.transpose()*ZDZ*Xm;
-  M = M.llt().solve(Eigen::MatrixXd::Identity(M.rows(),M.cols()));
-  return wrap(M);
 }
 
 // [[Rcpp::export]]

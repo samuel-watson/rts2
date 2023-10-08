@@ -798,26 +798,8 @@ grid <- R6::R6Class("grid",
                              u <- rtsModel__u(private$ptr, TRUE,private$cov_type,private$lp_type)
                              if(private$lp_type == 1){
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
-                             } else if(private$lp_type == 2){
-                               #M <- rtsModel__information_matrix_region(private$ptr,private$region_ptr,private$cov_type,private$lp_type)
-                               L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
-                               v <- rtsModel__grid_to_region(private$region_ptr,L%*%u)
-                               vmeans <- rowMeans(v)
-                               zdz <- matrix(0,nrow = nrow(v), ncol=nrow(v))
-                               X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)
-                               for(i in 1:ncol(v)){
-                                 vcol <- v[,i,drop=FALSE] - vmeans
-                                 zdz <- zdz + t(vcol)%*%vcol
-                               }
-                               zdz <- zdz / ncol(v)
-                               w <- rtsModel__W(private$ptr,private$cov_type,private$lp_type)
-                               w <- 1/w
-                               zdz <- zdz + diag(w)
-                               zdz <- solve(zdz)
-                               M <- t(X)%*%zdz%*%X
-                               M <- solve(M)
-                             } else if(private$lp_type == 3){
-                               M <- diag(length(beta))
+                             } else{
+                               M <- rtsModel__information_matrix_region(private$ptr,private$region_ptr,private$cov_type,private$lp_type)
                              }
                              SE <- sqrt(diag(M))
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)

@@ -12,6 +12,10 @@
 #include "rtsmodelbits.h"
 #include "rtsregionmodeloptim.h"
 
+// this can be tidied up as lots of repeated code
+// at the moment it works and I am bored of 
+// messing with these classes!
+
 namespace rts {
 
 using namespace Eigen;
@@ -79,6 +83,7 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 template<>
@@ -137,6 +142,7 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 template<>
@@ -195,6 +201,7 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 template<>
@@ -253,6 +260,7 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 template<>
@@ -312,6 +320,7 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 template<>
@@ -371,7 +380,132 @@ public:
   void set_trace(int trace_){
     optim.trace = trace_;
   }
+  MatrixXd intersection_infomat();
 };
 
 }
 
+// this needs to be fixed and not repeated
+
+inline MatrixXd rts::rtsRegionModel<BitsAR>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd AX = A * model.linear_predictor.X();
+  MatrixXd M = AX.transpose() * BDB * AX;
+  return M;
+}
+
+inline MatrixXd rts::rtsRegionModel<BitsNNGP>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd AX = A * model.linear_predictor.X();
+  MatrixXd M = AX.transpose() * BDB * AX;
+  return M;
+}
+
+inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd AX = A * model.linear_predictor.X();
+  MatrixXd M = AX.transpose() * BDB * AX;
+  return M;
+}
+
+inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
+  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
+  Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
+  Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
+  MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
+  return M;
+}
+
+inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
+  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
+  Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
+  Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
+  MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
+  return M;
+}
+
+inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
+  MatrixXd A = region.region_design_matrix();
+  MatrixXd B = region.grid_design_matrix();
+  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
+  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  mu += B * re.zu_;
+  mu += A * model.data.offset;
+  for(int i = 0; i < region.gridT; i++){
+    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  }
+  mu = -1.0 * mu;
+  VectorXd w = mu.array().exp().matrix();
+  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
+  BDB += w.asDiagonal();
+  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
+  MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
+  Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
+  Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
+  MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
+  return M;
+}

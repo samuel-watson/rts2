@@ -32,6 +32,17 @@ SEXP wrap(const kenward_data& x){
 using namespace Rcpp;
 
 // [[Rcpp::export]]
+SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {return returns(0);}, 
+    [](auto mptr){return returns(mptr->matrix.hess_and_grad());}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<matrix_matrix>(S));
+}
+
+// [[Rcpp::export]]
 SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_){
   int lptype = as<int>(lptype_);
   if(lptype == 1){
@@ -253,7 +264,7 @@ SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
-  } else if(covtype == 2 && lptype == 2){
+  } else if(covtype == 3 && lptype == 2){
     XPtr<ModelHSGPRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
@@ -265,10 +276,41 @@ SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
-  } else if(covtype == 2 && lptype == 3){
+  } else if(covtype == 3 && lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
+  }
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__grid_to_region_multiplier_matrix(SEXP xp, SEXP covtype_, SEXP lptype_){
+  int covtype = as<int>(covtype_);
+  int lptype = as<int>(lptype_);
+  if(covtype == 1 && lptype == 2){
+    XPtr<ModelARRegion> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
+  } else if(covtype == 2 && lptype == 2){
+    XPtr<ModelNNGPRegion> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
+  } else if(covtype == 3 && lptype == 2){
+    XPtr<ModelHSGPRegion> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
+  } else if(covtype == 1 && lptype == 3){
+    XPtr<ModelARRegionG> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
+  } else if(covtype == 2 && lptype == 3){
+    XPtr<ModelNNGPRegionG> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
+  } else if(covtype == 3 && lptype == 3){
+    XPtr<ModelHSGPRegionG> ptr(xp);
+    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    return wrap(P);
   }
 }
 

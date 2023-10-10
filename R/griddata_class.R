@@ -694,11 +694,10 @@ grid <- R6::R6Class("grid",
                              all_pars_new <- rep(1,length(all_pars))
                              if(verbose)cat("\nStart: ",all_pars,"\n")
                              L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
-                             
+                             P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
                              data <- list(
-                               N = datlist$Nsample,
-                               Q = ifelse(approx=="hsgp", m * m, datlist$Nsample),
-                               Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type),
+                               N = datlist$Nsample*datlist$nT,
+                               Q = ifelse(approx=="hsgp", m * m*datlist$nT, datlist$Nsample*datlist$nT),
                                ZL = as.matrix(L),
                                y = datlist$y
                              )
@@ -710,19 +709,11 @@ grid <- R6::R6Class("grid",
                                } else {
                                  xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
                                }
-                               data <- append(data,
-                                              list(
-                                                nT = datlist$nT,
-                                                nRegion = datlist$n_region,
-                                                n_Q = datlist$n_Q,
-                                                Xb_cell = c(drop(xb_grid)),
-                                                n_cell = datlist$n_cell,
-                                                cell_id = datlist$cell_id,
-                                                q_weights = datlist$q_weights
-                                              ))
+                               data <- append(data,list(P = P, nRegion = datlist$n_region*datlist$nT))
                              } else {
                                filecmd <- "mcml_poisson_cmd.stan"
                                filers <- "mcml_poisson"
+                               data <- append(data,list(Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type)))
                              }
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr")){
@@ -746,8 +737,9 @@ grid <- R6::R6Class("grid",
                                if(trace==2)t1 <- Sys.time()
                                
                                if(use_cmdstanr){
-                                 data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
-                                 data$Z <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
+                                 if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
+                                 data$ZL <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
+                                 if(!is.null(self$region_data))data$P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
                                  capture.output(fit <- mod$sample(data = data,
                                                                   chains = 1,
                                                                   iter_warmup = iter_warmup,
@@ -795,11 +787,16 @@ grid <- R6::R6Class("grid",
                              not_conv <- iter > max.iter|any(abs(all_pars-all_pars_new)>tol)
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
                              if(verbose)cat("\n\nCalculating standard errors...\n")
-                             u <- rtsModel__u(private$ptr, TRUE,private$cov_type,private$lp_type)
+                             u <- rtsModel__u(private$ptr, private$cov_type,private$lp_type)
                              if(private$lp_type == 1){
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
                              } else{
-                               M <- rtsModel__information_matrix_region(private$ptr,private$region_ptr,private$cov_type,private$lp_type)
+                               if(private$cov_type == 1 | private$cov_type == 2){
+                                 M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
+                               } else {
+                                 M <- rtsModel__hessian_numerical(private$ptr,1e-4,private$cov_type,private$lp_type)
+                               }
+                               M <- tryCatch(solve(M),error = function(i)return(diag(nrow(M))))
                              }
                              SE <- sqrt(diag(M))
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
@@ -1414,7 +1411,8 @@ grid <- R6::R6Class("grid",
                            #' Re-orders the computational grid
                            #' 
                            #' The quality of the nearest neighbour approximation can depend on the ordering of 
-                           #' the grid cells. This function reorders the grid cells.
+                           #' the grid cells. This function reorders the grid cells. If this is a region data model,
+                           #' then the intersections are recomputed.
                            #' @param option Either "y" for order of the y coordinate, "x" for order of the x coordinate,
                            #' "minimax"  in which the next observation in the order is the one which maximises the
                            #'  minimum distance to the previous observations,g1$grid_data <- g1$grid_data[o0,] or "random" which randomly orders them.
@@ -1444,6 +1442,15 @@ grid <- R6::R6Class("grid",
                              } else if(option=="random"){
                                o2 <- sample(1:nrow(df),nrow(df),replace=FALSE)
                                self$grid_data <- self$grid_data[o2,]
+                             }
+                             if(!is.null(self$region_data)){
+                               tmp <- suppressWarnings(sf::st_intersection(self$grid_data[,"grid_id"],self$region_data[,"region_id"]))
+                               n_Q <- nrow(tmp)
+                               rID <- self$region_data$region_id
+                               tmp$area <- as.numeric(sf::st_area(tmp))
+                               a1 <-rep(aggregate(tmp$area,list(tmp$region_id),sum)$x,unname(table(tmp$region_id)))
+                               tmp$w <- tmp$area/a1
+                               private$intersection_data <- tmp
                              }
                            },
                            #' @description 

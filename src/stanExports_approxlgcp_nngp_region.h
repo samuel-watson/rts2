@@ -107,7 +107,7 @@ static const std::vector<string> locations_array__ = {" (found before start of p
                                                       " (in 'string', line 142, column 2 to line 152, column 3)",
                                                       " (in 'string', line 198, column 2 to column 36)",
                                                       " (in 'string', line 199, column 2 to column 37)",
-                                                      " (in 'string', line 200, column 2 to column 69)",
+                                                      " (in 'string', line 200, column 2 to column 68)",
                                                       " (in 'string', line 202, column 4 to column 34)",
                                                       " (in 'string', line 201, column 26 to line 203, column 3)",
                                                       " (in 'string', line 201, column 2 to line 203, column 3)",
@@ -125,7 +125,7 @@ static const std::vector<string> locations_array__ = {" (found before start of p
                                                       " (in 'string', line 156, column 9 to column 20)",
                                                       " (in 'string', line 156, column 2 to column 59)",
                                                       " (in 'string', line 157, column 9 to column 19)",
-                                                      " (in 'string', line 157, column 2 to column 61)",
+                                                      " (in 'string', line 157, column 2 to column 60)",
                                                       " (in 'string', line 158, column 2 to column 17)",
                                                       " (in 'string', line 160, column 4 to column 56)",
                                                       " (in 'string', line 161, column 4 to column 52)",
@@ -262,7 +262,7 @@ static const std::vector<string> locations_array__ = {" (found before start of p
                                                       " (in 'string', line 20, column 8 to line 34, column 9)",
                                                       " (in 'string', line 19, column 20 to line 35, column 7)",
                                                       " (in 'string', line 19, column 6 to line 35, column 7)",
-                                                      " (in 'string', line 37, column 8 to column 78)",
+                                                      " (in 'string', line 37, column 8 to column 84)",
                                                       " (in 'string', line 38, column 8 to column 28)",
                                                       " (in 'string', line 39, column 8 to column 104)",
                                                       " (in 'string', line 36, column 24 to line 40, column 7)",
@@ -430,10 +430,10 @@ getAD(const T0__& alpha, const T1__& theta, const int& M, const int& n,
       current_statement__ = 192;
       for (int j = 1; j <= idxlim; ++j) {
         current_statement__ = 188;
-        index = ((((n * (NN[(j - 1)][(i - 1)] - 1)) -
+        index = (((((n - 1) * (NN[(j - 1)][(i - 1)] - 1)) -
                     (((NN[(j - 1)][(i - 1)] - 2) *
                        (NN[(j - 1)][(i - 1)] - 1)) / 2)) +
-                   (i - NN[(j - 1)][(i - 1)])) + 1);
+                   ((i - NN[(j - 1)][(i - 1)]) - 1)) + 1);
         current_statement__ = 189;
         dist = dists[(index - 1)];
         current_statement__ = 190;
@@ -1368,7 +1368,7 @@ public:
         stan::math::fill(region_mean, DUMMY_VAR__);
         
         current_statement__ = 51;
-        assign(region_mean, nil_index_list(), rep_vector(0, (n_region * nT)),
+        assign(region_mean, nil_index_list(), rep_vector(0, (Nsample * nT)),
           "assigning variable region_mean");
         local_scalar_t__ accum;
         accum = DUMMY_VAR__;
@@ -1679,7 +1679,7 @@ public:
       
       current_statement__ = 33;
       assign(region_mean_predict, nil_index_list(),
-        rep_vector(0, (n_region * nT)),
+        rep_vector(0, (Nsample * nT)),
         "assigning variable region_mean_predict");
       current_statement__ = 36;
       for (int i = 1; i <= (Nsample * nT); ++i) {

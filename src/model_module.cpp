@@ -61,6 +61,18 @@ void rtsModel__update_beta(SEXP xp, SEXP beta_,int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel__hessian_numerical(SEXP xp, SEXP tol_, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  double tol = as<double>(tol_);
+  auto functor = overloaded {
+    [](int) {return returns(0);}, 
+    [&tol](auto mptr){return returns(mptr->optim.hessian(tol));}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
+}
+
+// [[Rcpp::export]]
 void rtsModel__update_rho(SEXP xp, double rho_,int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
@@ -255,11 +267,11 @@ SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype){
 }
 
 // [[Rcpp::export]]
-SEXP rtsModel__u(SEXP xp, bool scaled_, int covtype_, int lptype_){
+SEXP rtsModel__u(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) {  return returns(0);}, 
-    [scaled_](auto mptr){return returns(mptr->re.u(scaled_));}
+    [](auto mptr){return returns(mptr->re.zu_);}
   };
   auto S = std::visit(functor,model.ptr);
   return wrap(std::get<Eigen::MatrixXd>(S));

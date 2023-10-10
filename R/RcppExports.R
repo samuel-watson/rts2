@@ -77,6 +77,10 @@ rtsModel__update_beta <- function(xp, beta_, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__update_beta`, xp, beta_, covtype_, lptype_))
 }
 
+rtsModel__hessian_numerical <- function(xp, tol_, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__hessian_numerical`, xp, tol_, covtype_, lptype_)
+}
+
 rtsModel__update_rho <- function(xp, rho_, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__update_rho`, xp, rho_, covtype_, lptype_))
 }
@@ -141,8 +145,8 @@ rtsModel__information_matrix_region <- function(xp, covtype, lptype) {
     .Call(`_rts2_rtsModel__information_matrix_region`, xp, covtype, lptype)
 }
 
-rtsModel__u <- function(xp, scaled_, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__u`, xp, scaled_, covtype_, lptype_)
+rtsModel__u <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__u`, xp, covtype_, lptype_)
 }
 
 rtsModel__X <- function(xp, covtype_, lptype_) {
@@ -179,6 +183,10 @@ rtsModel__D <- function(xp, covtype_, lptype_) {
 
 rtsModel__xb <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__xb`, xp, covtype_, lptype_)
+}
+
+rtsModel__hess_and_grad <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__hess_and_grad`, xp, covtype_, lptype_)
 }
 
 rtsModel_nngp__A <- function(ptr_, lptype_) {
@@ -235,6 +243,10 @@ rtsModel__region_intensity <- function(xp, covtype_, lptype_) {
 
 rtsModel__y_pred <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__y_pred`, xp, covtype_, lptype_)
+}
+
+rtsModel__grid_to_region_multiplier_matrix <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__grid_to_region_multiplier_matrix`, xp, covtype_, lptype_)
 }
 
 rtsModel__region_grid_xb <- function(xp, covtype_) {

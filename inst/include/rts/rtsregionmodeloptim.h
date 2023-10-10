@@ -33,6 +33,7 @@ public:
   double full_log_likelihood() override;
   ArrayXXd region_intensity(bool uselog = true);
   ArrayXXd y_predicted(bool uselog = true);
+  MatrixXd hessian(double tol = 1e-4);
   
   private:
     class rho_likelihood : public Functor<dblvec> {
@@ -200,8 +201,18 @@ template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {
   M.update_theta(par);
   logl = M.log_likelihood();
-  // ArrayXXd u = M.re.u_.array();
-  // u = u.square();
-  // logl -= u.matrix().sum();
   return -1*logl;
+}
+
+template<typename modeltype>
+inline MatrixXd rts::rtsRegionModelOptim<modeltype>::hessian(double tol){
+  typename ModelOptim<modeltype>::L_likelihood ldl(*this);
+  dblvec hess(this->model.linear_predictor.P()*this->model.linear_predictor.P());
+  std::fill(hess.begin(),hess.end(),0.0);
+  dblvec ndeps(this->model.linear_predictor.P());
+  std::fill(ndeps.begin(),ndeps.end(),tol);
+  ldl.os.ndeps_ = ndeps;
+  ldl.Hessian(this->model.linear_predictor.parameters,hess);
+  MatrixXd H = Map<MatrixXd>(hess.data(),this->model.linear_predictor.P(),this->model.linear_predictor.P());
+  return H;
 }

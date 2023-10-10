@@ -216,7 +216,7 @@ static const std::vector<string> locations_array__ = {" (found before start of p
                                                       " (in 'string', line 20, column 8 to line 34, column 9)",
                                                       " (in 'string', line 19, column 20 to line 35, column 7)",
                                                       " (in 'string', line 19, column 6 to line 35, column 7)",
-                                                      " (in 'string', line 37, column 8 to column 78)",
+                                                      " (in 'string', line 37, column 8 to column 84)",
                                                       " (in 'string', line 38, column 8 to column 28)",
                                                       " (in 'string', line 39, column 8 to column 104)",
                                                       " (in 'string', line 36, column 24 to line 40, column 7)",
@@ -384,10 +384,10 @@ getAD(const T0__& alpha, const T1__& theta, const int& M, const int& n,
       current_statement__ = 146;
       for (int j = 1; j <= idxlim; ++j) {
         current_statement__ = 142;
-        index = ((((n * (NN[(j - 1)][(i - 1)] - 1)) -
+        index = (((((n - 1) * (NN[(j - 1)][(i - 1)] - 1)) -
                     (((NN[(j - 1)][(i - 1)] - 2) *
                        (NN[(j - 1)][(i - 1)] - 1)) / 2)) +
-                   (i - NN[(j - 1)][(i - 1)])) + 1);
+                   ((i - NN[(j - 1)][(i - 1)]) - 1)) + 1);
         current_statement__ = 143;
         dist = dists[(index - 1)];
         current_statement__ = 144;

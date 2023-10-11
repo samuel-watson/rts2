@@ -478,7 +478,7 @@ grid <- R6::R6Class("grid",
                                                parallel_chains=3,
                                                verbose=TRUE,
                                                vb = FALSE,
-                                               use_cmdstanr = FALSE,
+                                               use_cmdstanr = TRUE,
                                                ...){
 
                              if(verbose)if(is.null(dir))message("dir not set, files will be lost after session restart")
@@ -625,6 +625,11 @@ grid <- R6::R6Class("grid",
                            #' covariance function
                            #' @param known_theta An optional vector of two values of the covariance parameters. If these are provided
                            #' then the covariance parameters are assumed to be known and will not be estimated.
+                           #' @param starting_values An optional list providing starting values of the model parameters. The list can have named elements
+                           #' `gamma` for the linear predictor parameters, `theta` for the covariance parameters, and `ar` for the auto-regressive parameter.
+                           #' If there are covariates for the grid in a region data model then their parameters are `gamma_g`. The list elements must be a 
+                           #' vector of starting values. If this is not provided then the non-intercept linear predictor parameters are initialised randomly
+                           #' as N(0,0.1), the covariance parameters as Uniform(0,0.5) and the auto-regressive parameter to 0.1. 
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
                            #' @param verbose logical. Provide feedback on progress
@@ -645,12 +650,6 @@ grid <- R6::R6Class("grid",
                            #'                   zcols="cov",
                            #'                   verbose = FALSE)
                            #' g1$points_to_grid(dp, laglength=5)
-                           #' g1$priors <- list(
-                           #'   prior_lscale=c(0,0.5),
-                           #'   prior_var=c(0,0.5),
-                           #'   prior_linpred_mean=c(0),
-                           #'   prior_linpred_sd=c(5)
-                           #'   )
                            #' res <- g1$lgcp_ml(popdens="cov")
                            #' }
                            lgcp_ml = function(popdens,
@@ -661,12 +660,13 @@ grid <- R6::R6Class("grid",
                                               L=1.5,
                                               model = "exp",
                                               known_theta = NULL,
+                                              starting_values = NULL,
                                               tol = 1e-2,
                                               max.iter = 30,
                                               iter_warmup=500,
                                               iter_sampling=500,
                                               verbose=TRUE,
-                                              use_cmdstanr = FALSE){
+                                              use_cmdstanr = TRUE){
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
@@ -686,6 +686,32 @@ grid <- R6::R6Class("grid",
                              }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
+                             if(!is.null(starting_values)){
+                               if(grepl("gamma",names(starting_values))){
+                                 gamma_current <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
+                                 gamma_start <- starting_values[["gamma"]]
+                                 if(grepl("gamma_g",names(starting_values))){
+                                   if(is.null(self$region_data)){
+                                     message("gamma_g starting values ignored as no region data")
+                                   } else {
+                                     gamma_start <- c(gamma_start,starting_values[["gamma_g"]])
+                                   }
+                                 }
+                                 if(length(gamma_start)!=length(gamma_current))stop("Gamma wrong length")
+                                 rtsModel__update_beta(private$ptr,gamma_start,private$cov_type,private$lp_type)
+                               }
+                               if(grepl("theta",names(starting_values))){
+                                 if(length(starting_values[["theta"]])!=2)stop("length(theta) != 2")
+                                 rtsModel__update_theta(private$ptr,starting_values[["theta"]],private$cov_type,private$lp_type)
+                               }
+                               if(grepl("ar",names(starting_values))){
+                                 if(datlist$nT == 1){
+                                   message("ar ignored as single period")
+                                 } else {
+                                   rtsModel__update_rho(private$ptr,starting_values[["ar"]],private$cov_type,private$lp_type)
+                                 }
+                               }
+                             }
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
@@ -694,7 +720,6 @@ grid <- R6::R6Class("grid",
                              all_pars_new <- rep(1,length(all_pars))
                              if(verbose)cat("\nStart: ",all_pars,"\n")
                              L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
-                             P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
                              data <- list(
                                N = datlist$Nsample*datlist$nT,
                                Q = ifelse(approx=="hsgp", m * m*datlist$nT, datlist$Nsample*datlist$nT),
@@ -709,6 +734,7 @@ grid <- R6::R6Class("grid",
                                } else {
                                  xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
                                }
+                               P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
                                data <- append(data,list(P = P, nRegion = datlist$n_region*datlist$nT))
                              } else {
                                filecmd <- "mcml_poisson_cmd.stan"
@@ -740,6 +766,7 @@ grid <- R6::R6Class("grid",
                                  if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
                                  data$ZL <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
                                  if(!is.null(self$region_data))data$P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
+                                 if(verbose)cat("\nStarting MCMC sampling")
                                  capture.output(fit <- mod$sample(data = data,
                                                                   chains = 1,
                                                                   iter_warmup = iter_warmup,
@@ -782,7 +809,6 @@ grid <- R6::R6Class("grid",
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }
-                               
                              }
                              not_conv <- iter > max.iter|any(abs(all_pars-all_pars_new)>tol)
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
@@ -1428,12 +1454,12 @@ grid <- R6::R6Class("grid",
                                self$grid_data <- self$grid_data[o0,]
                              } else if(option=="minimax"){
                                o1 <- rep(NA,nrow(df))
-                               o1[which.min(sqrt((df$x-0.5)^2 + (df$y - 0.5)^2))] <- 1
+                               o1[which.min((df$x-mean(df$x))^2 + (df$y - mean(df$y))^2)] <- 1
                                for(i in 2:nrow(df)){
                                  dists <- matrix(0,nrow=nrow(df)-i+1, ncol=(i-1))
                                  for(j in 1:(i-1)){
-                                   dists[,j] <- sqrt((df$x[is.na(o1)] - df$x[which(o1 == j)])^2 +
-                                                       (df$y[is.na(o1)] - df$y[which(o1 == j)])^2)
+                                   dists[,j] <- (df$x[is.na(o1)] - df$x[which(o1 == j)])^2 +
+                                                       (df$y[is.na(o1)] - df$y[which(o1 == j)])^2
                                  }
                                  mindists <- apply(dists,1,min)
                                  o1[is.na(o1)][which.max(mindists)] <- i

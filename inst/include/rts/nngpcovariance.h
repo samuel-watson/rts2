@@ -73,9 +73,21 @@ public:
 protected:
   MatrixXd ar_factor;    
   MatrixXd ar_factor_chol;
+  // VectorXd tri_mult(const MatrixXd& M, const VectorXd& V);
 };
 
 }
+
+// inline VectorXd rts::nngpCovariance::tri_mult(const MatrixXd& M, const VectorXd& V){
+//   VectorXd MV = VectorXd::Zero(M.rows());
+// #pragma omp parallel for
+//   for(int i = 0; i < M.rows(); i++){
+//     for(int j = 0; j < (i+1); j++){
+//       MV(i) += M(i,j) * V(j);
+//     }
+//   }
+//   return MV;
+// }
 
 inline MatrixXd rts::nngpCovariance::inv_ldlt_AD(const MatrixXd &A, 
                             const VectorXd &D,
@@ -87,7 +99,7 @@ inline MatrixXd rts::nngpCovariance::inv_ldlt_AD(const MatrixXd &A,
 #pragma omp parallel for  
   for(int k=0; k<n; k++){
     int idxlim;
-    for (int i = k; i < n; i++) {
+    for (int i = 0; i < n; i++) {
       idxlim = i<=m ? i : m;
       double lsum = 0;
       for (int j = 0; j < idxlim; j++) {
@@ -114,7 +126,7 @@ inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
 }
 
 inline MatrixXd rts::nngpCovariance::ZL(){
-  MatrixXd L = glmmr::sparse_to_dense(this->matL,false);
+  MatrixXd L = inv_ldlt_AD(A,Dvec,grid.NN);//glmmr::sparse_to_dense(this->matL,false);
   MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
   return ZL;
 }
@@ -127,8 +139,29 @@ inline MatrixXd rts::nngpCovariance::LZWZL(const VectorXd& w){
 }
 
 inline MatrixXd rts::nngpCovariance::ZLu(const MatrixXd& u){
-  MatrixXd ZLu = rts::nngpCovariance::ZL() * u;
-  return ZLu;
+  MatrixXd L = inv_ldlt_AD(A,Dvec,grid.NN);
+  MatrixXd ZLU(grid.T*grid.N,u.cols());
+  if(grid.T == 1){
+    for(int i = 0; i < u.cols(); i++){
+      ZLU = L * u;
+      //ZLU.col(i) = tri_mult(L,u.col(i)); 
+    }
+  } else {
+    MatrixXd umat(grid.N,grid.T);
+    for(int i = 0; i < u.cols(); i++){
+      for(int t = 0; t< grid.T; t++){
+        umat.col(t) = L * u.segment(t*grid.N,grid.N);
+        //umat.col(t) = tri_mult(L,u.col(i).segment(t*grid.N,grid.N));
+      }
+      umat = umat * ar_factor_chol.transpose();
+      for(int t = 0; t< grid.T; t++){
+        ZLU.block(t*grid.N,i,grid.N,1) = umat.col(t);
+      }
+    }
+  }
+  //MatrixXd ZLu = rts::nngpCovariance::ZL() * u;
+  
+  return ZLU;
 }
 
 inline MatrixXd rts::nngpCovariance::Lu(const MatrixXd& u){
@@ -234,7 +267,7 @@ inline void rts::nngpCovariance::gen_AD(){
     A.block(0,i,idxlim,1) = S.ldlt().solve(Sv);
     Dvec(i) = val - (A.col(i).segment(0,idxlim).transpose() * Sv)(0);
   }
-  this->matL = glmmr::dense_to_sparse(D(true,false),false);
+  //this->matL = glmmr::dense_to_sparse(D(true,false),false);
 }
 
 inline vector_matrix rts::nngpCovariance::submatrix(int i){

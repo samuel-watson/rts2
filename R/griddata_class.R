@@ -1443,7 +1443,7 @@ grid <- R6::R6Class("grid",
                            #' "minimax"  in which the next observation in the order is the one which maximises the
                            #'  minimum distance to the previous observations,g1$grid_data <- g1$grid_data[o0,] or "random" which randomly orders them.
                            #'  @return No return, used for effects.
-                           reorder = function(option="y"){
+                           reorder = function(option="y", verbose = TRUE){
                              df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$grid_data))))
                              colnames(df) <- c("x","y")
                              if(option=="y"){
@@ -1454,7 +1454,9 @@ grid <- R6::R6Class("grid",
                                self$grid_data <- self$grid_data[o0,]
                              } else if(option=="minimax"){
                                o1 <- rep(NA,nrow(df))
-                               o1[which.min((df$x-mean(df$x))^2 + (df$y - mean(df$y))^2)] <- 1
+                               xm <- min(df$x) + diff(range(df$x))
+                               ym <- min(df$y) + diff(range(df$y))
+                               o1[which.min((df$x-xm)^2 + (df$y - ym)^2)] <- 1
                                for(i in 2:nrow(df)){
                                  dists <- matrix(0,nrow=nrow(df)-i+1, ncol=(i-1))
                                  for(j in 1:(i-1)){
@@ -1463,6 +1465,7 @@ grid <- R6::R6Class("grid",
                                  }
                                  mindists <- apply(dists,1,min)
                                  o1[is.na(o1)][which.max(mindists)] <- i
+                                 if(verbose)cat("\r",progress_bar(i,nrow(df)))
                                }
                                self$grid_data <- self$grid_data[o1,]
                              } else if(option=="random"){

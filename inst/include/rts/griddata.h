@@ -31,10 +31,10 @@ inline void rts::griddata::genNN(int M){
   NN.conservativeResize(M,n);
   NN = ArrayXXi::Constant(M,n,n);
   for(int i=1; i<n; i++){
-    ArrayXd dist(i);
     if(i > M){
+      ArrayXd dist(i);
       for(int j=0; j<i; j++){
-        dist(j) = sqrt((X(i,0) - X(j,0))*(X(i,0) - X(j,0))+(X(i,1) - X(j,1))*(X(i,1) - X(j,1)));
+        dist(j) = (X(i,0) - X(j,0))*(X(i,0) - X(j,0))+(X(i,1) - X(j,1))*(X(i,1) - X(j,1));
       }
       NN.col(i) = top_i_pq(dist,M);
     } else {
@@ -47,15 +47,22 @@ inline void rts::griddata::genNN(int M){
 
 inline ArrayXi rts::griddata::top_i_pq(const ArrayXd& v, int n) {
   typedef std::pair<double, int> Elt;
-  std::priority_queue< Elt, std::vector<Elt>, std::greater<Elt> > pq;
+  
+  struct ComparePair {
+    bool operator()(const Elt& elt1, const Elt& elt2) const {
+      return elt1.first < elt2.first;
+    }
+  };
+  
+  std::priority_queue< Elt, std::vector<Elt>, ComparePair > pq;
   std::vector<int> result;
   
-  for (int i = 0; i != v.size(); ++i) {
+  for (int i = 0; i < v.size(); i++) {
     if (pq.size() < n)
       pq.push(Elt(v(i), i));
     else {
       Elt elt = Elt(v(i), i);
-      if (pq.top() < elt) {
+      if (pq.top().first > elt.first) {
         pq.pop();
         pq.push(elt);
       }

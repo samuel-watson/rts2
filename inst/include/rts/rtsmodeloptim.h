@@ -113,6 +113,17 @@ inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   opt.minimize(ddl, start_t);
 }
 
+template<>
+inline void rts::rtsModelOptim<BitsNNGP>::ml_theta(){
+  D_likelihood_hsgp ddl(*this);
+  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+  dblvec lower = this->get_lower_values(false,true,false);
+  opt.set_lower(lower);
+  opt.control.iprint = trace;
+  dblvec start_t = this->get_start_values(false,true,false);
+  opt.minimize(ddl, start_t);
+}
+
 template<typename modeltype>
 inline double rts::rtsModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {
   M.update_theta(par);

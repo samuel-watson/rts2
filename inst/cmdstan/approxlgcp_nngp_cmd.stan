@@ -1,5 +1,5 @@
 functions {
-  matrix getAD(real alpha, real theta, int M, int n,
+  matrix getAD_L(real alpha, real theta, int M, int n,
                  array[] real dists, array[,] int NN, int mod){
     matrix[M+1,n] AD = rep_matrix(0,M+1,n);
     int idxlim;
@@ -10,6 +10,8 @@ functions {
     matrix[M,M] smat = rep_matrix(0,M,M);
     vector[M] svec = rep_vector(0,M);
     int index;
+    matrix[n,n] L = rep_matrix(0,n,n);
+    real lsum;
     
     for(i in 2:n){
       idxlim = i<=(M) ? i-1 : M;
@@ -41,44 +43,25 @@ functions {
       AD[1:idxlim,i] = mdivide_left_spd(smat[1:idxlim,1:idxlim] , svec[1:idxlim]);
       AD[M+1,i] = alpha - dot_product(AD[1:idxlim,i],svec[1:idxlim]);
     }
-    return(AD);
-   }
-   
-  
-  real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
-    int n = cols(AD);
-    int M = rows(AD) - 1;
-    real logdetD;
-    real qf;
-    real au;
-    real ll;
-    int idxlim;
-    if(start <= M){
-      idxlim = start - 1;
-    } else {
-      idxlim = M;
-    }
-    logdetD = 0;
-    for(i in 1:n){
-      logdetD += log(AD[M+1,i]);
-    }
-    qf = u[1]*u[1]/AD[M+1,1];
-    for(i in 2:n){
-      au = u[i] - dot_product(AD[1:idxlim,i],to_vector(u[NN[1:idxlim,i]]));
-      qf += au*au/AD[M+1,i];
-      if(idxlim < M){
-        idxlim+=1;
+    
+    for(k in 1:n){
+      for(i in 1:n){
+        idxlim = i<=(M) ? i-1 : M;
+        lsum = 0;
+        if(idxlim > 0){
+          for(j in 1:idxlim){
+            lsum += AD[j,i] * L[NN[j,i],k];
+          }
+        }
+        L[i,k] = i==k ? (1+lsum)*sqrt(AD[M+1,k]) : lsum*sqrt(AD[M+1,k]);
       }
     }
     
-    ll = -0.5*logdetD - 0.5*qf - 0.5*n*log(2*pi());
-    return ll;
+    return(L);
    }
-   
-   real partial_sum_lpdf(array[] real u, int start, int end, matrix AD, array[,] int NN){
-     return nngp_split_lpdf(u[start:end] | AD[,start:end], NN[,start:end], start);
-   }
-   
+   real partial_sum1_lpdf(array[] real y, int start, int end){
+    return std_normal_lpdf(y[start:end]);
+  }
    real partial_sum2_lpmf(array[] int y,int start, int end, vector mu){
     return poisson_log_lpmf(y[start:end]|mu[start:end]);
   }
@@ -106,7 +89,7 @@ data {
 
 transformed data {
   vector[Nsample*nT] logpopdens = log(popdens);
-  matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
+  matrix[known_cov ? Nsample : 0,known_cov ? Nsample : 0] L_data;
   array[(Nsample*(Nsample-1))%/%2] real dists;
   
   for(i in 1:(Nsample-1)){
@@ -116,7 +99,7 @@ transformed data {
     }
   }
   if(known_cov){
-    AD_data = getAD(sigma_data, phi_data, M, Nsample, dists, NN, mod);
+    L_data = getAD_L(sigma_data, phi_data, M, Nsample, dists, NN, mod);
   }
 }
 
@@ -129,25 +112,25 @@ parameters {
 }
 
 transformed parameters {
-  matrix[M +1,Nsample] AD;
+  matrix[Nsample,Nsample] L;
   real<lower=1e-05> phi; //length scale
   real<lower=1e-05> sigma;
   vector[Nsample*nT] f;
   if(known_cov){
     sigma = sigma_data;
     phi = phi_data;
-    AD = AD_data;
+    L = L_data;
   } else {
     sigma = sigma_param[1];
     phi = phi_param[1];
-    AD = getAD(sigma, phi, M, Nsample, dists, NN, mod);
+    L = getAD_L(sigma, phi, M, Nsample, dists, NN, mod);
   }
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = (1/(1-ar[1]^2))*f_raw[1:Nsample];
+        f[1:Nsample] = (1/(1-ar[1]^2))*L*f_raw[1:Nsample];
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + f_raw[(Nsample*(t-1)+1):(t*Nsample)];
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*L*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + L*f_raw[(Nsample*(t-1)+1):(t*Nsample)];
       }
     } else {
       f = f_raw;
@@ -165,17 +148,7 @@ model{
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
   int grainsize = 1;
-  for(t in 1:nT){
-    if(nT>1){
-      if(t==1){
-        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[1:Nsample]),grainsize,AD,NN);
-      } else {
-        target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw[(Nsample*(t-1)+1):(t*Nsample)]),grainsize,AD,NN);
-      }
-    } else {
-      target += reduce_sum(partial_sum_lpdf,to_array_1d(f_raw),grainsize,AD,NN);
-    }
-  }
+  target += reduce_sum(partial_sum1_lpdf,to_array_1d(f_raw),grainsize);
   target += reduce_sum(partial_sum2_lpmf,y,grainsize,X*gamma+logpopdens+f);
 }
 

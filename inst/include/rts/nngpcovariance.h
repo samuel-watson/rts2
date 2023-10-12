@@ -150,7 +150,7 @@ inline MatrixXd rts::nngpCovariance::ZLu(const MatrixXd& u){
     MatrixXd umat(grid.N,grid.T);
     for(int i = 0; i < u.cols(); i++){
       for(int t = 0; t< grid.T; t++){
-        umat.col(t) = L * u.segment(t*grid.N,grid.N);
+        umat.col(t) = L * u.col(i).segment(t*grid.N,grid.N);
         //umat.col(t) = tri_mult(L,u.col(i).segment(t*grid.N,grid.N));
       }
       umat = umat * ar_factor_chol.transpose();

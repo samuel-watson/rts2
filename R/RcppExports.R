@@ -189,6 +189,10 @@ rtsModel__hess_and_grad <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__hess_and_grad`, xp, covtype_, lptype_)
 }
 
+rtsModel__set_bobyqa_control <- function(xp, covtype_, lptype_, npt, rhobeg, rhoend) {
+    invisible(.Call(`_rts2_rtsModel__set_bobyqa_control`, xp, covtype_, lptype_, npt, rhobeg, rhoend))
+}
+
 rtsModel_nngp__A <- function(ptr_, lptype_) {
     .Call(`_rts2_rtsModel_nngp__A`, ptr_, lptype_)
 }

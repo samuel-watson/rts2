@@ -87,7 +87,7 @@ inline double rts::hsgpCovariance::spd_nD(int i){
   if(sq_exp){
     S = parameters_[0] * 2 * M_PI * phisq * exp(-0.5 * phisq * (w(0) + w(1)));
   } else {
-    double S1 = parameters_[0] * 2 * M_PI * phisq;
+    double S1 = parameters_[0] * 4 * M_PI * phisq;
     double S2 = 1 + phisq * (w(0) + w(1));
     S = S1 * pow(S2,-1.5);
   }

@@ -25,8 +25,13 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     void ml_rho();
     void ml_theta() override;
     MatrixXd hessian(double tol = 1e-4);
+    void set_bobyqa_control(int npt_, double rhobeg_, double rhoend_);
     
   private:
+    int npt = 0;
+    double rhobeg = 0.1;
+    double rhoend = 1e-6;
+    
     class rho_likelihood : public Functor<dblvec> {
       rtsModelOptim<modeltype>& M_;
       double parrho;
@@ -49,6 +54,13 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     
 };
 
+}
+
+template<typename modeltype>
+inline void rts::rtsModelOptim<modeltype>::set_bobyqa_control(int npt_, double rhobeg_, double rhoend_){
+  npt = npt_;
+  rhobeg = rhobeg_;
+  rhoend = rhoend_;
 }
 
 template<typename modeltype>
@@ -109,6 +121,9 @@ inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
   opt.control.iprint = trace;
+  opt.control.npt = npt;
+  opt.control.rhobeg = rhobeg;
+  opt.control.rhoend = rhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }
@@ -119,7 +134,9 @@ inline void rts::rtsModelOptim<BitsNNGP>::ml_theta(){
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
-  opt.control.iprint = trace;
+  opt.control.npt = npt;
+  opt.control.rhobeg = rhobeg;
+  opt.control.rhoend = rhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }

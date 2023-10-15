@@ -18,6 +18,27 @@ inline MatrixXd kronecker(const MatrixXd& A, const MatrixXd& B){
   return result;
 }
 
+inline sparse ar_factor_inv_to_sparse(const MatrixXd& a, int n){
+  int t = a.cols();
+  sparse x(n*t,n*t);
+  if(t == 1){
+    x = identity(n);
+  } else {
+    x.Ap = intvec(n*t+1);
+    for(int j = 0; j < t; j++){
+      for(int i = 0; i < n; i++){
+        x.Ap[i+j*n] = (i+j*n)*t;
+        for(int k = 0; k < t; k++){
+          x.Ai.push_back(i+n*k);
+          x.Ax.push_back(a(j,k));
+        }
+      }
+    }
+    x.Ap[n*t] = x.Ai.size();
+  }
+  return x;
+}
+
 inline void cholesky(MatrixXd& B, const MatrixXd& A){
   int n = A.rows();
   std::vector<double> L(n * n, 0.0);

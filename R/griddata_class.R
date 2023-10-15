@@ -16,6 +16,9 @@ grid <- R6::R6Class("grid",
                            region_data = NULL,
                            #' @field priors list of prior distributions for the analysis
                            priors = NULL,
+                           #' @field bobyqa_control list of control parameters for the BOBYQA algorithm, must contain named
+                           #' elements any or all of `npt`, `rhobeg`, `rhoend`. Only has an effect for the HSGP and NNGP approximations.
+                           bobyqa_control = NULL,
                            #' @field boundary sf object showing the boundary of the area of interest
                            boundary = NULL,
                            #' @description
@@ -663,8 +666,8 @@ grid <- R6::R6Class("grid",
                                               starting_values = NULL,
                                               tol = 1e-2,
                                               max.iter = 30,
-                                              iter_warmup=500,
-                                              iter_sampling=500,
+                                              iter_warmup=100,
+                                              iter_sampling=250,
                                               verbose=TRUE,
                                               use_cmdstanr = TRUE){
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
@@ -683,6 +686,12 @@ grid <- R6::R6Class("grid",
                                datlist$known_cov <- 0
                                datlist$sigma_data <- c()
                                datlist$phi_data <- c()
+                             }
+                             if(!is.null(self$bobyqa_control)){
+                               npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
+                               rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
+                               rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
+                               rtsModel__set_bobyqa_control(private$ptr,trace,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
                              }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
@@ -719,6 +728,7 @@ grid <- R6::R6Class("grid",
                              if(datlist$nT > 1) all_pars <- c(all_pars, rho = rho)
                              all_pars_new <- rep(1,length(all_pars))
                              if(verbose)cat("\nStart: ",all_pars,"\n")
+                             t_start <- Sys.time()
                              L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
                              data <- list(
                                N = datlist$Nsample*datlist$nT,
@@ -857,6 +867,9 @@ grid <- R6::R6Class("grid",
                              } else {
                                ypred <- rtsModel__y_pred(private$ptr,private$cov_type,private$lp_type)
                              }
+                             t_end <- Sys.time()
+                             t_diff <- t_end - t_start
+                             if(verbose)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
                              out <- list(coefficients = res,
                                          converged = !not_conv,
                                          method = "mcem",
@@ -873,6 +886,7 @@ grid <- R6::R6Class("grid",
                                          link = "log",
                                          re.samps = u,
                                          iter = iter,
+                                         time = t_diff,
                                          dof = length(xb),
                                          P = length(beta_new),
                                          Q = 2,
@@ -1594,7 +1608,9 @@ grid <- R6::R6Class("grid",
                           P <- length(covs) + length(covs_grid)
                           beta <- c(mean(log(mean(data$y)) - log(data$popdens)))
                           if(P>0)beta <- c(beta, rnorm(P,0,0.1))
-                          theta <- runif(2,0.1,0.5)
+                          # set sensible starting value for theta 1
+                          theta1 <- abs((log(max(data$y)) - beta[1])/2)/2
+                          theta <- c(theta1,runif(1,0.1,0.5))
                           if(private$cov_type == 2 & private$lp_type == 1){
                             private$ptr <- Model_nngp_lp__new(f1,
                                                               as.matrix(data$X),

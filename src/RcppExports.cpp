@@ -676,6 +676,21 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__set_bobyqa_control
+void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_, int npt, double rhobeg, double rhoend);
+RcppExport SEXP _rts2_rtsModel__set_bobyqa_control(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP nptSEXP, SEXP rhobegSEXP, SEXP rhoendSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    Rcpp::traits::input_parameter< int >::type npt(nptSEXP);
+    Rcpp::traits::input_parameter< double >::type rhobeg(rhobegSEXP);
+    Rcpp::traits::input_parameter< double >::type rhoend(rhoendSEXP);
+    rtsModel__set_bobyqa_control(xp, covtype_, lptype_, npt, rhobeg, rhoend);
+    return R_NilValue;
+END_RCPP
+}
 // rtsModel_nngp__A
 SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_);
 RcppExport SEXP _rts2_rtsModel_nngp__A(SEXP ptr_SEXP, SEXP lptype_SEXP) {
@@ -991,6 +1006,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
     {"_rts2_rtsModel__xb", (DL_FUNC) &_rts2_rtsModel__xb, 3},
     {"_rts2_rtsModel__hess_and_grad", (DL_FUNC) &_rts2_rtsModel__hess_and_grad, 3},
+    {"_rts2_rtsModel__set_bobyqa_control", (DL_FUNC) &_rts2_rtsModel__set_bobyqa_control, 6},
     {"_rts2_rtsModel_nngp__A", (DL_FUNC) &_rts2_rtsModel_nngp__A, 2},
     {"_rts2_rtsModel_nngp__D", (DL_FUNC) &_rts2_rtsModel_nngp__D, 2},
     {"_rts2_rtsModel_nngp__submatrix", (DL_FUNC) &_rts2_rtsModel_nngp__submatrix, 3},

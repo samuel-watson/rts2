@@ -16,7 +16,7 @@ functions {
       S = sigma * sqrt(2*pi())^D * phi * phi * exp(-0.5*(phi*phi*(wsq[1] + wsq[2])));
     } else {
       // exponential
-      S = sigma * 2 * pi() * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-2);
+      S = sigma * 4 * pi() * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-1.5);
     }
 
     return S;

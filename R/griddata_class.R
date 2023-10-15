@@ -691,7 +691,7 @@ grid <- R6::R6Class("grid",
                                npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
                                rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
                                rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
-                               rtsModel__set_bobyqa_control(private$ptr,trace,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
+                               rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
                              }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)

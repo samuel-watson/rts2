@@ -120,7 +120,7 @@ inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
-  opt.control.iprint = trace;
+  opt.control.iprint = this->trace;
   opt.control.npt = npt;
   opt.control.rhobeg = rhobeg;
   opt.control.rhoend = rhoend;
@@ -134,6 +134,7 @@ inline void rts::rtsModelOptim<BitsNNGP>::ml_theta(){
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
+  opt.control.iprint = this->trace;
   opt.control.npt = npt;
   opt.control.rhobeg = rhobeg;
   opt.control.rhoend = rhoend;

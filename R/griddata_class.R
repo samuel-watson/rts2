@@ -687,12 +687,6 @@ grid <- R6::R6Class("grid",
                                datlist$sigma_data <- c()
                                datlist$phi_data <- c()
                              }
-                             if(!is.null(self$bobyqa_control)){
-                               npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
-                               rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
-                               rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
-                               rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
-                             }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
                              if(!is.null(starting_values)){
@@ -720,6 +714,13 @@ grid <- R6::R6Class("grid",
                                    rtsModel__update_rho(private$ptr,starting_values[["ar"]],private$cov_type,private$lp_type)
                                  }
                                }
+                             }
+                             if(!is.null(self$bobyqa_control)){
+                               npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
+                               rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
+                               rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
+                               if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
+                               rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
                              }
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)

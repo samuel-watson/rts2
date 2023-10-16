@@ -677,17 +677,17 @@ BEGIN_RCPP
 END_RCPP
 }
 // rtsModel__set_bobyqa_control
-void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_, int npt, double rhobeg, double rhoend);
-RcppExport SEXP _rts2_rtsModel__set_bobyqa_control(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP nptSEXP, SEXP rhobegSEXP, SEXP rhoendSEXP) {
+void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_, SEXP npt_, SEXP rhobeg_, SEXP rhoend_);
+RcppExport SEXP _rts2_rtsModel__set_bobyqa_control(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP npt_SEXP, SEXP rhobeg_SEXP, SEXP rhoend_SEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< int >::type npt(nptSEXP);
-    Rcpp::traits::input_parameter< double >::type rhobeg(rhobegSEXP);
-    Rcpp::traits::input_parameter< double >::type rhoend(rhoendSEXP);
-    rtsModel__set_bobyqa_control(xp, covtype_, lptype_, npt, rhobeg, rhoend);
+    Rcpp::traits::input_parameter< SEXP >::type npt_(npt_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rhobeg_(rhobeg_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rhoend_(rhoend_SEXP);
+    rtsModel__set_bobyqa_control(xp, covtype_, lptype_, npt_, rhobeg_, rhoend_);
     return R_NilValue;
 END_RCPP
 }

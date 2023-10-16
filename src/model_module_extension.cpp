@@ -44,14 +44,18 @@ SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){
 
 // [[Rcpp::export]]
 void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_,
-                                  int npt, double rhobeg, double rhoend){
+                                  SEXP npt_, SEXP rhobeg_, SEXP rhoend_){
   TypeSelector model(xp,covtype_,lptype_);
+  int npt = as<int>(npt_);
+  double rhobeg = as<double>(rhobeg_);
+  double rhoend = as<double>(rhoend_);
   auto functor = overloaded {
     [](int) {}, 
     [&](auto mptr){
       mptr->optim.set_bobyqa_control(npt,rhobeg,rhoend);
     }
   };
+  std::visit(functor,model.ptr);
 }
 
 // [[Rcpp::export]]

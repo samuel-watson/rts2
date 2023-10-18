@@ -27,6 +27,15 @@ SEXP wrap(const kenward_data& x){
       Rcpp::Named("dof") = Rcpp::wrap(x.dof)
   ));
 }
+
+template<>
+SEXP wrap(const sparse& x){
+  return Rcpp::wrap(Rcpp::List::create(
+      Rcpp::Named("Ap") = Rcpp::wrap(x.Ap),
+      Rcpp::Named("Ai") = Rcpp::wrap(x.Ai),
+      Rcpp::Named("Ax") = Rcpp::wrap(x.Ax)
+  ));
+}
 }
 
 using namespace Rcpp;
@@ -305,27 +314,27 @@ SEXP rtsModel__grid_to_region_multiplier_matrix(SEXP xp, SEXP covtype_, SEXP lpt
   int lptype = as<int>(lptype_);
   if(covtype == 1 && lptype == 2){
     XPtr<ModelARRegion> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   } else if(covtype == 2 && lptype == 2){
     XPtr<ModelNNGPRegion> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   } else if(covtype == 3 && lptype == 2){
     XPtr<ModelHSGPRegion> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   } else if(covtype == 1 && lptype == 3){
     XPtr<ModelARRegionG> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   } else if(covtype == 2 && lptype == 3){
     XPtr<ModelNNGPRegionG> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   } else if(covtype == 3 && lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
-    Eigen::MatrixXd P = ptr->grid_to_region_multiplier_matrix();
+    sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
   }
 }

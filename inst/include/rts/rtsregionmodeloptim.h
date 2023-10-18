@@ -34,12 +34,8 @@ public:
   ArrayXXd region_intensity(bool uselog = true);
   ArrayXXd y_predicted(bool uselog = true);
   MatrixXd hessian(double tol = 1e-4);
-  void set_bobyqa_control(int npt_, double rhobeg_, double rhoend_);
   
   private:
-    int npt = 0;
-    double rhobeg = 0.1;
-    double rhoend = 1e-6;
     
     class rho_likelihood : public Functor<dblvec> {
       rtsRegionModelOptim<modeltype>& M_;
@@ -63,13 +59,6 @@ public:
   
 };
 
-}
-
-template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::set_bobyqa_control(int npt_, double rhobeg_, double rhoend_){
-  npt = npt_;
-  rhobeg = rhobeg_;
-  rhoend = rhoend_;
 }
 
 template<typename modeltype>
@@ -195,9 +184,9 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
   opt.control.iprint = this->trace;
-  opt.control.npt = npt;
-  opt.control.rhobeg = rhobeg;
-  opt.control.rhoend = rhoend;
+  opt.control.npt = this->npt;
+  opt.control.rhobeg = this->rhobeg;
+  opt.control.rhoend = this->rhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }

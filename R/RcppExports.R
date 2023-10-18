@@ -113,18 +113,6 @@ rtsModel__ml_rho <- function(xp, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_rho`, xp, covtype_, lptype_))
 }
 
-rtsModel__laplace_ml_beta_u <- function(xp, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__laplace_ml_beta_u`, xp, covtype_, lptype_))
-}
-
-rtsModel__laplace_ml_theta <- function(xp, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__laplace_ml_theta`, xp, covtype_, lptype_))
-}
-
-rtsModel__laplace_ml_beta_theta <- function(xp, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__laplace_ml_beta_theta`, xp, covtype_, lptype_))
-}
-
 rtsModel__nr_beta <- function(xp, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__nr_beta`, xp, covtype_, lptype_))
 }
@@ -153,6 +141,10 @@ rtsModel__X <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__X`, xp, covtype_, lptype_)
 }
 
+rtsModel__ar_chol <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__ar_chol`, xp, covtype_, lptype_)
+}
+
 rtsModel__set_trace <- function(xp, trace_, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__set_trace`, xp, trace_, covtype_, lptype_))
 }
@@ -175,6 +167,10 @@ rtsModel__get_theta <- function(xp, covtype_, lptype_) {
 
 rtsModel__ZL <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__ZL`, xp, covtype_, lptype_)
+}
+
+rtsModel__L <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__L`, xp, covtype_, lptype_)
 }
 
 rtsModel__D <- function(xp, covtype_, lptype_) {

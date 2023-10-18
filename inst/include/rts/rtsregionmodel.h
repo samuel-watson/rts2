@@ -84,7 +84,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 template<>
@@ -144,7 +144,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 template<>
@@ -204,7 +204,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 template<>
@@ -264,7 +264,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 template<>
@@ -325,7 +325,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 template<>
@@ -386,7 +386,7 @@ public:
     optim.trace = trace_;
   }
   MatrixXd intersection_infomat();
-  MatrixXd grid_to_region_multiplier_matrix();
+  sparse grid_to_region_multiplier_matrix();
 };
 
 }
@@ -548,80 +548,98 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   }
 }
 
-inline MatrixXd rts::rtsRegionModel<BitsAR>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
+inline sparse rts::rtsRegionModel<BitsAR>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
   ArrayXd xb = model.xb();
   xb = xb.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
+  for(int i = 0; i < A.Ap.size()-1; i++){
+    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+      A.Ax[j] *= xb(i);
+    }
   }
   return A;
 }
 
-inline MatrixXd rts::rtsRegionModel<BitsNNGP>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
+inline sparse rts::rtsRegionModel<BitsNNGP>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
+  // ArrayXd xb = model.xb();
+  // xb = xb.exp();
+  // for(int i = 0; i < A.Ap.size()-1; i++){
+  //   for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+  //     A.Ax[j] *= xb(i);
+  //   }
+  // }
+  return A;
+}
+
+inline sparse rts::rtsRegionModel<BitsHSGP>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
   ArrayXd xb = model.xb();
   xb = xb.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
+  for(int i = 0; i < A.Ap.size()-1; i++){
+    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+      A.Ax[j] *= xb(i);
+    }
   }
   return A;
 }
 
-inline MatrixXd rts::rtsRegionModel<BitsHSGP>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
-  ArrayXd xb = model.xb();
-  xb = xb.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
-  }
-  return A;
-}
-
-inline MatrixXd rts::rtsRegionModel<BitsARRegion>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
+inline sparse rts::rtsRegionModel<BitsARRegion>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
   ArrayXd xb = model.linear_predictor.region_predictor.xb();
   xb += model.data.offset.array();
   xb = xb.exp();
   ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
   xbg = xbg.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
+  for(int i = 0; i < A.Ap.size()-1; i++){
+    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+      A.Ax[j] *= xb(i);
+    }
   }
-  for(int i = 0; i < A.cols(); i++){
-    A.col(i) *= xbg(i);
+  // for(int i = 0; i < A.rows(); i++){
+  //   A.row(i) *= xb(i);
+  // }
+  // for(int i = 0; i < A.cols(); i++){
+  //   A.col(i) *= xbg(i);
+  // }
+  for(int i = 0; i < A.Ax.size(); i++){
+    A.Ax[i] *= xbg(A.Ai[i]);
   }
   return A;
 }
 
-inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
+inline sparse rts::rtsRegionModel<BitsNNGPRegion>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
   ArrayXd xb = model.linear_predictor.region_predictor.xb();
   xb += model.data.offset.array();
   xb = xb.exp();
   ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
   xbg = xbg.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
+  for(int i = 0; i < A.Ap.size()-1; i++){
+    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+      A.Ax[j] *= xb(i);
+    }
   }
-  for(int i = 0; i < A.cols(); i++){
-    A.col(i) *= xbg(i);
+  for(int i = 0; i < A.Ax.size(); i++){
+    A.Ax[i] *= xbg(A.Ai[i]);
   }
   return A;
 }
 
-inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::grid_to_region_multiplier_matrix(){
-  MatrixXd A = region.grid_to_region_matrix();
+inline sparse rts::rtsRegionModel<BitsHSGPRegion>::grid_to_region_multiplier_matrix(){
+  sparse A = region.grid_to_region_matrix();
   ArrayXd xb = model.linear_predictor.region_predictor.xb();
   xb += model.data.offset.array();
   xb = xb.exp();
   ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
   xbg = xbg.exp();
-  for(int i = 0; i < A.rows(); i++){
-    A.row(i) *= xb(i);
+  for(int i = 0; i < A.Ap.size()-1; i++){
+    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+      A.Ax[j] *= xb(i);
+    }
   }
-  for(int i = 0; i < A.cols(); i++){
-    A.col(i) *= xbg(i);
+  for(int i = 0; i < A.Ax.size(); i++){
+    A.Ax[i] *= xbg(A.Ai[i]);
   }
   return A;
 }

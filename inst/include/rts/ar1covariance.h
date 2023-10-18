@@ -42,6 +42,7 @@ public:
   void update_parameters(const dblvec& parameters) override;
   void update_parameters(const ArrayXd& parameters) override;
   void update_parameters_extern(const dblvec& parameters) override;
+  MatrixXd ar_matrix(bool chol = false);
   
 protected:
   MatrixXd L;
@@ -49,6 +50,14 @@ protected:
   MatrixXd ar_factor_chol;  
 };
 
+}
+
+inline MatrixXd rts::ar1Covariance::ar_matrix(bool chol){
+  if(chol){
+    return ar_factor_chol;
+  } else {
+    return ar_factor;
+  }
 }
 
 inline void rts::ar1Covariance::update_grid(int T){

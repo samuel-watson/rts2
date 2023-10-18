@@ -27,7 +27,7 @@ public:
   MatrixXd grid_to_region(const MatrixXd& u);
   MatrixXd region_design_matrix();
   MatrixXd grid_design_matrix();
-  MatrixXd grid_to_region_matrix();
+  sparse grid_to_region_matrix();
 };
 
 }
@@ -58,15 +58,13 @@ inline MatrixXd rts::RegionData::grid_design_matrix(){
   return A;
 }
 
-inline MatrixXd rts::RegionData::grid_to_region_matrix(){
-  MatrixXd A = MatrixXd::Zero(nRegion*gridT,gridN*gridT);
+inline sparse rts::RegionData::grid_to_region_matrix(){
+  sparse A(nRegion*gridT,gridN*gridT,true);
   int nInter, r, t, l, idx1;
   for(r = 0; r < nRegion; r++){
-    nInter = n_cell(r+1) - n_cell(r);
-    for(l = 0; l < nInter; l++){
-      idx1 = n_cell(r) + l;
+    for(l = n_cell(r); l < n_cell(r+1); l++){
       for(t = 0; t < gridT; t++){
-        A(r + nRegion*t,cell_id(idx1) + t*gridN) = q_weights(idx1);
+        A.insert(r + nRegion*t,cell_id(l) + t*gridN,q_weights(l),true);
       }
     }
   }
@@ -80,11 +78,9 @@ inline MatrixXd rts::RegionData::grid_to_region(const MatrixXd& u){
   
   for(r = 0; r < nRegion; r++){
     for(t = 0; t < gridT; t++){
-      nInter = n_cell(r+1) - n_cell(r);
-      for(l = 0; l < nInter; l++){
-        idx1 = n_cell(r) + l;
+      for(l = n_cell(r); l < n_cell(r+1); l++){
         for(j = 0; j < u.cols(); j++){
-          regionu(r + nRegion*t, j) += q_weights(idx1)*exp(u(cell_id(idx1) + t*gridN,j));
+          regionu(r + nRegion*t, j) += q_weights(l)*exp(u(cell_id(l) + t*gridN,j));
         }
       }
     }

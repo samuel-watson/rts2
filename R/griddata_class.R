@@ -670,10 +670,14 @@ grid <- R6::R6Class("grid",
                                               iter_sampling=250,
                                               verbose=TRUE,
                                               use_cmdstanr = TRUE){
+                             
+                             # some checks at the beginning
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
+                             
+                             # set up main data and initialise the pointer to the C++ class
                              datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
@@ -689,6 +693,8 @@ grid <- R6::R6Class("grid",
                              }
                              trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
+                             
+                             ## deal with starting values and initialise parameters
                              if(!is.null(starting_values)){
                                if(grepl("gamma",names(starting_values))){
                                  gamma_current <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
@@ -715,6 +721,8 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              }
+                             
+                             ## update the BOBYQA control parameters if necessary
                              if(!is.null(self$bobyqa_control)){
                                npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
                                rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
@@ -722,21 +730,31 @@ grid <- R6::R6Class("grid",
                                if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
                                rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
                              }
+                             
+                             # initialise the parameters and data on the R side
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
+                             xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
                              all_pars <- c(beta = beta,theta = theta)
                              if(datlist$nT > 1) all_pars <- c(all_pars, rho = rho)
                              all_pars_new <- rep(1,length(all_pars))
                              if(verbose)cat("\nStart: ",all_pars,"\n")
                              t_start <- Sys.time()
-                             L <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
+                             L <- rtsModel__L(private$ptr,private$cov_type,private$lp_type)
+                             ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
                              data <- list(
-                               N = datlist$Nsample*datlist$nT,
-                               Q = ifelse(approx=="hsgp", m * m*datlist$nT, datlist$Nsample*datlist$nT),
+                               N = datlist$Nsample,
+                               Q = ifelse(approx=="hsgp", m * m, datlist$Nsample),
+                               nT = datlist$nT,
+                               Xb = xb,
                                ZL = as.matrix(L),
-                               y = datlist$y
+                               y = datlist$y,
+                               rho = rho,
+                               ar_chol = ar_chol
                              )
+                             
+                             ## set up the stan model
                              if(!is.null(self$region_data)){
                                filecmd <- "mcml_poisson_region_cmd.stan"
                                filers <- "mcml_poisson_region"
@@ -746,7 +764,12 @@ grid <- R6::R6Class("grid",
                                  xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
                                }
                                P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
-                               data <- append(data,list(P = P, nRegion = datlist$n_region*datlist$nT))
+                               data$Xb = exp(data$Xb)
+                               data <- append(data,list(nRegion = datlist$n_region,
+                                                        ssize = length(P$Ai),
+                                                        Ap = P$Ap+1,
+                                                        Ai = P$Ai+1,
+                                                        Ax = P$Ax))
                              } else {
                                filecmd <- "mcml_poisson_cmd.stan"
                                filers <- "mcml_poisson"
@@ -766,17 +789,30 @@ grid <- R6::R6Class("grid",
                                }
                              }
                              
+                             # this is the main algorithm. iterate until convergence
                              iter <- 0
                              while(any(abs(all_pars-all_pars_new)>tol)&iter < max.iter){
+                               
+                               # step 1. MCMC sampling of random effects
                                all_pars <- all_pars_new
                                iter <- iter + 1
                                if(verbose)cat("\nIter: ",iter,"\n",Reduce(paste0,rep("-",40)))
                                if(trace==2)t1 <- Sys.time()
                                
+                               # update the data for stan
+                               data$Xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
+                               data$ZL <- rtsModel__L(private$ptr,private$cov_type,private$lp_type)
+                               data$rho <- rho
+                               if(!is.null(self$region_data)){
+                                 P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
+                                 data$Ax <- P$Ax
+                                 data$Xb <- exp(data$Xb)
+                               }
+                               if(data$nT > 1){
+                                 data$ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
+                               }
                                if(use_cmdstanr){
                                  if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
-                                 data$ZL <- rtsModel__ZL(private$ptr,private$cov_type,private$lp_type)
-                                 if(!is.null(self$region_data))data$P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
                                  if(verbose)cat("\nStarting MCMC sampling")
                                  capture.output(fit <- mod$sample(data = data,
                                                                   chains = 1,
@@ -801,16 +837,22 @@ grid <- R6::R6Class("grid",
                                }
                                if(trace==2)t2 <- Sys.time()
                                if(trace==2)cat("\nMCMC sampling took: ",t2-t1,"s")
+                               
+                               # step 2. fit beta 
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
                                if(is.null(known_theta))rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
                                if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
+                               
+                               # step 3 fit covariance parameters
                                theta_new <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                                all_pars_new <- c(beta_new,theta_new)
                                if(datlist$nT > 1){
                                  rho_new <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
                                  all_pars_new <- c(all_pars_new,rho_new)
                                }
+                               
+                               # some summary output
                                if(trace==2)t3 <- Sys.time()
                                if(trace==2)cat("\nModel fitting took: ",t3-t2,"s")
                                if(verbose){
@@ -821,8 +863,12 @@ grid <- R6::R6Class("grid",
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }
                              }
+                             
+                             # end of algorithm. 
                              not_conv <- iter > max.iter|any(abs(all_pars-all_pars_new)>tol)
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
+                             
+                             ## get the standard errors
                              if(verbose)cat("\n\nCalculating standard errors...\n")
                              u <- rtsModel__u(private$ptr, private$cov_type,private$lp_type)
                              if(private$lp_type == 1){
@@ -836,6 +882,8 @@ grid <- R6::R6Class("grid",
                                M <- tryCatch(solve(M),error = function(i)return(diag(nrow(M))))
                              }
                              SE <- sqrt(diag(M))
+                             
+                             # prepare output
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
                              theta_names <- c("theta_1","theta_2")
                              rho_names <- "rho"
@@ -1120,8 +1168,8 @@ grid <- R6::R6Class("grid",
                            #' will be added to `grid_data`. Note that for incidence threshold, the threshold should
                            #' be specified as the per individual incidence.
                            #'
-                           #' @param stan_fit A \link[rstan]{stanfit} or \link[cmdstanr]{CmdStanMCMC} object.
-                           #' Output of `lgcp_fit()`
+                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, or \link[glmmrBase]{mcml} object.
+                           #' Output of `lgcp_bayes()` or `lgcp_ml()`
                            #' @param incidence.threshold Numeric. Threshold of population standardised incidence
                            #' above which an area is a hotspot
                            #' @param irr.threshold Numeric. Threshold of incidence rate ratio
@@ -1159,7 +1207,7 @@ grid <- R6::R6Class("grid",
                            #'             incidence.threshold=1,
                            #'             popdens="cov")
                            #' }
-                           hotspots = function(stan_fit,
+                           hotspots = function(fit,
                                                incidence.threshold=NULL,
                                                irr.threshold=NULL,
                                                irr.lag=NULL,
@@ -1169,22 +1217,28 @@ grid <- R6::R6Class("grid",
 
                              if(all(is.null(incidence.threshold),is.null(irr.threshold),is.null(rr.threshold)))stop("At least one criterion required.")
                              if(!is.null(irr.threshold)&is.null(irr.lag))stop("irr.lag must be set")
-                             if(!(is(stan_fit,"CmdStanMCMC")|is(stan_fit,"stanfit")|is(stan_fit,"mcml")))stop("model fit required")
+                             if(!(is(fit,"CmdStanMCMC")|is(fit,"CmdStanVB")|is(fit,"stanfit")|is(fit,"mcml")))stop("model fit required")
 
                              nCells <- nrow(self$grid_data)
                              nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
                              if(nT == 0)nT <- 1
-                             if(is(stan_fit,"stanfit")){
-                               ypred <- rstan::extract(stan_fit,"y_grid_predict")$y_grid_predict
-                               f <- rstan::extract(stan_fit,"f")$f
+                             if(is(fit,"stanfit")){
+                               ypred <- rstan::extract(fit,"y_grid_predict")$y_grid_predict
+                               f <- rstan::extract(fit,"f")$f
                                f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
-                             } else if(is(stan_fit,"CmdStanMCMC")){
+                             } else if(is(fit,"CmdStanMCMC")){
                                if(requireNamespace("cmdstanr")){
-                                 ypred <- stan_fit$draws("y_grid_predict")
+                                 ypred <- fit$draws("y_grid_predict")
                                  ypred <- matrix(ypred, prod(dim(ypred)[1:2]), dim(ypred)[3])
-                                 f <- stan_fit$draws("f")
+                                 f <- fit$draws("f")
                                  f <- f[,,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                                  f <- matrix(f, prod(dim(f)[1:2]), dim(f)[3])
+                               }
+                             } else if(is(fit,"CmdStanVB")){
+                               if(requireNamespace("cmdstanr")){
+                                 ypred <- fit$draws("y_grid_predict")
+                                 f <- fit$draws("f")
+                                 f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                                }
                              } else if(is(fit,"mcml")){
                                ypred <- t(fit$y_predicted)
@@ -1487,6 +1541,7 @@ grid <- R6::R6Class("grid",
                                o2 <- sample(1:nrow(df),nrow(df),replace=FALSE)
                                self$grid_data <- self$grid_data[o2,]
                              }
+                             self$grid_data$grid_id <- 1:nrow(self$grid_data)
                              if(!is.null(self$region_data)){
                                tmp <- suppressWarnings(sf::st_intersection(self$grid_data[,"grid_id"],self$region_data[,"region_id"]))
                                n_Q <- nrow(tmp)
@@ -1552,7 +1607,7 @@ grid <- R6::R6Class("grid",
                           private$grid_ptr <- GridData__new(as.matrix(data$x_grid),data$nT)
                         }
 
-                        if(!is.null(self$region_data) & is.null(private$region_ptr)){
+                        if(!is.null(self$region_data) & (is.null(private$region_ptr) | update)){
                           rdata <- self$get_region_data()
                           private$region_ptr <- RegionData__new(rdata$n_cell-1,rdata$cell_id-1,rdata$q_weights, nrow(data$x_grid), data$nT)
                         }

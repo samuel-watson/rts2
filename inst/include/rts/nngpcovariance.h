@@ -70,16 +70,24 @@ public:
   void update_parameters_extern(const dblvec& parameters) override;
   vector_matrix submatrix(int i);
   void set_function(bool squared_exp);
+  MatrixXd ar_matrix(bool chol = false);
   
 protected:
   MatrixXd ar_factor;    
   MatrixXd ar_factor_chol;
   sparse ar_factor_inverse;
   bool sq_exp = false;
-  //MatrixXd ar_factor_inverse;
   
 };
 
+}
+
+inline MatrixXd rts::nngpCovariance::ar_matrix(bool chol){
+  if(chol){
+    return ar_factor_chol;
+  } else {
+    return ar_factor;
+  }
 }
 
 inline void rts::nngpCovariance::set_function(bool squared_exp){

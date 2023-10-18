@@ -58,6 +58,7 @@ public:
   void set_function(bool squared_exp);
   MatrixXd PhiSPD(bool lambda = true, bool inverse = false);
   ArrayXd LambdaSPD();
+  MatrixXd ar_matrix(bool chol = false);
 
 protected:
   MatrixXd L; // cholesky decomposition of Lambda + PhiTPhi m^2 * m^2
@@ -74,6 +75,14 @@ protected:
   void update_lambda();
 };
 
+}
+
+inline MatrixXd rts::hsgpCovariance::ar_matrix(bool chol){
+  if(chol){
+    return ar_factor_chol;
+  } else {
+    return ar_factor;
+  }
 }
 
 inline double rts::hsgpCovariance::spd_nD(int i){

@@ -157,36 +157,6 @@ void rtsModel__ml_rho(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
-void rtsModel__laplace_ml_beta_u(SEXP xp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {}, 
-    [](auto mptr){mptr->optim.laplace_ml_beta_u();}
-  };
-  std::visit(functor,model.ptr);
-}
-
-// [[Rcpp::export]]
-void rtsModel__laplace_ml_theta(SEXP xp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {}, 
-    [](auto mptr){mptr->optim.laplace_ml_theta();}
-  };
-  std::visit(functor,model.ptr);
-}
-
-// [[Rcpp::export]]
-void rtsModel__laplace_ml_beta_theta(SEXP xp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {}, 
-    [](auto mptr){mptr->optim.laplace_ml_beta_theta();}
-  };
-  std::visit(functor,model.ptr);
-}
-
-// [[Rcpp::export]]
 void rtsModel__nr_beta(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
@@ -289,6 +259,17 @@ SEXP rtsModel__X(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel__ar_chol(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.ar_matrix(true));}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
+}
+
+// [[Rcpp::export]]
 void rtsModel__set_trace(SEXP xp, SEXP trace_, int covtype_, int lptype_){
   int trace = as<int>(trace_);
   TypeSelector model(xp,covtype_,lptype_);
@@ -349,6 +330,17 @@ SEXP rtsModel__ZL(SEXP xp, int covtype_, int lptype_){
   auto functor = overloaded {
     [](int) { return returns(0);}, 
     [](auto mptr){return returns(mptr->model.covariance.ZL());}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__L(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) { return returns(0);}, 
+    [](auto mptr){return returns(mptr->model.covariance.D(true,false));}
   };
   auto S = std::visit(functor,model.ptr);
   return wrap(std::get<Eigen::MatrixXd>(S));

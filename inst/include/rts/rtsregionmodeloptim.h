@@ -200,8 +200,8 @@ inline void rts::rtsRegionModelOptim<BitsHSGP>::ml_theta(){
 template<typename modeltype>
 inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
   MatrixXd Lu = this->model.covariance.Lu(this->re.u(false));
-  typename ModelOptim<BitsAR>::D_likelihood ddl(*this,Lu);
-  Rbobyqa<typename ModelOptim<BitsAR>::D_likelihood,dblvec> opt;
+  typename ModelOptim<modeltype>::D_likelihood ddl(*this,Lu);
+  Rbobyqa<typename ModelOptim<modeltype>::D_likelihood,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
   opt.control.iprint = this->trace;

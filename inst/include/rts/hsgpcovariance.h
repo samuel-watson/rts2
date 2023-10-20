@@ -229,7 +229,8 @@ inline void rts::hsgpCovariance::update_rho(const double rho_){
         ar_factor(s,t) = ar_factor(t,s);
       }
     }
-    rts::cholesky(ar_factor_chol, ar_factor);
+    // ar_factor_chol = rts::cholesky(ar_factor);
+    ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
     ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
   } else {
     ar_factor_chol.setConstant(1.0);

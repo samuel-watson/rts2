@@ -393,253 +393,333 @@ public:
 
 // most of this is repeated code
 // need to find a way to specialise template and reuse code.
+// also need to remove the sparse_mult functions as now implemented in SparseChol package
 
 inline MatrixXd rts::rtsRegionModel<BitsAR>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd X = model.linear_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,X,T); 
+  VectorXd mu = AX * model.linear_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  mu += B * meanzu;
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-  MatrixXd AX = A * model.linear_predictor.X();
-  MatrixXd M = AX.transpose() * BDB * AX;
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
+  }
+  MatrixXd M = AX.transpose() * S * AX;
   return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsNNGP>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  if(A.cols()!=model.linear_predictor.X().rows())Rcpp::stop("A != X");
-  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
-  if(B.rows() != mu.size())Rcpp::stop("B != mu");
-  if(B.cols() != re.zu_.rows())Rcpp::stop("B != Zu");
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd X = model.linear_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,X,T); 
+  VectorXd mu = AX * model.linear_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  mu += B * meanzu;
-  if(A.cols() != model.data.offset.size())Rcpp::stop("A != offset");
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  if(B.rows() != w.size())Rcpp::stop("B != w");
-  if(B.cols() != model.covariance.D(false,false).rows())Rcpp::stop("B != D");
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-  MatrixXd AX = A * model.linear_predictor.X();
-  if(AX.rows() != BDB.rows())Rcpp::stop("AX != BDB");
-  MatrixXd M = AX.transpose() * BDB * AX;
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
+  }
+  MatrixXd M = AX.transpose() * S * AX;
   return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  if(A.cols()!=model.linear_predictor.X().rows())Rcpp::stop("A != X");
-  VectorXd mu = A * model.linear_predictor.X() * model.linear_predictor.parameter_vector();
-  if(B.rows() != mu.size())Rcpp::stop("B != mu");
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd X = model.linear_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,X,T); 
+  VectorXd mu = AX * model.linear_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  if(B.cols() != meanzu.size())Rcpp::stop("B != Zu");
-  mu += B * meanzu;
-  if(A.cols() != model.data.offset.size())Rcpp::stop("A != offset");
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  if(B.rows() != w.size())Rcpp::stop("B != w");
-  if(B.cols() != model.covariance.D(false,false).rows())Rcpp::stop("B != D");
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  bool BDBsympd = glmmr::Eigen_ext::issympd(BDB);
-  if(!BDBsympd){
-    BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-    MatrixXd AX = A * model.linear_predictor.X();
-    if(AX.rows() != BDB.rows())Rcpp::stop("AX != BDB");
-    MatrixXd M = AX.transpose() * BDB * AX;
-    return M;
-  } else {
-    return MatrixXd::Identity(1,1);
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
   }
-  
+  MatrixXd M = AX.transpose() * S * AX;
+  return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
-  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd Xr = model.linear_predictor.region_predictor.X();
+  MatrixXd Xg = model.linear_predictor.grid_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,Xr,T); 
+  MatrixXd BX = sparse_matrix_t_mult(B,Xg,T); 
+  VectorXd mu = AX * model.linear_predictor.region_predictor.parameter_vector();
+  mu += BX * model.linear_predictor.grid_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  mu += B * meanzu;
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-  MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
-  Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
-  Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
-  MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
+  }
+  MatrixXd Xcombined(AX.rows(),AX.cols()+BX.cols());
+  Xcombined.leftCols(AX.cols()) = AX;
+  Xcombined.rightCols(BX.cols()) = BX;
+  MatrixXd M = Xcombined.transpose() * S * Xcombined;
   return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
-  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd Xr = model.linear_predictor.region_predictor.X();
+  MatrixXd Xg = model.linear_predictor.grid_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,Xr,T); 
+  MatrixXd BX = sparse_matrix_t_mult(B,Xg,T); 
+  VectorXd mu = AX * model.linear_predictor.region_predictor.parameter_vector();
+  mu += BX * model.linear_predictor.grid_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  mu += B * meanzu;
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-  MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
-  Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
-  Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
-  MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
+  }
+  MatrixXd Xcombined(AX.rows(),AX.cols()+BX.cols());
+  Xcombined.leftCols(AX.cols()) = AX;
+  Xcombined.rightCols(BX.cols()) = BX;
+  MatrixXd M = Xcombined.transpose() * S * Xcombined;
   return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
-  MatrixXd A = region.region_design_matrix();
-  MatrixXd B = region.grid_design_matrix();
-  VectorXd mu = A * model.linear_predictor.region_predictor.X() * model.linear_predictor.region_predictor.parameter_vector();
-  mu += B * model.linear_predictor.grid_predictor.X() * model.linear_predictor.grid_predictor.parameter_vector();
+  sparse A = region.region_design_matrix();
+  sparse B = region.grid_design_matrix();
+  int N = model.covariance.grid.N;
+  int T = model.covariance.grid.T;
+  int Q = region.q_weights.size();
+  int R = region.nRegion;
+  sparse Bt = B;
+  Bt.transpose();
+  MatrixXd Xr = model.linear_predictor.region_predictor.X();
+  MatrixXd Xg = model.linear_predictor.grid_predictor.X();
+  MatrixXd AX = sparse_matrix_t_mult(A,Xr,T); 
+  MatrixXd BX = sparse_matrix_t_mult(B,Xg,T); 
+  VectorXd mu = AX * model.linear_predictor.region_predictor.parameter_vector();
+  mu += BX * model.linear_predictor.grid_predictor.parameter_vector();
   VectorXd meanzu = re.zu_.rowwise().mean();
-  mu += B * meanzu;
-  mu += A * model.data.offset;
-  for(int i = 0; i < region.gridT; i++){
-    mu.segment(i*region.q_weights.size(),region.q_weights.size()) += region.q_weights.log().matrix();
+  mu += sparse_vector_t_mult(B,meanzu,T);
+  mu += sparse_vector_t_mult(A,model.data.offset,T);
+  for(int t = 0; t < T; t++){
+    mu.segment(t*Q,Q) += region.q_weights.log().matrix();
   }
-  mu = -1.0 * mu;
-  VectorXd w = mu.array().exp().matrix();
-  MatrixXd BDB = B * model.covariance.D(false,false) * B.transpose();
-  BDB += w.asDiagonal();
-  bool BDBsympd = glmmr::Eigen_ext::issympd(BDB);
-  if(!BDBsympd){
-    BDB = BDB.llt().solve(MatrixXd::Identity(BDB.rows(),BDB.cols()));
-    MatrixXd Xcombined(region.q_weights.size(),model.linear_predictor.P());
-    Xcombined.leftCols(model.linear_predictor.region_predictor.P()) = A * model.linear_predictor.region_predictor.X();
-    Xcombined.rightCols(model.linear_predictor.grid_predictor.P()) = B * model.linear_predictor.grid_predictor.X();
-    MatrixXd M = Xcombined.transpose() * BDB * Xcombined;
-    return M;
-  } else {
-    return MatrixXd::Identity(1,1);
+  mu = mu.array().exp().matrix();
+  MatrixXd D = model.covariance.D(false,false);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
+  MatrixXd AR = model.covariance.ar_matrix();
+  AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
+  MatrixXd ARD = rts::kronecker(AR,D);
+  VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
+  ARD += WD.asDiagonal();
+  ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
+  MatrixXd S(AX.rows(),AX.rows());
+  for(int t = 0; t < T; t++){
+    for(int s = t; s < T; s++){
+      if(t==s){
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
+        S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
+        S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+      } else {
+        MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
+        MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
+        S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
+        S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
+      }
+    }
   }
+  MatrixXd Xcombined(AX.rows(),AX.cols()+BX.cols());
+  Xcombined.leftCols(AX.cols()) = AX;
+  Xcombined.rightCols(BX.cols()) = BX;
+  MatrixXd M = Xcombined.transpose() * S * Xcombined;
 }
 
 inline sparse rts::rtsRegionModel<BitsAR>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  ArrayXd xb = model.xb();
-  xb = xb.exp();
-  for(int i = 0; i < A.Ap.size()-1; i++){
-    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-      A.Ax[j] *= xb(i);
-    }
-  }
   return A;
 }
 
 inline sparse rts::rtsRegionModel<BitsNNGP>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  // ArrayXd xb = model.xb();
-  // xb = xb.exp();
-  // for(int i = 0; i < A.Ap.size()-1; i++){
-  //   for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-  //     A.Ax[j] *= xb(i);
-  //   }
-  // }
   return A;
 }
 
 inline sparse rts::rtsRegionModel<BitsHSGP>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  ArrayXd xb = model.xb();
-  xb = xb.exp();
-  for(int i = 0; i < A.Ap.size()-1; i++){
-    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-      A.Ax[j] *= xb(i);
-    }
-  }
   return A;
 }
 
 inline sparse rts::rtsRegionModel<BitsARRegion>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  ArrayXd xb = model.linear_predictor.region_predictor.xb();
-  xb += model.data.offset.array();
-  xb = xb.exp();
-  ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
-  xbg = xbg.exp();
-  for(int i = 0; i < A.Ap.size()-1; i++){
-    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-      A.Ax[j] *= xb(i);
-    }
-  }
-  // for(int i = 0; i < A.rows(); i++){
-  //   A.row(i) *= xb(i);
-  // }
-  // for(int i = 0; i < A.cols(); i++){
-  //   A.col(i) *= xbg(i);
-  // }
-  for(int i = 0; i < A.Ax.size(); i++){
-    A.Ax[i] *= xbg(A.Ai[i]);
-  }
   return A;
 }
 
 inline sparse rts::rtsRegionModel<BitsNNGPRegion>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  ArrayXd xb = model.linear_predictor.region_predictor.xb();
-  xb += model.data.offset.array();
-  xb = xb.exp();
-  ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
-  xbg = xbg.exp();
-  for(int i = 0; i < A.Ap.size()-1; i++){
-    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-      A.Ax[j] *= xb(i);
-    }
-  }
-  for(int i = 0; i < A.Ax.size(); i++){
-    A.Ax[i] *= xbg(A.Ai[i]);
-  }
   return A;
 }
 
 inline sparse rts::rtsRegionModel<BitsHSGPRegion>::grid_to_region_multiplier_matrix(){
   sparse A = region.grid_to_region_matrix();
-  ArrayXd xb = model.linear_predictor.region_predictor.xb();
-  xb += model.data.offset.array();
-  xb = xb.exp();
-  ArrayXd xbg = model.linear_predictor.grid_predictor.xb();
-  xbg = xbg.exp();
-  for(int i = 0; i < A.Ap.size()-1; i++){
-    for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
-      A.Ax[j] *= xb(i);
-    }
-  }
-  for(int i = 0; i < A.Ax.size(); i++){
-    A.Ax[i] *= xbg(A.Ai[i]);
-  }
   return A;
 }

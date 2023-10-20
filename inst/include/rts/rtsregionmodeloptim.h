@@ -34,8 +34,11 @@ public:
   ArrayXXd region_intensity(bool uselog = true);
   ArrayXXd y_predicted(bool uselog = true);
   MatrixXd hessian(double tol = 1e-4);
+  void set_cov_bobyqa_control(double rhobeg_, double rhoend_);
   
   private:
+    double covrhobeg = 0.1;
+    double covrhoend = 1e-3;
     
     class rho_likelihood : public Functor<dblvec> {
       rtsRegionModelOptim<modeltype>& M_;
@@ -59,6 +62,12 @@ public:
   
 };
 
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::set_cov_bobyqa_control(double rhobeg_, double rhoend_){
+  covrhobeg = rhobeg_;
+  covrhoend = rhoend_;
 }
 
 template<typename modeltype>
@@ -86,6 +95,8 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_rho(){
   opt.set_lower(lower);
   opt.set_upper(upper);
   opt.control.iprint = this->trace;
+  opt.control.rhobeg = this->rhobeg;
+  opt.control.rhoend = this->rhoend;
   opt.minimize(ldl, start);
 }
 
@@ -171,36 +182,49 @@ inline double rts::rtsRegionModelOptim<modeltype>::rho_likelihood::operator()(co
   return -1*ll;
 }
 
-// template<typename modeltype>
-// inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
-//   glmmr::ModelOptim<modeltype>::ml_theta();
-// }
-
 //BitsHSGP
-template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
+template<>
+inline void rts::rtsRegionModelOptim<BitsHSGP>::ml_theta(){
   D_likelihood_hsgp ddl(*this);
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
   opt.control.iprint = this->trace;
   opt.control.npt = this->npt;
-  opt.control.rhobeg = this->rhobeg;
-  opt.control.rhoend = this->rhoend;
+  opt.control.rhobeg = covrhobeg;
+  opt.control.rhoend = covrhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }
 
-// template<>
-// inline void rts::rtsRegionModelOptim<BitsHSGPRegion>::ml_theta(){
-//   D_likelihood_hsgp ddl(*this);
-//   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
-//   dblvec lower = this->get_lower_values(false,true,false);
-//   opt.set_lower(lower);
-//   opt.control.iprint = trace;
-//   dblvec start_t = this->get_start_values(false,true,false);
-//   opt.minimize(ddl, start_t);
-// }
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
+  MatrixXd Lu = this->model.covariance.Lu(this->re.u(false));
+  typename ModelOptim<BitsAR>::D_likelihood ddl(*this,Lu);
+  Rbobyqa<typename ModelOptim<BitsAR>::D_likelihood,dblvec> opt;
+  dblvec lower = this->get_lower_values(false,true,false);
+  opt.set_lower(lower);
+  opt.control.iprint = this->trace;
+  opt.control.npt = this->npt;
+  opt.control.rhobeg = covrhobeg;
+  opt.control.rhoend = covrhoend;
+  dblvec start_t = this->get_start_values(false,true,false);
+  opt.minimize(ddl, start_t);
+}
+
+template<>
+inline void rts::rtsRegionModelOptim<BitsHSGPRegion>::ml_theta(){
+  D_likelihood_hsgp ddl(*this);
+  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+  dblvec lower = this->get_lower_values(false,true,false);
+  opt.set_lower(lower);
+  opt.control.iprint = this->trace;
+  opt.control.npt = this->npt;
+  opt.control.rhobeg = covrhobeg;
+  opt.control.rhoend = covrhoend;
+  dblvec start_t = this->get_start_values(false,true,false);
+  opt.minimize(ddl, start_t);
+}
 
 template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {

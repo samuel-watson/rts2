@@ -17,7 +17,7 @@ data {
   matrix[nT,nT] ar_chol;
 }
 parameters {
-  matrix[Q*nT] gamma;
+  matrix[Q,nT] gamma;
 }
 transformed parameters {
   vector[Q*nT] zu = to_vector(ZL*gamma*ar_chol);

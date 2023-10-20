@@ -17,7 +17,9 @@ grid <- R6::R6Class("grid",
                            #' @field priors list of prior distributions for the analysis
                            priors = NULL,
                            #' @field bobyqa_control list of control parameters for the BOBYQA algorithm, must contain named
-                           #' elements any or all of `npt`, `rhobeg`, `rhoend`. Only has an effect for the HSGP and NNGP approximations.
+                           #' elements any or all of `npt`, `rhobeg`, `rhoend`, `covrhobeg`, `covrhoend`. 
+                           #' Only has an effect for the HSGP and NNGP approximations. The latter two parameters control the 
+                           #' covariance parameter optimisation, while the former control the linear predictor. 
                            bobyqa_control = NULL,
                            #' @field boundary sf object showing the boundary of the area of interest
                            boundary = NULL,
@@ -360,6 +362,48 @@ grid <- R6::R6Class("grid",
                              dw <- cbind(dw,as.data.frame(dx))
 
                              return(dw)
+                           },
+                           #' @description 
+                           #' Adds time period indicators to the data
+                           #' 
+                           #' Adds indicator variables for each time period to the data. To include
+                           #' these in a model fitting procedure use, for example, `covs = c("time1i, time2i,...)`
+                           #' @return 
+                           #' Nothing. Called for effects.
+                           add_time_indicators = function(){
+                             if(is.null(self$region_data)){
+                               nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                               if(nT == 1){
+                                 stop("Only one time period")
+                               } else {
+                                 for(i in 1:nT){
+                                   for(j in 1:nT){
+                                     if(i == j){
+                                       self$grid_data$newvar <- 1
+                                     } else {
+                                       self$grid_data$newvar <- 0
+                                     }
+                                     colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("time",i,"i",j)
+                                   }
+                                 }
+                               }
+                             } else {
+                               nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
+                               if(nT == 1){
+                                 stop("Only one time period")
+                               } else {
+                                 for(i in 1:nT){
+                                   for(j in 1:nT){
+                                     if(i == j){
+                                       self$region_data$newvar <- 1
+                                     } else {
+                                       self$region_data$newvar <- 0
+                                     }
+                                     colnames(self$region_data)[length(colnames(self$region_data))] <- paste0("time",i,"i",j)
+                                   }
+                                 }
+                               }
+                             }
                            },
                            #' @description
                            #' Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
@@ -727,8 +771,11 @@ grid <- R6::R6Class("grid",
                                npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
                                rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
                                rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
-                               if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
+                               #if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
                                rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
+                               rhobeg <- ifelse("covrhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$covrhobeg,0)
+                               rhoend <- ifelse("covrhoend"%in%names(self$bobyqa_control),self$bobyqa_control$covrhoend,0)
+                               rtsModel__set_cov_bobyqa_control(private$ptr,private$cov_type,private$lp_type,rhobeg,rhoend)
                              }
                              
                              # initialise the parameters and data on the R side
@@ -840,8 +887,10 @@ grid <- R6::R6Class("grid",
                                
                                # step 2. fit beta 
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
-                               if(is.null(known_theta))rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
-                               if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
+                               if(is.null(known_theta)){
+                                 rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
+                                if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
+                               }
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                
                                # step 3 fit covariance parameters
@@ -873,7 +922,7 @@ grid <- R6::R6Class("grid",
                              u <- rtsModel__u(private$ptr, private$cov_type,private$lp_type)
                              if(private$lp_type == 1){
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
-                             } else{
+                             } else {
                                if(private$cov_type == 1 | private$cov_type == 2){
                                  M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
                                } else {
@@ -888,10 +937,13 @@ grid <- R6::R6Class("grid",
                              theta_names <- c("theta_1","theta_2")
                              rho_names <- "rho"
                              mf_pars_names <- c(beta_names, theta_names)
+                             SE <- c(SE,NA,NA)
+                             if(datlist$nT > 1)SE <- c(SE,NA)
+                             SE <- c(SE,rep(NA,nrow(u)))
                              if(datlist$nT > 1) mf_pars_names <- c(mf_pars_names, rho_names)
                              res <- data.frame(par = c(mf_pars_names,paste0("d",1:nrow(u))),
                                                est = c(all_pars_new,rowMeans(u)),
-                                               SE=c(SE,NA,NA,rep(NA,nrow(u))),
+                                               SE=SE,
                                                t = NA,
                                                p = NA,
                                                lower = NA,
@@ -1614,17 +1666,15 @@ grid <- R6::R6Class("grid",
 
                         if(is.null(private$ptr) || update){
                           # build formulae
-                          f1 <- ""
-                          if(length(covs) == 0){
-                            f1 <- "1"
-                          } else {
+                          f1 <- "1"
+                          if(length(covs) > 0){
                             for(i in 1:length(covs)){
                               f1 <- paste0(f1,"+",covs[[i]])
                             }
                           }
 
                           if(length(covs_grid)>0){
-                            f2 <- ""
+                            f2 <- "1"
                             for(i in 1:length(covs)){
                               f2 <- paste0(f2,"+",covs_grid[[i]])
                             }

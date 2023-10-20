@@ -25,8 +25,11 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     void ml_rho();
     void ml_theta() override;
     MatrixXd hessian(double tol = 1e-4);
+    void set_cov_bobyqa_control(double rhobeg_, double rhoend_);
     
   private:
+    double covrhobeg = 0.1;
+    double covrhoend = 1e-3;
     
     class rho_likelihood : public Functor<dblvec> {
       rtsModelOptim<modeltype>& M_;
@@ -50,6 +53,12 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     
 };
 
+}
+
+template<typename modeltype>
+inline void rts::rtsModelOptim<modeltype>::set_cov_bobyqa_control(double rhobeg_, double rhoend_){
+  covrhobeg = rhobeg_;
+  covrhoend = rhoend_;
 }
 
 template<typename modeltype>
@@ -87,6 +96,8 @@ inline void rts::rtsModelOptim<modeltype>::ml_rho(){
   opt.set_lower(lower);
   opt.set_upper(upper);
   opt.control.iprint = this->trace;
+  opt.control.rhobeg = this->rhobeg;
+  opt.control.rhoend = this->rhoend;
   opt.minimize(ldl, start);
 }
 
@@ -99,11 +110,6 @@ inline double rts::rtsModelOptim<modeltype>::rho_likelihood::operator()(const db
 }
 
 template<typename modeltype>
-inline void rts::rtsModelOptim<modeltype>::ml_theta(){
-  glmmr::ModelOptim<modeltype>::ml_theta();
-}
-
-template<>
 inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   D_likelihood_hsgp ddl(*this);
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
@@ -111,25 +117,40 @@ inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   opt.set_lower(lower);
   opt.control.iprint = this->trace;
   opt.control.npt = this->npt;
-  opt.control.rhobeg = this->rhobeg;
-  opt.control.rhoend = this->rhoend;
+  opt.control.rhobeg = covrhobeg;
+  opt.control.rhoend = covrhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }
 
-template<>
-inline void rts::rtsModelOptim<BitsNNGP>::ml_theta(){
-  D_likelihood_hsgp ddl(*this);
-  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+template<typename modeltype>
+inline void rts::rtsModelOptim<modeltype>::ml_theta(){
+  MatrixXd Lu = this->model.covariance.Lu(this->re.u(false));
+  typename ModelOptim<BitsAR>::D_likelihood ddl(*this,Lu);
+  Rbobyqa<typename ModelOptim<BitsAR>::D_likelihood,dblvec> opt;
   dblvec lower = this->get_lower_values(false,true,false);
   opt.set_lower(lower);
   opt.control.iprint = this->trace;
   opt.control.npt = this->npt;
-  opt.control.rhobeg = this->rhobeg;
-  opt.control.rhoend = this->rhoend;
+  opt.control.rhobeg = covrhobeg;
+  opt.control.rhoend = covrhoend;
   dblvec start_t = this->get_start_values(false,true,false);
   opt.minimize(ddl, start_t);
 }
+
+// template<>
+// inline void rts::rtsModelOptim<BitsNNGP>::ml_theta(){
+//   D_likelihood_hsgp ddl(*this);
+//   Rbobyqa<D_likelihood_hsgp,dblvec> opt;
+//   dblvec lower = this->get_lower_values(false,true,false);
+//   opt.set_lower(lower);
+//   opt.control.iprint = this->trace;
+//   opt.control.npt = this->npt;
+//   opt.control.rhobeg = covrhobeg;
+//   opt.control.rhoend = covrhoend;
+//   dblvec start_t = this->get_start_values(false,true,false);
+//   opt.minimize(ddl, start_t);
+// }
 
 template<typename modeltype>
 inline double rts::rtsModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {

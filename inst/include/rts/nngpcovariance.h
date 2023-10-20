@@ -230,7 +230,8 @@ inline void rts::nngpCovariance::update_rho(const double rho_){
       }
     }
   }
-  rts::cholesky(ar_factor_chol, ar_factor);
+  // ar_factor_chol = rts::cholesky(ar_factor);
+  ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
   MatrixXd ar_factor_inv = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
   ar_factor_inverse = rts::ar_factor_inv_to_sparse(ar_factor_inv,grid.N);
 }

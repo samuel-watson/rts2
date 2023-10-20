@@ -165,7 +165,8 @@ inline void rts::ar1Covariance::update_rho(const double rho_){
       }
     }
   }
-  rts::cholesky(ar_factor_chol, ar_factor);
+  //ar_factor_chol = rts::cholesky(ar_factor);
+  ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
 }
 
 

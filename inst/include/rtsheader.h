@@ -15,8 +15,8 @@ typedef rts::rtsRegionModel<rts::rtsModelBits<rts::ar1Covariance, glmmr::LinearP
 typedef rts::rtsRegionModel<rts::rtsModelBits<rts::nngpCovariance, glmmr::LinearPredictor> > ModelNNGPRegion;
 typedef rts::rtsRegionModel<rts::rtsModelBits<rts::hsgpCovariance, glmmr::LinearPredictor> > ModelHSGPRegion;
 
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+// template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+// template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 struct TypeSelector
 {

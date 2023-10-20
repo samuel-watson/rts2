@@ -189,6 +189,10 @@ rtsModel__set_bobyqa_control <- function(xp, covtype_, lptype_, npt_, rhobeg_, r
     invisible(.Call(`_rts2_rtsModel__set_bobyqa_control`, xp, covtype_, lptype_, npt_, rhobeg_, rhoend_))
 }
 
+rtsModel__set_cov_bobyqa_control <- function(xp, covtype_, lptype_, rhobeg_, rhoend_) {
+    invisible(.Call(`_rts2_rtsModel__set_cov_bobyqa_control`, xp, covtype_, lptype_, rhobeg_, rhoend_))
+}
+
 rtsModel_nngp__A <- function(ptr_, lptype_) {
     .Call(`_rts2_rtsModel_nngp__A`, ptr_, lptype_)
 }

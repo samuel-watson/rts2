@@ -109,7 +109,7 @@ inline double rts::rtsModelOptim<modeltype>::rho_likelihood::operator()(const db
   return -1*ll;
 }
 
-template<typename modeltype>
+template<>
 inline void rts::rtsModelOptim<BitsHSGP>::ml_theta(){
   D_likelihood_hsgp ddl(*this);
   Rbobyqa<D_likelihood_hsgp,dblvec> opt;

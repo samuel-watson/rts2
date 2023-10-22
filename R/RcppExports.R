@@ -269,7 +269,7 @@ max_dist <- function(x) {
     .Call(`_rts2_max_dist`, x)
 }
 
-semivariogram <- function(x, offs, y, nbins) {
-    .Call(`_rts2_semivariogram`, x, offs, y, nbins)
+semivariogram <- function(x, offs, y, nbins, nT) {
+    .Call(`_rts2_semivariogram`, x, offs, y, nbins, nT)
 }
 

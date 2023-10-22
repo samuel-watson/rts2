@@ -137,7 +137,7 @@ template<typename modeltype>
 inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
   if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsHSGP >){
-    xb = region_intensity();
+    xb = region_intensity(true);
   } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion > || std::is_same_v<modeltype, BitsHSGPRegion >){
     xb = this->model.linear_predictor.xb_region(this->re.zu_);
   }
@@ -149,7 +149,7 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
 template<typename modeltype>
 inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselog){
   MatrixXd regionu = region.grid_to_region(this->re.zu_);
-  ArrayXXd intens = ArrayXXd::Zero(region.nRegion,this->re.u_.cols());
+  ArrayXXd intens = ArrayXXd::Zero(region.nRegion * region.gridT,this->re.u_.cols());
   ArrayXd expxb = this->model.linear_predictor.xb().array().exp();
   for(int j=0; j<intens.cols(); j++){
     intens.col(j) = expxb * regionu.col(j).array();

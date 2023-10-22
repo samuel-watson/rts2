@@ -35,7 +35,7 @@ parameters {
    matrix[Q,nT] gamma;
 }
 transformed parameters {
-  vector[Q*nT] zu = to_vector(ZL*gamma*ar_chol);
+  vector[N*nT] zu = to_vector(ZL*gamma*ar_chol);
 }
 model {
   int grainsize = 1;

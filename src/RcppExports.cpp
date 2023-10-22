@@ -939,8 +939,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // semivariogram
-Eigen::ArrayXXd semivariogram(const Eigen::ArrayXXd& x, const Eigen::ArrayXd& offs, const Eigen::ArrayXd& y, int nbins);
-RcppExport SEXP _rts2_semivariogram(SEXP xSEXP, SEXP offsSEXP, SEXP ySEXP, SEXP nbinsSEXP) {
+Eigen::ArrayXXd semivariogram(const Eigen::ArrayXXd& x, const Eigen::ArrayXd& offs, const Eigen::ArrayXd& y, int nbins, int nT);
+RcppExport SEXP _rts2_semivariogram(SEXP xSEXP, SEXP offsSEXP, SEXP ySEXP, SEXP nbinsSEXP, SEXP nTSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -948,7 +948,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type offs(offsSEXP);
     Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y(ySEXP);
     Rcpp::traits::input_parameter< int >::type nbins(nbinsSEXP);
-    rcpp_result_gen = Rcpp::wrap(semivariogram(x, offs, y, nbins));
+    Rcpp::traits::input_parameter< int >::type nT(nTSEXP);
+    rcpp_result_gen = Rcpp::wrap(semivariogram(x, offs, y, nbins, nT));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1030,7 +1031,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
-    {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 4},
+    {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 5},
     {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
     {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},

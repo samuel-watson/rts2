@@ -18,7 +18,6 @@ inline MatrixXd kronecker(const MatrixXd& A, const MatrixXd& B){
   return result;
 }
 
-//template<typename Derived>
 inline MatrixXd sparse_matrix_mult(const sparse& A, const Eigen::Ref<const Eigen::MatrixXd>& X, bool transpose = false){
   if(!transpose){
     MatrixXd AX = MatrixXd::Zero(A.n,X.cols());

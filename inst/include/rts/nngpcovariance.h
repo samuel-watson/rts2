@@ -131,7 +131,7 @@ inline MatrixXd rts::nngpCovariance::D(bool chol, bool upper){
 }
 
 inline MatrixXd rts::nngpCovariance::ZL(){
-  MatrixXd L = D(true,false);//glmmr::sparse_to_dense(this->matL,false);
+  MatrixXd L = D(true,false);
   MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
   return ZL;
 }
@@ -144,8 +144,9 @@ inline MatrixXd rts::nngpCovariance::LZWZL(const VectorXd& w){
 }
 
 inline MatrixXd rts::nngpCovariance::ZLu(const MatrixXd& u){
-  MatrixXd ZLu = rts::nngpCovariance::ZL() * u;
-  return ZLu;
+  MatrixXd L = D(true,false);
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, L);
+  return ZL * u;
 }
 
 inline MatrixXd rts::nngpCovariance::Lu(const MatrixXd& u){
@@ -230,7 +231,6 @@ inline void rts::nngpCovariance::update_rho(const double rho_){
       }
     }
   }
-  // ar_factor_chol = rts::cholesky(ar_factor);
   ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
   MatrixXd ar_factor_inv = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
   ar_factor_inverse = rts::ar_factor_inv_to_sparse(ar_factor_inv,grid.N);
@@ -241,7 +241,7 @@ inline void rts::nngpCovariance::gen_AD(){
   Dvec.setZero();
   
   int idxlim;
-  double val = this->parameters_[0];//Covariance::get_val(0,0,0);
+  double val = this->parameters_[0];
   Dvec(0) = val;
   double tmp;
   
@@ -258,10 +258,6 @@ inline void rts::nngpCovariance::gen_AD(){
         for(int k = j+1; k<idxlim; k++){
           int minidx = grid.NN(j,i) < grid.NN(k,i) ? grid.NN(j,i) : grid.NN(k,i);
           int maxidx = grid.NN(j,i) > grid.NN(k,i) ? grid.NN(j,i) : grid.NN(k,i);
-          // if((grid.N-1)*minidx - ((minidx-1)*minidx/2) + (maxidx-minidx-1) >= this->dists[0].rows()){
-          //   Rcpp::Rcout << "\nminidx: " << minidx << " maxidx " << maxidx << " disx " << (grid.N-1)*minidx - ((minidx-1)*j/2) + (maxidx-minidx-1) << " dists rows " << this->dists[0].rows();
-          //   Rcpp::stop("dist out of range");
-          // }
           tmp = this->dists[0]((grid.N-1)*minidx - ((minidx-1)*minidx/2) + (maxidx-minidx-1),0)/ this->parameters_[1];
           if(sq_exp){
             S(j,k) = this->parameters_[0] * exp(-1 * tmp * tmp);//Covariance::get_val(0,grid.NN(j,i),grid.NN(k,i));
@@ -273,17 +269,12 @@ inline void rts::nngpCovariance::gen_AD(){
       }
     }
     for(int j = 0; j<idxlim; j++){
-      // if((grid.N-1)*grid.NN(j,i) - ((grid.NN(j,i)-1)*grid.NN(j,i)/2) + (i-grid.NN(j,i)-1) >= this->dists[0].rows()){
-      //   Rcpp::Rcout << "\nminidx: " << grid.NN(j,i) << " maxidx " << i << " disx " << (grid.N-1)*grid.NN(j,i) - ((grid.NN(j,i)-1)*grid.NN(j,i)/2) + (i-grid.NN(j,i)-1) << " dists rows " << this->dists[0].rows();
-      //   Rcpp::stop("dist2 out of range");
-      // }
       tmp = this->dists[0]((grid.N-1)*grid.NN(j,i) - ((grid.NN(j,i)-1)*grid.NN(j,i)/2) + (i-grid.NN(j,i)-1),0)/ this->parameters_[1];
       Sv(j) = sq_exp ? this->parameters_[0] * exp(-1 * tmp * tmp) : this->parameters_[0] * exp(-1 * tmp );//Covariance::get_val(0,i,grid.NN(j,i));
     }
     A.block(0,i,idxlim,1) = S.ldlt().solve(Sv);
     Dvec(i) = val - (A.col(i).segment(0,idxlim).transpose() * Sv)(0);
   }
-  //this->matL = glmmr::dense_to_sparse(D(true,false),false);
 }
 
 inline vector_matrix rts::nngpCovariance::submatrix(int i){

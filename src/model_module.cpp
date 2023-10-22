@@ -66,7 +66,7 @@ SEXP rtsModel__hessian_numerical(SEXP xp, SEXP tol_, int covtype_, int lptype_){
   double tol = as<double>(tol_);
   auto functor = overloaded {
     [](int) {return returns(0);}, 
-    [&tol](auto mptr){return returns(mptr->optim.hessian(tol));}
+    [&tol](auto mptr){return returns(mptr->optim.hessian_numerical(tol));}
   };
   auto S = std::visit(functor,model.ptr);
   return wrap(std::get<Eigen::MatrixXd>(S));

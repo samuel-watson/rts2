@@ -740,10 +740,10 @@ grid <- R6::R6Class("grid",
                              
                              ## deal with starting values and initialise parameters
                              if(!is.null(starting_values)){
-                               if(grepl("gamma",names(starting_values))){
+                               if("gamma"%in%names(starting_values)){
                                  gamma_current <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                  gamma_start <- starting_values[["gamma"]]
-                                 if(grepl("gamma_g",names(starting_values))){
+                                 if("gamma_g"%in%names(starting_values)){
                                    if(is.null(self$region_data)){
                                      message("gamma_g starting values ignored as no region data")
                                    } else {
@@ -753,11 +753,11 @@ grid <- R6::R6Class("grid",
                                  if(length(gamma_start)!=length(gamma_current))stop("Gamma wrong length")
                                  rtsModel__update_beta(private$ptr,gamma_start,private$cov_type,private$lp_type)
                                }
-                               if(grepl("theta",names(starting_values))){
+                               if("theta"%in%names(starting_values)){
                                  if(length(starting_values[["theta"]])!=2)stop("length(theta) != 2")
                                  rtsModel__update_theta(private$ptr,starting_values[["theta"]],private$cov_type,private$lp_type)
                                }
-                               if(grepl("ar",names(starting_values))){
+                               if("ar"%in%names(starting_values)){
                                  if(datlist$nT == 1){
                                    message("ar ignored as single period")
                                  } else {
@@ -930,7 +930,7 @@ grid <- R6::R6Class("grid",
                                }
                                M <- tryCatch(solve(M),error = function(i)return(diag(nrow(M))))
                              }
-                             SE <- sqrt(diag(M))
+                             SE <- sqrt(diag(M))[1:length(beta)]
                              
                              # prepare output
                              beta_names <- rtsModel__beta_parameter_names(private$ptr,private$cov_type,private$lp_type)
@@ -1073,7 +1073,7 @@ grid <- R6::R6Class("grid",
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
-                             if(!is.null(self$region_data))nRegion <- nrow(self$region_data)
+                             nRegion <- ifelse(is.null(self$region_data),0,nrow(self$region_data))
                              if(is(fit,"stanfit")){
                                ypred <- rstan::extract(fit,"y_grid_predict")
                                ypred <- ypred$y_grid_predict
@@ -1101,7 +1101,6 @@ grid <- R6::R6Class("grid",
                                nT <- ncol(f)/nCells
                                cmdst <- FALSE
                              }
-
 
                              if(nT>1){
                                if("pred"%in%type){
@@ -1150,16 +1149,30 @@ grid <- R6::R6Class("grid",
                                }
 
                                if("irr"%in%type){
-                                 if(!cmdst){
-                                   self$grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
-                                                            ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,mean)
-                                   self$grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
-                                                               ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,sd)
+                                 if(is.null(self$region_data)){
+                                   if(!cmdst){
+                                     self$grid_data$irr <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                                   ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,mean)
+                                     self$grid_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                                      ypred[,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],2,sd)
+                                   } else {
+                                     self$grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                                   ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,mean)
+                                     self$grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
+                                                                      ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,sd)
+                                   }
                                  } else {
-                                   self$grid_data$irr <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
-                                                            ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,mean)
-                                   self$grid_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),drop=FALSE]/
-                                                               ypred[,,((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),drop=FALSE],3,sd)
+                                   if(!cmdst){
+                                     self$region_data$irr <- apply(ypred[,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/
+                                                                   ypred[,((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),drop=FALSE],2,mean)
+                                     self$region_data$irr_sd <- apply(ypred[,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/
+                                                                      ypred[,((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),drop=FALSE],2,sd)
+                                   } else {
+                                     self$region_data$irr <- apply(ypred[,,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/
+                                                                   ypred[,,((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),drop=FALSE],3,mean)
+                                     self$region_data$irr_sd <- apply(ypred[,,((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),drop=FALSE]/
+                                                                      ypred[,,((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),drop=FALSE],3,sd)
+                                   }
                                  }
                                }
                              } else {
@@ -1468,7 +1481,7 @@ grid <- R6::R6Class("grid",
                            #' @param popdens String naming the variable in the data specifying the offset. If not 
                            #' provided then no offset is used.
                            #' @param yvar String naming the outcome variable to calculate the variogram for. Optional, if
-                           #' not provided then the last time period of data will be used.
+                           #' not provided then the outcome count data will be used.
                            #' @param nbins The number of bins in the empirical semivariogram
                            #' @return A ggplot plot is printed and optionally returned
                            variogram = function(popdens,
@@ -1493,17 +1506,18 @@ grid <- R6::R6Class("grid",
                                      stop("case counts not defined in data")
                                    }
                                  } else {
-                                   yvar <- paste0("t",nT)
+                                   yvar <- paste0("t",1:nT)
                                  }
                                } else {
                                  if(!yvar%in%colnames(self$grid_data))stop("yvar not in grid data")
                                }
                                
-                               
                                df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$grid_data))))
                                dfs <- semivariogram(as.matrix(df),
-                                                    offs = as.data.frame(self$grid_data)[,popdens],
-                                                    y = as.data.frame(self$grid_data)[,yvar],nbins)
+                                                    offs = offs,
+                                                    y = stack(as.data.frame(self$grid_data)[,yvar])$values,
+                                                    nbins,
+                                                    nT = nT)
                                dfs <- as.data.frame(dfs)
                                colnames(dfs) <- c("bin","val")
                                p <- ggplot2::ggplot(data=dfs,ggplot2::aes(x=bin,y=val))+
@@ -1514,10 +1528,9 @@ grid <- R6::R6Class("grid",
                                print(p)
                                return(invisible(p))
                              } else {
-                               
                                if(!missing(popdens)){
                                  if(!popdens%in%colnames(self$region_data))stop("popdens variable not in region data")
-                                 offs <- as.data.frame(g1$region_data)[,popdens]
+                                 offs <- as.data.frame(self$region_data)[,popdens]
                                } else {
                                  offs <- rep(1,nrow(self$region_data))
                                }
@@ -1531,7 +1544,7 @@ grid <- R6::R6Class("grid",
                                      stop("case counts not defined in data")
                                    }
                                  } else {
-                                   yvar <- paste0("t",nT)
+                                   yvar <- paste0("t",1:nT)
                                  }
                                } else {
                                  if(!yvar%in%colnames(self$region_data))stop("yvar not in region data")
@@ -1540,8 +1553,10 @@ grid <- R6::R6Class("grid",
                                message("Using centroids of regions as locations")
                                df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$region_data))))
                                dfs <- semivariogram(as.matrix(df),
-                                                    offs = as.data.frame(self$region_data)[,popdens],
-                                                    y = as.data.frame(self$region_data)[,yvar],nbins)
+                                                    offs = offs,
+                                                    y = stack(as.data.frame(self$region_data)[,yvar])$values,
+                                                    nbins,
+                                                    nT)
                                dfs <- as.data.frame(dfs)
                                colnames(dfs) <- c("bin","val")
                                p <- ggplot2::ggplot(data=dfs,ggplot2::aes(x=bin,y=val))+

@@ -113,7 +113,7 @@ inline ArrayXd rts::hsgpCovariance::phi_nD(int i){
 }
 
 inline MatrixXd rts::hsgpCovariance::D(bool chol, bool upper){
-  MatrixXd As = rts::hsgpCovariance::ZL();
+  MatrixXd As = PhiSPD();
   if(chol){
     if(upper){
       return As.transpose();
@@ -144,12 +144,10 @@ inline void rts::hsgpCovariance::update_parameters(const ArrayXd& parameters){
     for(unsigned int i = 0; i < parameters.size(); i++){
       parameters_.push_back(parameters(i));
     }
-    //update_parameters_in_calculators();
   } else {
     for(unsigned int i = 0; i < parameters.size(); i++){
       parameters_[i] = parameters(i);
     }
-    //update_parameters_in_calculators();
   }
   update_lambda();
 };
@@ -229,7 +227,6 @@ inline void rts::hsgpCovariance::update_rho(const double rho_){
         ar_factor(s,t) = ar_factor(t,s);
       }
     }
-    // ar_factor_chol = rts::cholesky(ar_factor);
     ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
     ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
   } else {
@@ -270,11 +267,6 @@ inline MatrixXd rts::hsgpCovariance::PhiSPD(bool lambda, bool inverse){
       pnew *= Lambda.sqrt().inverse().matrix().asDiagonal();
     }
   }
-// #pragma omp parallel for
-//     for(int i = 0; i < (m*m); i++){
-//       pnew.col(i) *= inverse ? 1/sqrt(Lambda(i)) : sqrt(Lambda(i));
-//     }
-//   }
   return pnew;
 }
 

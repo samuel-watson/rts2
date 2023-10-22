@@ -928,11 +928,12 @@ grid <- R6::R6Class("grid",
                              if(private$lp_type == 1){
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
                              } else {
-                               if(private$cov_type == 1 | private$cov_type == 2){
-                                 M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
-                               } else {
-                                 M <- rtsModel__hessian_numerical(private$ptr,1e-4,private$cov_type,private$lp_type)
-                               }
+                               M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
+                               # if(private$cov_type == 1 | private$cov_type == 2){
+                               #   M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
+                               # } else {
+                               #   M <- rtsModel__hessian_numerical(private$ptr,1e-4,private$cov_type,private$lp_type)
+                               # }
                                M <- tryCatch(solve(M),error = function(i)return(diag(nrow(M))))
                              }
                              SE <- sqrt(diag(M))[1:length(beta)]

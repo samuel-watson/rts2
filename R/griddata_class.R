@@ -883,7 +883,8 @@ grid <- R6::R6Class("grid",
                                  rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),private$cov_type,private$lp_type)
                                }
                                if(trace==2)t2 <- Sys.time()
-                               if(trace==2)cat("\nMCMC sampling took: ",t2-t1,"s")
+                               td1 <- t2-t1
+                               if(trace==2)cat("\nMCMC sampling took: ",td1[[1]],attr(td1,"units"))
                                
                                # step 2. fit beta 
                                rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
@@ -903,11 +904,15 @@ grid <- R6::R6Class("grid",
                                
                                # some summary output
                                if(trace==2)t3 <- Sys.time()
-                               if(trace==2)cat("\nModel fitting took: ",t3-t2,"s")
+                               td1 <- t3-t2
+                               if(trace==2)cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
                                if(verbose){
                                  cat("\nBeta: ", beta_new)
                                  cat("\nTheta: ", theta_new)
                                  if(datlist$nT > 1) cat("\nRho: ", rho_new)
+                                 cat("\nBeta diff: ", round(max(abs(beta-beta_new)),5))
+                                 cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))#
+                                 if(datlist$nT > 1) cat("\nRho diff: ", round(abs(rho-rho_new),5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }
@@ -1629,6 +1634,7 @@ grid <- R6::R6Class("grid",
                            #' provided then no offset is used.
                            #' @param covs An optional vector of covariate names. For regional data models, this is specifically for the region-level covariates.
                            #' @param covs_grid An optional vector of covariate names for region data models, identifying the covariates at the grid level.
+                           #' @return A named list of data items used in model fitting
                            data = function(m,
                                            approx,
                                            popdens,
@@ -1642,6 +1648,18 @@ grid <- R6::R6Class("grid",
                                                          covs_grid,
                                                          FALSE,
                                                          FALSE))
+                           },
+                           #' @description 
+                           #' Returns the random effects stored in the object (if any) after using MCMCML fitting. For example, 
+                           #' if a fitting procedure is stopped, the random effects can still be returned.
+                           #' @return A matrix of random effects samples if a MCMCML model has been initialised, otherwise returns FALSE
+                           get_random_effects(){
+                             if(!is.null(private$ptr)){
+                               u <- rtsModel__u(private$ptr,data$y,private$cov_type,private$lp_type)
+                               return(u)
+                             } else {
+                               return(FALSE)
+                             }
                            }
                          ),
                     private = list(

@@ -28,8 +28,8 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     void set_cov_bobyqa_control(double rhobeg_, double rhoend_);
     
   private:
-    double covrhobeg = 0.1;
-    double covrhoend = 1e-3;
+    double covrhobeg = 0;
+    double covrhoend = 0;
     
     class rho_likelihood : public Functor<dblvec> {
       rtsModelOptim<modeltype>& M_;

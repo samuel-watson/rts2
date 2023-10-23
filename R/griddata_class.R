@@ -820,7 +820,6 @@ grid <- R6::R6Class("grid",
                              } else {
                                filecmd <- "mcml_poisson_cmd.stan"
                                filers <- "mcml_poisson"
-                               data <- append(data,list(Xb = rtsModel__xb(private$ptr,private$cov_type,private$lp_type)))
                              }
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr")){

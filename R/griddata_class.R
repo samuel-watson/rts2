@@ -1573,7 +1573,6 @@ grid <- R6::R6Class("grid",
                                print(p)
                                return(invisible(p))
                              }
-                             
                            },
                            #' @description 
                            #' Re-orders the computational grid
@@ -1654,7 +1653,7 @@ grid <- R6::R6Class("grid",
                            #' Returns the random effects stored in the object (if any) after using MCMCML fitting. For example, 
                            #' if a fitting procedure is stopped, the random effects can still be returned.
                            #' @return A matrix of random effects samples if a MCMCML model has been initialised, otherwise returns FALSE
-                           get_random_effects(){
+                           get_random_effects = function(){
                              if(!is.null(private$ptr)){
                                u <- rtsModel__u(private$ptr,data$y,private$cov_type,private$lp_type)
                                return(u)

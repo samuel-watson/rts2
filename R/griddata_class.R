@@ -909,9 +909,9 @@ grid <- R6::R6Class("grid",
                                  cat("\nBeta: ", beta_new)
                                  cat("\nTheta: ", theta_new)
                                  if(datlist$nT > 1) cat("\nRho: ", rho_new)
-                                 cat("\nBeta diff: ", round(max(abs(beta-beta_new)),5))
-                                 cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))#
-                                 if(datlist$nT > 1) cat("\nRho diff: ", round(abs(rho-rho_new),5))
+                                 cat("\nBeta diff: ", round(max(abs(all_pars-all_pars_new)[1:length(beta)]),5))
+                                 cat("\nTheta diff: ", round(max(abs(theta-theta_new)[(length(beta)+1):(length(beta)+length(theta))]),5))#
+                                 if(datlist$nT > 1) cat("\nRho diff: ", round(abs(rho-rho_new)[length(all_pars)],5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }

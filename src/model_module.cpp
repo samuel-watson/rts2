@@ -217,7 +217,7 @@ SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::ArrayXXd M = ptr->intersection_infomat();
     return wrap(M);
-  } else if(covtype == 2 && lptype == 2){
+  } else if(covtype == 3 && lptype == 2){
     XPtr<ModelHSGPRegion> ptr(xp);
     Eigen::ArrayXXd M = ptr->intersection_infomat();
     return wrap(M);
@@ -229,7 +229,7 @@ SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype){
     XPtr<ModelNNGPRegionG> ptr(xp);
     Eigen::ArrayXXd M = ptr->intersection_infomat();
     return wrap(M);
-  } else if(covtype == 2 && lptype == 3){
+  } else if(covtype == 3 && lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd M = ptr->intersection_infomat();
     return wrap(M);

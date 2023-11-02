@@ -272,7 +272,7 @@ SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);
-  } else if(covtype == 2 && lptype == 2){
+  } else if(covtype == 3 && lptype == 2){
     XPtr<ModelHSGPRegion> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);
@@ -284,7 +284,7 @@ SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelNNGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);
-  } else if(covtype == 2 && lptype == 3){
+  } else if(covtype == 3 && lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);

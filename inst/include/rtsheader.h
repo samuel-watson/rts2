@@ -3,6 +3,7 @@
 #include "rts/rtsmaths.h"
 #include "rts/rtsmodel.h"
 #include "rts/rtsregionmodel.h"
+#include "rts/predictre.h"
 #include <variant>
 
 typedef rts::rtsModel<rts::rtsModelBits<rts::ar1Covariance, glmmr::LinearPredictor> > ModelAR;
@@ -54,5 +55,5 @@ struct TypeSelector
   }
 };
 
-using returns = std::variant<int, double, Eigen::VectorXd, Eigen::MatrixXd, std::vector<double>, std::vector<std::string>, vector_matrix, matrix_matrix >;
+using returns = std::variant<int, double, Eigen::VectorXd, Eigen::MatrixXd, std::vector<double>, std::vector<std::string>, VectorMatrix, MatrixMatrix >;
  

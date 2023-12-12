@@ -2,7 +2,7 @@
 
 namespace Rcpp {
 template<>
-SEXP wrap(const vector_matrix& x){
+SEXP wrap(const VectorMatrix& x){
   return Rcpp::wrap(Rcpp::List::create(
       Rcpp::Named("vec") = Rcpp::wrap(x.vec),
       Rcpp::Named("mat") = Rcpp::wrap(x.mat)
@@ -10,21 +10,12 @@ SEXP wrap(const vector_matrix& x){
 }
 
 template<>
-SEXP wrap(const matrix_matrix& x){
+SEXP wrap(const MatrixMatrix& x){
   return Rcpp::wrap(Rcpp::List::create(
       Rcpp::Named("mat1") = Rcpp::wrap(x.mat1),
       Rcpp::Named("mat2") = Rcpp::wrap(x.mat2),
       Rcpp::Named("a") = Rcpp::wrap(x.a),
       Rcpp::Named("b") = Rcpp::wrap(x.b)
-  ));
-}
-
-template<>
-SEXP wrap(const kenward_data& x){
-  return Rcpp::wrap(Rcpp::List::create(
-      Rcpp::Named("vcov_beta") = Rcpp::wrap(x.vcov_beta),
-      Rcpp::Named("vcov_theta") = Rcpp::wrap(x.vcov_theta),
-      Rcpp::Named("dof") = Rcpp::wrap(x.dof)
   ));
 }
 
@@ -48,7 +39,7 @@ SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){
     [](auto mptr){return returns(mptr->matrix.hess_and_grad());}
   };
   auto S = std::visit(functor,model.ptr);
-  return wrap(std::get<matrix_matrix>(S));
+  return wrap(std::get<MatrixMatrix>(S));
 }
 
 // [[Rcpp::export]]
@@ -124,15 +115,15 @@ SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_){
   int i = as<int>(i_);
   if(lptype == 1){
     XPtr<ModelNNGP> ptr(ptr_);
-    vector_matrix A = ptr->model.covariance.submatrix(i);
+    VectorMatrix A = ptr->model.covariance.submatrix(i);
     return wrap(A);
   } else if(lptype == 2){
     XPtr<ModelNNGPRegion> ptr(ptr_);
-    vector_matrix A = ptr->model.covariance.submatrix(i);
+    VectorMatrix A = ptr->model.covariance.submatrix(i);
     return wrap(A);
   } else if(lptype == 3){
     XPtr<ModelNNGPRegionG> ptr(ptr_);
-    vector_matrix A = ptr->model.covariance.submatrix(i);
+    VectorMatrix A = ptr->model.covariance.submatrix(i);
     return wrap(A);
   }
 }
@@ -384,31 +375,34 @@ SEXP rtsModel__grid_to_region(SEXP xp, SEXP u_){
 SEXP rtsModel__predict(SEXP xp, SEXP newdata_,
                     SEXP newoffset_,
                     int m, int covtype_, int lptype_){
-  Eigen::ArrayXXd newdata = Rcpp::as<Eigen::ArrayXXd>(newdata_);
-  Eigen::ArrayXd newoffset = Rcpp::as<Eigen::ArrayXd>(newoffset_);
-  Eigen::MatrixXd samps(newdata.rows(),m>0 ? m : 1);
-  
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {return returns(0);}, 
-    [&](auto mptr){return returns(mptr->re.predict_re(newdata,newoffset));}
-  };
-  auto functor2 = overloaded {
-    [](int) {return returns(0); }, 
-    [&](auto mptr){return returns(mptr->model.linear_predictor.predict_xb(newdata,newoffset));}
-  };
-  
-  auto res = std::visit(functor,model.ptr);
-  auto xb = std::visit(functor2,model.ptr);
-  if(m>0){
-    samps = glmmr::maths::sample_MVN(std::get<vector_matrix>(res),m);
-  } else {
-    samps.setZero();
-  }
-  return Rcpp::List::create(
-    Rcpp::Named("linear_predictor") = wrap(std::get<Eigen::VectorXd>(xb)),
-    Rcpp::Named("re_parameters") = wrap(std::get<vector_matrix>(res)),
-    Rcpp::Named("samples") = wrap(samps)
-  );
+  Rcpp::stop("Predicting at new locations is currently disabled for LGCPs in this package. It will \
+               be updated for the new covariance functions in a future update.");
+  // 
+  // Eigen::ArrayXXd newdata = Rcpp::as<Eigen::ArrayXXd>(newdata_);
+  // Eigen::ArrayXd newoffset = Rcpp::as<Eigen::ArrayXd>(newoffset_);
+  // Eigen::MatrixXd samps(newdata.rows(),m>0 ? m : 1);
+  // 
+  // TypeSelector model(xp,covtype_,lptype_);
+  // auto functor = overloaded {
+  //   [](int) {return returns(0);}, 
+  //   [&](auto mptr){return returns(mptr->re.predict_re(newdata,newoffset));}
+  // };
+  // auto functor2 = overloaded {
+  //   [](int) {return returns(0); }, 
+  //   [&](auto mptr){return returns(mptr->model.linear_predictor.predict_xb(newdata,newoffset));}
+  // };
+  // 
+  // auto res = std::visit(functor,model.ptr);
+  // auto xb = std::visit(functor2,model.ptr);
+  // if(m>0){
+  //   samps = glmmr::maths::sample_MVN(std::get<VectorMatrix>(res),m);
+  // } else {
+  //   samps.setZero();
+  // }
+  // return Rcpp::List::create(
+  //   Rcpp::Named("linear_predictor") = wrap(std::get<Eigen::VectorXd>(xb)),
+  //   Rcpp::Named("re_parameters") = wrap(std::get<VectorMatrix>(res)),
+  //   Rcpp::Named("samples") = wrap(samps)
+  // );
   
 }

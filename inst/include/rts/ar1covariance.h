@@ -34,7 +34,7 @@ public:
   MatrixXd ZLu(const MatrixXd& u) override;
   MatrixXd Lu(const MatrixXd& u) override;
   sparse ZL_sparse() override;
-  int Q() override;
+  int Q() const override;
   double log_likelihood(const VectorXd &u) override;
   double log_determinant() override;
   void update_rho(const double rho_);
@@ -118,7 +118,7 @@ inline sparse rts::ar1Covariance::ZL_sparse(){
   return dummy;
 }
 
-inline int rts::ar1Covariance::Q(){
+inline int rts::ar1Covariance::Q() const {
   return grid.N * grid.T;
 }
 

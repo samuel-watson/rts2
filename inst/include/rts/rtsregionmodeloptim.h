@@ -118,7 +118,7 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
 #pragma omp parallel for reduction (+:ll) collapse(2)
     for(int j=0; j<xb.cols() ; j++){
       for(int i = 0; i<xb.rows(); i++){
-        ll += this->model.data.weights(i)*glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.flink);
+        ll += this->model.data.weights(i)*glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
       }
     }
     ll *= this->model.data.weights.sum()/this->model.n();
@@ -126,7 +126,7 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
 #pragma omp parallel for reduction (+:ll) collapse(2)
   for(int j=0; j<xb.cols() ; j++){
     for(int i = 0; i< xb.rows(); i++){
-      ll += glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.flink);
+      ll += glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
     }
   }
 }

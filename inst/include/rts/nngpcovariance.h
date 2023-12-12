@@ -60,7 +60,7 @@ public:
   MatrixXd ZLu(const MatrixXd& u) override;
   MatrixXd Lu(const MatrixXd& u) override;
   sparse ZL_sparse() override;
-  int Q() override;
+  int Q() const override;
   double log_likelihood(const VectorXd &u) override;
   double log_determinant() override;
   void update_rho(const double rho_);
@@ -68,7 +68,7 @@ public:
   void update_parameters(const dblvec& parameters) override;
   void update_parameters(const ArrayXd& parameters) override;
   void update_parameters_extern(const dblvec& parameters) override;
-  vector_matrix submatrix(int i);
+  VectorMatrix submatrix(int i);
   void set_function(bool squared_exp);
   MatrixXd ar_matrix(bool chol = false);
   
@@ -158,7 +158,7 @@ inline sparse rts::nngpCovariance::ZL_sparse(){
   return dummy;
 }
 
-inline int rts::nngpCovariance::Q(){
+inline int rts::nngpCovariance::Q() const {
   return grid.N * grid.T;
 }
 
@@ -277,7 +277,7 @@ inline void rts::nngpCovariance::gen_AD(){
   }
 }
 
-inline vector_matrix rts::nngpCovariance::submatrix(int i){
+inline VectorMatrix rts::nngpCovariance::submatrix(int i){
   int idxlim = i <= m ? i : m;
   double val = Covariance::get_val(0,0,0);
   Dvec(0) = val;
@@ -297,7 +297,7 @@ inline vector_matrix rts::nngpCovariance::submatrix(int i){
   for(int j = 0; j<idxlim; j++){
     Sv(j) = Covariance::get_val(0,i,grid.NN(j,i));
   }
-  vector_matrix result(idxlim);
+  VectorMatrix result(idxlim);
   result.vec = Sv;
   result.mat = S;
   return result;

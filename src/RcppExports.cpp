@@ -318,20 +318,6 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
-// rtsModel__hessian_numerical
-SEXP rtsModel__hessian_numerical(SEXP xp, SEXP tol_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__hessian_numerical(SEXP xpSEXP, SEXP tol_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type tol_(tol_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__hessian_numerical(xp, tol_, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
 // rtsModel__update_rho
 void rtsModel__update_rho(SEXP xp, double rho_, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__update_rho(SEXP xpSEXP, SEXP rho_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -398,38 +384,41 @@ BEGIN_RCPP
 END_RCPP
 }
 // rtsModel__ml_theta
-void rtsModel__ml_theta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+void rtsModel__ml_theta(SEXP xp, int algo, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__ml_theta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_theta(xp, covtype_, lptype_);
+    rtsModel__ml_theta(xp, algo, covtype_, lptype_);
     return R_NilValue;
 END_RCPP
 }
 // rtsModel__ml_beta
-void rtsModel__ml_beta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_beta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+void rtsModel__ml_beta(SEXP xp, int algo, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__ml_beta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_beta(xp, covtype_, lptype_);
+    rtsModel__ml_beta(xp, algo, covtype_, lptype_);
     return R_NilValue;
 END_RCPP
 }
 // rtsModel__ml_rho
-void rtsModel__ml_rho(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_rho(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+void rtsModel__ml_rho(SEXP xp, int algo, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__ml_rho(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_rho(xp, covtype_, lptype_);
+    rtsModel__ml_rho(xp, algo, covtype_, lptype_);
     return R_NilValue;
 END_RCPP
 }
@@ -678,20 +667,6 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< SEXP >::type rhobeg_(rhobeg_SEXP);
     Rcpp::traits::input_parameter< SEXP >::type rhoend_(rhoend_SEXP);
     rtsModel__set_bobyqa_control(xp, covtype_, lptype_, npt_, rhobeg_, rhoend_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__set_cov_bobyqa_control
-void rtsModel__set_cov_bobyqa_control(SEXP xp, int covtype_, int lptype_, SEXP rhobeg_, SEXP rhoend_);
-RcppExport SEXP _rts2_rtsModel__set_cov_bobyqa_control(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP rhobeg_SEXP, SEXP rhoend_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rhobeg_(rhobeg_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rhoend_(rhoend_SEXP);
-    rtsModel__set_cov_bobyqa_control(xp, covtype_, lptype_, rhobeg_, rhoend_);
     return R_NilValue;
 END_RCPP
 }
@@ -983,15 +958,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__set_offset", (DL_FUNC) &_rts2_rtsModel__set_offset, 4},
     {"_rts2_rtsModel__set_weights", (DL_FUNC) &_rts2_rtsModel__set_weights, 4},
     {"_rts2_rtsModel__update_beta", (DL_FUNC) &_rts2_rtsModel__update_beta, 4},
-    {"_rts2_rtsModel__hessian_numerical", (DL_FUNC) &_rts2_rtsModel__hessian_numerical, 4},
     {"_rts2_rtsModel__update_rho", (DL_FUNC) &_rts2_rtsModel__update_rho, 4},
     {"_rts2_rtsModel__update_theta", (DL_FUNC) &_rts2_rtsModel__update_theta, 4},
     {"_rts2_rtsModel__update_u", (DL_FUNC) &_rts2_rtsModel__update_u, 4},
     {"_rts2_rtsModel__use_attenuation", (DL_FUNC) &_rts2_rtsModel__use_attenuation, 4},
     {"_rts2_rtsModel__get_W", (DL_FUNC) &_rts2_rtsModel__get_W, 3},
-    {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 3},
-    {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 3},
-    {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 3},
+    {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 4},
+    {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 4},
+    {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 4},
     {"_rts2_rtsModel__nr_beta", (DL_FUNC) &_rts2_rtsModel__nr_beta, 3},
     {"_rts2_rtsModel__laplace_nr_beta_u", (DL_FUNC) &_rts2_rtsModel__laplace_nr_beta_u, 3},
     {"_rts2_rtsModel__Sigma", (DL_FUNC) &_rts2_rtsModel__Sigma, 4},
@@ -1011,7 +985,6 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__xb", (DL_FUNC) &_rts2_rtsModel__xb, 3},
     {"_rts2_rtsModel__hess_and_grad", (DL_FUNC) &_rts2_rtsModel__hess_and_grad, 3},
     {"_rts2_rtsModel__set_bobyqa_control", (DL_FUNC) &_rts2_rtsModel__set_bobyqa_control, 6},
-    {"_rts2_rtsModel__set_cov_bobyqa_control", (DL_FUNC) &_rts2_rtsModel__set_cov_bobyqa_control, 5},
     {"_rts2_rtsModel_nngp__A", (DL_FUNC) &_rts2_rtsModel_nngp__A, 2},
     {"_rts2_rtsModel_nngp__D", (DL_FUNC) &_rts2_rtsModel_nngp__D, 2},
     {"_rts2_rtsModel_nngp__submatrix", (DL_FUNC) &_rts2_rtsModel_nngp__submatrix, 3},

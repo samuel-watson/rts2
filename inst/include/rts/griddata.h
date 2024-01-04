@@ -8,22 +8,23 @@ using namespace Eigen;
 
 class griddata {
 public:
-  int T; // number of time periods
-  int N; // number of cells
-  ArrayXXd X; // centroids
-  ArrayXXi NN = ArrayXXi::Constant(1,1,1);
-  int m = 10;
+  int       T; // number of time periods
+  int       N; // number of cells
+  ArrayXXd  X; // centroids
+  ArrayXXi  NN = ArrayXXi::Constant(1,1,1);
+  int       m = 10;
   
   griddata(const ArrayXXd& X_, int T_) : X(X_), T(T_), N(X_.rows()) {};
   griddata(const ArrayXXd& X_, int T_, int M) : X(X_), T(T_), N(X_.rows()) {genNN(M);};
   griddata(const rts::griddata& g) : X(g.X), N(g.N), T(g.T) {};
 
-  void genNN(int M);
-  void setup(const ArrayXXd& X_, int T_);
-  void setup(const ArrayXXd& X_, int T_, int M);
-  ArrayXi top_i_pq(const ArrayXd& v, int n);
+  void      genNN(int M);
+  void      setup(const ArrayXXd& X_, int T_);
+  void      setup(const ArrayXXd& X_, int T_, int M);
+  ArrayXi   top_i_pq(const ArrayXd& v, int n);
 };
 }
+
 
 inline void rts::griddata::genNN(int M){
   int n = X.rows();

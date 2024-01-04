@@ -28,14 +28,14 @@ class rtsRegionModel {
     ~rtsRegionModel() = default;
 };
 
-template<>
+template<> 
 class rtsRegionModel<BitsAR>{
 public:
-  rts::RegionData region;
-  BitsAR model;
-  glmmr::RandomEffects<BitsAR> re;
-  glmmr::ModelMatrix<BitsAR> matrix;
-  rts::rtsRegionModelOptim<BitsAR> optim;
+  rts::RegionData                   region;
+  BitsAR                            model;
+  glmmr::RandomEffects<BitsAR>      re;
+  glmmr::ModelMatrix<BitsAR>        matrix;
+  rts::rtsRegionModelOptim<BitsAR>  optim;
   
   rtsRegionModel(const std::string& formula_,
            const ArrayXXd& data_,
@@ -90,11 +90,11 @@ public:
 template<>
 class rtsRegionModel<BitsNNGP> {
 public:
-  rts::RegionData region;
-  BitsNNGP model;
-  glmmr::RandomEffects<BitsNNGP> re;
-  glmmr::ModelMatrix<BitsNNGP> matrix;
-  rts::rtsRegionModelOptim<BitsNNGP> optim;
+  rts::RegionData                     region;
+  BitsNNGP                            model;
+  glmmr::RandomEffects<BitsNNGP>      re;
+  glmmr::ModelMatrix<BitsNNGP>        matrix;
+  rts::rtsRegionModelOptim<BitsNNGP>  optim;
   
   rtsRegionModel(const std::string& formula_,
            const ArrayXXd& data_,
@@ -150,11 +150,11 @@ public:
 template<>
 class rtsRegionModel<BitsHSGP> {
 public:
-  rts::RegionData region;
-  BitsHSGP model;
-  glmmr::RandomEffects<BitsHSGP> re;
-  glmmr::ModelMatrix<BitsHSGP> matrix;
-  rts::rtsRegionModelOptim<BitsHSGP> optim;
+  rts::RegionData                     region;
+  BitsHSGP                            model;
+  glmmr::RandomEffects<BitsHSGP>      re;
+  glmmr::ModelMatrix<BitsHSGP>        matrix;
+  rts::rtsRegionModelOptim<BitsHSGP>  optim;
   
   rtsRegionModel(const std::string& formula_,
                  const ArrayXXd& data_,
@@ -210,11 +210,11 @@ public:
 template<>
 class rtsRegionModel<BitsARRegion> {
 public:
-  rts::RegionData region;
-  BitsARRegion model;
-  glmmr::RandomEffects<BitsARRegion> re;
-  glmmr::ModelMatrix<BitsARRegion> matrix;
-  rts::rtsRegionModelOptim<BitsARRegion> optim;
+  rts::RegionData                         region;
+  BitsARRegion                            model;
+  glmmr::RandomEffects<BitsARRegion>      re;
+  glmmr::ModelMatrix<BitsARRegion>        matrix;
+  rts::rtsRegionModelOptim<BitsARRegion>  optim;
   
   rtsRegionModel(const std::string& form_region,
                  const std::string& form_grid,
@@ -270,11 +270,11 @@ public:
 template<>
 class rtsRegionModel<BitsNNGPRegion> {
 public:
-  rts::RegionData region;
-  BitsNNGPRegion model;
-  glmmr::RandomEffects<BitsNNGPRegion> re;
-  glmmr::ModelMatrix<BitsNNGPRegion> matrix;
-  rts::rtsRegionModelOptim<BitsNNGPRegion> optim;
+  rts::RegionData                           region;
+  BitsNNGPRegion                            model;
+  glmmr::RandomEffects<BitsNNGPRegion>      re;
+  glmmr::ModelMatrix<BitsNNGPRegion>        matrix;
+  rts::rtsRegionModelOptim<BitsNNGPRegion>  optim;
   
   rtsRegionModel(const std::string& form_region,
                  const std::string& form_grid,
@@ -331,11 +331,11 @@ public:
 template<>
 class rtsRegionModel<BitsHSGPRegion> {
 public:
-  rts::RegionData region;
-  BitsHSGPRegion model;
-  glmmr::RandomEffects<BitsHSGPRegion> re;
-  glmmr::ModelMatrix<BitsHSGPRegion> matrix;
-  rts::rtsRegionModelOptim<BitsHSGPRegion> optim;
+  rts::RegionData                             region;
+  BitsHSGPRegion                              model;
+  glmmr::RandomEffects<BitsHSGPRegion>        re;
+  glmmr::ModelMatrix<BitsHSGPRegion>          matrix;
+  rts::rtsRegionModelOptim<BitsHSGPRegion>    optim;
   
   rtsRegionModel(const std::string& form_region,
                  const std::string& form_grid,
@@ -391,9 +391,6 @@ public:
 
 }
 
-// most of this is repeated code
-// need to find a way to specialise template and reuse code.
-// also need to remove the sparse_mult functions as now implemented in SparseChol package
 
 inline MatrixXd rts::rtsRegionModel<BitsAR>::intersection_infomat(){
   sparse A = region.region_design_matrix();

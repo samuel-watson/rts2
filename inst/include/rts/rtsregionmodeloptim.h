@@ -8,14 +8,13 @@
 
 namespace rts {
 
-using namespace rminqa;
 using namespace Eigen;
 using namespace glmmr;
 
 template<typename modeltype>
 class rtsRegionModelOptim : public ModelOptim<modeltype> {
 public:
-  rts::RegionData& region;
+  rts::RegionData&  region;
   
   rtsRegionModelOptim(modeltype& model_, 
                 glmmr::ModelMatrix<modeltype>& matrix_,
@@ -24,84 +23,239 @@ public:
   
   rtsRegionModelOptim(const rts::rtsRegionModelOptim<modeltype>& optim) : ModelOptim<modeltype>(optim.model, optim.matrix, optim.re), region(optim.region) {};
   
-  void update_theta(const dblvec &theta) override;
-  void update_u(const MatrixXd& u) override;
-  void update_rho(double rho);
-  void ml_rho();
-  void ml_theta() override;
-  double log_likelihood() override;
-  double full_log_likelihood() override;
-  ArrayXXd region_intensity(bool uselog = true);
-  ArrayXXd y_predicted(bool uselog = true);
-  MatrixXd hessian(double tol = 1e-4);
-  void set_cov_bobyqa_control(double rhobeg_, double rhoend_);
-  
-  private:
-    double covrhobeg = 0;
-    double covrhoend = 0;
-    
-    class rho_likelihood : public Functor<dblvec> {
-      rtsRegionModelOptim<modeltype>& M_;
-      double parrho;
-      double ll;
-    public:
-      rho_likelihood(rtsRegionModelOptim<modeltype>& M) :  
-      M_(M), parrho(0.0), ll(0.0) {};
-      double operator()(const dblvec &par);
-    };
-    
-    class D_likelihood_hsgp : public Functor<dblvec> {
-      rtsRegionModelOptim<modeltype>& M;
-      double logl;
-    public:
-      D_likelihood_hsgp(rtsRegionModelOptim<modeltype>& M_) :
-      M(M_),
-      logl(0.0) {};
-      double operator()(const dblvec &par);
-    };
-  
+  void        update_theta(const dblvec &theta) override;
+  void        update_u(const MatrixXd& u) override;
+  void        update_rho(double rho);
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_beta();
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_theta();
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_rho();
+  double      log_likelihood_rho(const dblvec &rho);
+  double      log_likelihood_rho_hsgp(const dblvec &rho);
+  double      log_likelihood_rho_with_gradient(const VectorXd &rho, VectorXd& g);
+  double      log_likelihood_beta(const dblvec &beta);
+  double      log_likelihood() override;
+  double      full_log_likelihood() override;
+  ArrayXXd    region_intensity(bool uselog = true);
+  ArrayXXd    y_predicted(bool uselog = true);
 };
 
 }
 
+
 template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::set_cov_bobyqa_control(double rhobeg_, double rhoend_){
-  covrhobeg = rhobeg_;
-  covrhoend = rhoend_;
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_beta()
+{  
+  dblvec start = this->get_start_values(true,false,false);
+  if constexpr (std::is_same_v<algo,LBFGS>)
+  {
+    throw std::runtime_error("L-BGFS not available with regional data model yet.");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {
+      op.set_bounds(start,dblvec(start.size(),this->control.direct_range_beta),true);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+    }
+    if(this->lower_bound.size()==this->P())
+    {
+      dblvec lower = this->get_lower_values(true,false,false);
+      dblvec upper = this->get_upper_values(true,false,false);
+      op.set_bounds(lower,upper);
+    }
+    if constexpr (std::is_same_v<modeltype,BitsAR>)
+    {
+      op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGP>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsNNGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsARRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGPRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGPRegion>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsNNGPRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    }
+    op.minimise();
+  }
 }
 
 template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::update_theta(const dblvec &theta){
-  this->model.covariance.update_parameters(theta);
-  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){  
+  dblvec start = this->get_start_values(false,true,false);  
+  dblvec lower = this->get_lower_values(false,true,false);
+  dblvec upper = this->get_upper_values(false,true,false);
+  if(this->re.scaled_u_.cols() != this->re.u_.cols())this->re.scaled_u_.conservativeResize(NoChange,this->re.u_.cols());
+  this->re.scaled_u_ = this->model.covariance.Lu(this->re.u_);  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    VectorXd start_vec = Map<VectorXd>(start.data(),start.size());
+    optim<double(const VectorXd&, VectorXd&),algo> op(start_vec); 
+    op.set_bounds(lower,upper);
+    this->set_lbfgs_control(op);
+    if constexpr (std::is_same_v<modeltype,BitsAR>) 
+    {
+      op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_theta_with_gradient, rts::rtsRegionModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_theta_with_gradient, rts::rtsRegionModelOptim<BitsARRegion> >(this);
+    } else {
+      throw std::runtime_error("L-BFGS not available for this model type");
+    }
+    op.minimise();
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {      
+      dblvec upper2(lower.size());
+      std::fill(upper2.begin(),upper2.end(),1.0);
+      op.set_bounds(lower,upper2,false);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+      op.set_bounds(lower,upper);
+    }
+    if constexpr (std::is_same_v<modeltype,BitsAR>)
+    {
+      op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGP>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsNNGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta_hsgp, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsARRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGPRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGPRegion>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsNNGPRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta_hsgp, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    }
+    op.minimise();
+  }
 }
 
 template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::update_rho(double rho){
-  this->model.covariance.update_rho(rho);
-  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-}
-
-template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::ml_rho(){
-  rho_likelihood ldl(*this);
-  Rbobyqa<rho_likelihood,dblvec> opt;
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_rho()
+{  
   dblvec start;
   start.push_back(this->model.covariance.rho);
   dblvec lower;
   lower.push_back(-1.0);
   dblvec upper;
   upper.push_back(1.0);
-  opt.set_lower(lower);
-  opt.set_upper(upper);
-  opt.control.iprint = this->trace;
-  opt.control.rhobeg = this->rhobeg;
-  opt.control.rhoend = this->rhoend;
-  opt.minimize(ldl, start);
+  if(this->re.scaled_u_.cols() != this->re.u_.cols())this->re.scaled_u_.conservativeResize(NoChange,this->re.u_.cols());
+  this->re.scaled_u_ = this->model.covariance.Lu(this->re.u_);  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    VectorXd start_vec = Map<VectorXd>(start.data(),start.size());
+    optim<double(const VectorXd&, VectorXd&),algo> op(start_vec); 
+    op.set_bounds(lower,upper);
+    this->set_lbfgs_control(op);
+    if constexpr (std::is_same_v<modeltype,BitsAR>) 
+    {
+      op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_rho_with_gradient, rts::rtsRegionModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_rho_with_gradient, rts::rtsRegionModelOptim<BitsARRegion> >(this);
+    }  else {
+      throw std::runtime_error("L-BFGS not available for this model type");
+    }
+    op.minimise();
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {      
+      op.set_bounds(lower,upper,false);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+      op.set_bounds(lower,upper);
+    }
+    if constexpr (std::is_same_v<modeltype,BitsAR>)
+    {
+      op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGP>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsNNGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho_hsgp, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsARRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGPRegion>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsNNGPRegion>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsNNGPRegion> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho_hsgp, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    }
+    op.minimise();
+  }
 }
 
 template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_){
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho(const dblvec& rho){
+  update_rho(rho[0]);
+  double logl = 0;
+  #pragma omp parallel for reduction (+:logl)
+    for(int i = 0; i < this->re.scaled_u_.cols(); i++)
+    {
+      logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
+    }
+  return -1*logl;
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho_hsgp(const dblvec& rho){
+  update_rho(rho[0]);
+  double logl = log_likelihood();
+  return -1*logl;
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho_with_gradient(const VectorXd& rho, VectorXd& g)
+{
+  update_rho(rho(0));
+  double logl = 0;
+  #pragma omp parallel for reduction (+:logl)
+  for(int i = 0; i < this->re.scaled_u_.cols(); i++)
+    {
+      logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
+    }
+  g = this->model.covariance.log_gradient_rho(this->re.scaled_u_);
+  g.array() *= -1.0;
+  return -1*logl;
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_beta(const dblvec& beta)
+{
+  this->model.linear_predictor.update_parameters(beta);
+  double ll = this->log_likelihood();
+  return -1*ll;
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::update_theta(const dblvec &theta)
+{
+  this->model.covariance.update_parameters(theta);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::update_rho(double rho)
+{
+  this->model.covariance.update_rho(rho);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_)
+{
   if(u_.cols()!=this->re.u(false).cols()){
     this->re.u_.conservativeResize(this->model.covariance.Q(),u_.cols());
     this->re.zu_.resize(this->model.covariance.Q(),u_.cols());
@@ -111,7 +265,8 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_){
 }
 
 template<typename modeltype>
-inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood()
+{
   double ll = 0;
   ArrayXXd xb = y_predicted(true);
   if(this->model.weighted){
@@ -134,7 +289,8 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(){
 }
 
 template<typename modeltype>
-inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
+inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog)
+{
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
   if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsHSGP >){
     xb = region_intensity(true);
@@ -147,7 +303,8 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog){
 }
 
 template<typename modeltype>
-inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselog){
+inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselog)
+{
   MatrixXd regionu = region.grid_to_region(this->re.zu_);
   ArrayXXd intens = ArrayXXd::Zero(region.nRegion * region.gridT,this->re.u_.cols());
   ArrayXd expxb = this->model.linear_predictor.xb().array().exp();
@@ -162,7 +319,8 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselo
 }
 
 template<typename modeltype>
-inline double rts::rtsRegionModelOptim<modeltype>::full_log_likelihood(){
+inline double rts::rtsRegionModelOptim<modeltype>::full_log_likelihood()
+{
   double ll = rts::rtsRegionModelOptim<modeltype>::log_likelihood();
   double logl = 0;
   MatrixXd Lu = this->model.covariance.Lu(this->re.u_);
@@ -174,74 +332,3 @@ inline double rts::rtsRegionModelOptim<modeltype>::full_log_likelihood(){
   return ll+logl;
 }
 
-template<typename modeltype>
-inline double rts::rtsRegionModelOptim<modeltype>::rho_likelihood::operator()(const dblvec &par){
-  parrho = par[0];
-  M_.update_rho(parrho);
-  ll = M_.log_likelihood();
-  return -1*ll;
-}
-
-//BitsHSGP
-template<>
-inline void rts::rtsRegionModelOptim<BitsHSGP>::ml_theta(){
-  D_likelihood_hsgp ddl(*this);
-  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
-  dblvec lower = this->get_lower_values(false,true,false);
-  opt.set_lower(lower);
-  opt.control.iprint = this->trace;
-  opt.control.npt = this->npt;
-  opt.control.rhobeg = covrhobeg;
-  opt.control.rhoend = covrhoend;
-  dblvec start_t = this->get_start_values(false,true,false);
-  opt.minimize(ddl, start_t);
-}
-
-template<typename modeltype>
-inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
-  MatrixXd Lu = this->model.covariance.Lu(this->re.u(false));
-  typename ModelOptim<modeltype>::D_likelihood ddl(*this,Lu);
-  Rbobyqa<typename ModelOptim<modeltype>::D_likelihood,dblvec> opt;
-  dblvec lower = this->get_lower_values(false,true,false);
-  opt.set_lower(lower);
-  opt.control.iprint = this->trace;
-  opt.control.npt = this->npt;
-  opt.control.rhobeg = covrhobeg;
-  opt.control.rhoend = covrhoend;
-  dblvec start_t = this->get_start_values(false,true,false);
-  opt.minimize(ddl, start_t);
-}
-
-template<>
-inline void rts::rtsRegionModelOptim<BitsHSGPRegion>::ml_theta(){
-  D_likelihood_hsgp ddl(*this);
-  Rbobyqa<D_likelihood_hsgp,dblvec> opt;
-  dblvec lower = this->get_lower_values(false,true,false);
-  opt.set_lower(lower);
-  opt.control.iprint = this->trace;
-  opt.control.npt = this->npt;
-  opt.control.rhobeg = covrhobeg;
-  opt.control.rhoend = covrhoend;
-  dblvec start_t = this->get_start_values(false,true,false);
-  opt.minimize(ddl, start_t);
-}
-
-template<typename modeltype>
-inline double rts::rtsRegionModelOptim<modeltype>::D_likelihood_hsgp::operator()(const dblvec &par) {
-  M.update_theta(par);
-  logl = M.log_likelihood();
-  return -1*logl;
-}
-
-template<typename modeltype>
-inline MatrixXd rts::rtsRegionModelOptim<modeltype>::hessian(double tol){
-  typename ModelOptim<modeltype>::L_likelihood ldl(*this);
-  dblvec hess(this->model.linear_predictor.P()*this->model.linear_predictor.P());
-  std::fill(hess.begin(),hess.end(),0.0);
-  dblvec ndeps(this->model.linear_predictor.P());
-  std::fill(ndeps.begin(),ndeps.end(),tol);
-  ldl.os.ndeps_ = ndeps;
-  ldl.Hessian(this->model.linear_predictor.parameters,hess);
-  MatrixXd H = Map<MatrixXd>(hess.data(),this->model.linear_predictor.P(),this->model.linear_predictor.P());
-  return H;
-}

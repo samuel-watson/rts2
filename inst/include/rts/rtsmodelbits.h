@@ -22,12 +22,12 @@ using namespace glmmr;
 
 class rtsModelBitsBase {
 public:
-  glmmr::Formula formula;
-  glmmr::ModelExtraData data;
-  glmmr::Family family;
-  glmmr::calculator calc;
-  glmmr::calculator vcalc;
-  bool weighted = false;
+  glmmr::Formula          formula;
+  glmmr::ModelExtraData   data;
+  glmmr::Family           family;
+  glmmr::calculator       calc;
+  glmmr::calculator       vcalc;
+  bool                    weighted = false;
   
   rtsModelBitsBase(const glmmr::Formula& formula_, 
                  const glmmr::ModelExtraData& data_,
@@ -41,28 +41,28 @@ public:
   rtsModelBitsBase(const rts::rtsModelBitsBase& bits) : formula(bits.formula),
     data(bits.data), family(bits.family) {};
   
-  virtual int n(){ return 0; };
-  virtual ArrayXd xb(){return ArrayXd::Zero(1);};
-  virtual void setup_calculator(){};
+  virtual int       n(){ return 0; };
+  virtual ArrayXd   xb(){return ArrayXd::Zero(1);};
+  virtual void      setup_calculator(){};
   ~rtsModelBitsBase() = default;
 };
 
 template<typename cov, typename linpred>
 class rtsModelBits : public rtsModelBitsBase {
-  cov covariance;
-  linpred linear_predictor;
+  cov           covariance;
+  linpred       linear_predictor;
   rtsModelBits(){};
   ~rtsModelBits() = default;
-  int n() override;
-  ArrayXd zb() override;
-  void setup_calculator() override;
+  int           n() override;
+  ArrayXd       xb() override;
+  void          setup_calculator() override;
 };
 
 template<>
 class rtsModelBits<rts::ar1Covariance, LinearPredictor> : public rtsModelBitsBase {
 public:
-  rts::ar1Covariance covariance;
-  LinearPredictor linear_predictor;
+  rts::ar1Covariance  covariance;
+  LinearPredictor     linear_predictor;
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -84,9 +84,9 @@ public:
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
-  void setup_calculator(){
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
+  void      setup_calculator(){
     dblvec yvec(n(),0.0);
     calc = linear_predictor.calc;
     glmmr::linear_predictor_to_link(calc,family.link);
@@ -108,8 +108,8 @@ public:
 template<>
 class rtsModelBits<rts::nngpCovariance, LinearPredictor> : public rtsModelBitsBase {
 public:
-  rts::nngpCovariance covariance;
-  LinearPredictor linear_predictor;
+  rts::nngpCovariance   covariance;
+  LinearPredictor       linear_predictor;
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -134,9 +134,9 @@ public:
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
-  void setup_calculator(){
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
+  void      setup_calculator(){
     dblvec yvec(n(),0.0);
     calc = linear_predictor.calc;
     glmmr::linear_predictor_to_link(calc,family.link);
@@ -157,8 +157,8 @@ public:
 template<>
 class rtsModelBits<rts::hsgpCovariance, LinearPredictor> : public rtsModelBitsBase {
 public:
-  rts::hsgpCovariance covariance;
-  LinearPredictor linear_predictor;
+  rts::hsgpCovariance   covariance;
+  LinearPredictor       linear_predictor;
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -184,9 +184,9 @@ public:
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
-  void setup_calculator(){
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
+  void      setup_calculator(){
     dblvec yvec(n(),0.0);
     calc = linear_predictor.calc;
     glmmr::linear_predictor_to_link(calc,family.link);
@@ -211,9 +211,9 @@ public:
 template<>
 class rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula_grid;
-  rts::ar1Covariance covariance;
-  rts::regionLinearPredictor linear_predictor;
+  glmmr::Formula                formula_grid;
+  rts::ar1Covariance            covariance;
+  rts::regionLinearPredictor    linear_predictor;
   
   rtsModelBits(const std::string& form_region,
                const std::string& form_grid,
@@ -233,16 +233,16 @@ public:
     formula_grid(bits.formula_grid),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
 };
 
 template<>
 class rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula_grid;
-  rts::nngpCovariance covariance;
-  rts::regionLinearPredictor linear_predictor;
+  glmmr::Formula              formula_grid;
+  rts::nngpCovariance         covariance;
+  rts::regionLinearPredictor  linear_predictor;
   
   rtsModelBits(const std::string& form_region,
                const std::string& form_grid,
@@ -263,17 +263,17 @@ public:
     formula_grid(bits.formula_grid),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
   
 };
 
 template<>
 class rtsModelBits<rts::hsgpCovariance, rts::regionLinearPredictor> : public rtsModelBitsBase {
 public:
-  glmmr::Formula formula_grid;
-  rts::hsgpCovariance covariance;
-  rts::regionLinearPredictor linear_predictor;
+  glmmr::Formula              formula_grid;
+  rts::hsgpCovariance         covariance;
+  rts::regionLinearPredictor  linear_predictor;
   
   rtsModelBits(const std::string& form_region,
                const std::string& form_grid,
@@ -294,8 +294,8 @@ public:
     formula_grid(bits.formula_grid),
     covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
-  int n(){return linear_predictor.n();};
-  ArrayXd xb(){return linear_predictor.xb() + data.offset;};
+  int       n(){return linear_predictor.n();};
+  ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
 };
 
 }
@@ -306,5 +306,61 @@ typedef rts::rtsModelBits<rts::hsgpCovariance, glmmr::LinearPredictor> BitsHSGP;
 typedef rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor> BitsARRegion;
 typedef rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor> BitsNNGPRegion;
 typedef rts::rtsModelBits<rts::hsgpCovariance, rts::regionLinearPredictor> BitsHSGPRegion;
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsAR>::predict_re(const ArrayXXd& newdata_,
+                                                           const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsARRegion>::predict_re(const ArrayXXd& newdata_,
+                                                             const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsNNGP>::predict_re(const ArrayXXd& newdata_,
+                                                             const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsNNGPRegion>::predict_re(const ArrayXXd& newdata_,
+                                                             const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsHSGP>::predict_re(const ArrayXXd& newdata_,
+                                                             const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+template<>
+inline VectorMatrix glmmr::RandomEffects<BitsHSGPRegion>::predict_re(const ArrayXXd& newdata_,
+                                                             const ArrayXd& newoffset_){
+#ifdef R_BUILD
+  if(model.covariance.data_.cols()!=newdata_.cols())Rcpp::stop("Different numbers of columns in new data");
+  Rcpp::stop("Predicting random effects is not yet implemented in this package for LGCPs");
+#endif
+}
+
+
 
 

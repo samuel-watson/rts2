@@ -9,36 +9,44 @@ using namespace Eigen;
 
 class RegionData {
 public: 
-  ArrayXi n_cell;
-  ArrayXi cell_id;
-  ArrayXd q_weights;
-  int gridT;
-  int gridN;
-  int nRegion;
-  RegionData(const ArrayXi &n_cell_,
+  ArrayXi     n_cell;
+  ArrayXi     cell_id;
+  ArrayXd     q_weights;
+  int         gridT;
+  int         gridN;
+  int         nRegion;
+
+  RegionData(const ArrayXi &n_cell_,const ArrayXi &cell_id_,const ArrayXd &q_weights_,int N_, int T_);
+  RegionData(const rts::RegionData& region);
+
+  MatrixXd  grid_to_region(const MatrixXd& u);
+  sparse    region_design_matrix();
+  sparse    grid_design_matrix();
+  sparse    grid_to_region_matrix();
+
+protected:
+  void      setup_design_matrices();
+  sparse    region_to_intersection;
+  sparse    grid_to_intersection;
+  sparse    grid_region;
+};
+
+}
+
+
+
+inline rts::RegionData::RegionData(const ArrayXi &n_cell_,
              const ArrayXi &cell_id_,
              const ArrayXd &q_weights_,
              int N_, int T_) : 
     n_cell(n_cell_), cell_id(cell_id_), q_weights(q_weights_), 
     gridT(T_), gridN(N_), 
     nRegion(n_cell.size()-1) { setup_design_matrices(); };
-  RegionData(const rts::RegionData& region) : n_cell(region.n_cell), cell_id(region.cell_id),
+
+inline rts::RegionData::RegionData(const rts::RegionData& region) : n_cell(region.n_cell), cell_id(region.cell_id),
     q_weights(region.q_weights), gridT(region.gridT), gridN(region.gridN), nRegion(region.nRegion),
     region_to_intersection(region.region_to_intersection), grid_to_intersection(region.grid_to_intersection),
     grid_region(region.grid_region) {};
-  MatrixXd grid_to_region(const MatrixXd& u);
-  sparse region_design_matrix();
-  sparse grid_design_matrix();
-  sparse grid_to_region_matrix();
-
-protected:
-  void setup_design_matrices();
-  sparse region_to_intersection;
-  sparse grid_to_intersection;
-  sparse grid_region;
-};
-
-}
 
 inline void rts::RegionData::setup_design_matrices(){
   sparse A(q_weights.size(),nRegion,true);

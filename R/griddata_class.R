@@ -677,6 +677,7 @@ grid <- R6::R6Class("grid",
                            #' If there are covariates for the grid in a region data model then their parameters are `gamma_g`. The list elements must be a 
                            #' vector of starting values. If this is not provided then the non-intercept linear predictor parameters are initialised randomly
                            #' as N(0,0.1), the covariance parameters as Uniform(0,0.5) and the auto-regressive parameter to 0.1. 
+                           #' @param algo integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
                            #' @param verbose logical. Provide feedback on progress
@@ -708,6 +709,7 @@ grid <- R6::R6Class("grid",
                                               model = "exp",
                                               known_theta = NULL,
                                               starting_values = NULL,
+                                              algo = 1,
                                               tol = 1e-2,
                                               max.iter = 30,
                                               iter_warmup=100,
@@ -886,10 +888,37 @@ grid <- R6::R6Class("grid",
                                if(trace==2)cat("\nMCMC sampling took: ",td1[[1]],attr(td1,"units"))
                                
                                # step 2. fit beta 
-                               rtsModel__ml_beta(private$ptr,private$cov_type,private$lp_type)
+                               if(algo %in% c(1,3) & private$lp_type == 1){
+                                 tryCatch(rtsModel__ml_beta(private$ptr,2,private$cov_type,private$lp_type),
+                                          error = function(e){
+                                            cat("\nL-BFGS failed beta: ", e ,", trying BOBYQA")
+                                            rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
+                                          })
+                               } else {
+                                 rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
+                               }
+                               
                                if(is.null(known_theta)){
-                                 rtsModel__ml_theta(private$ptr,private$cov_type,private$lp_type)
-                                if(datlist$nT > 1)rtsModel__ml_rho(private$ptr,private$cov_type,private$lp_type)
+                                 if(algo == 1 & private$cov_type %in% c(1,3)){
+                                   tryCatch(rtsModel__ml_theta(private$ptr,2,private$cov_type,private$lp_type),
+                                            error = function(e){
+                                              cat("\nL-BFGS failed theta: ", e, ", trying BOBYQA")
+                                              rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                            })
+                                 } else {
+                                   rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                 }
+                                if(datlist$nT > 1){
+                                  if(algo == 1 & private$cov_type %in% c(1,3)){
+                                    tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
+                                             error = function(e){
+                                               cat("\nL-BFGS failed rho, trying BOBYQA")
+                                               rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
+                                             })
+                                  } else {
+                                    rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
+                                  }
+                                }
                                }
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                
@@ -910,7 +939,7 @@ grid <- R6::R6Class("grid",
                                  cat("\nTheta: ", theta_new)
                                  if(datlist$nT > 1) cat("\nRho: ", rho_new)
                                  cat("\nBeta diff: ", round(max(abs(all_pars-all_pars_new)[1:length(beta)]),5))
-                                 cat("\nTheta diff: ", round(max(abs(theta-theta_new)[(length(beta)+1):(length(beta)+length(theta))]),5))#
+                                 cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))
                                  if(datlist$nT > 1) cat("\nRho diff: ", round(abs(rho-rho_new)[length(all_pars)],5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
                                  cat("\n",Reduce(paste0,rep("-",40)))

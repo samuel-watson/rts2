@@ -9,16 +9,40 @@ using namespace Eigen;
 using namespace glmmr;
 
 
-class regionLinearPredictor{
+class regionLinearPredictor {
   public:
-    rts::RegionData& region;
-    LinearPredictor region_predictor;
-    LinearPredictor grid_predictor;
-    MatrixXd* u = nullptr;
-    dblvec parameters;
-    MatrixXd Xdata;
+    rts::RegionData&  region;
+    LinearPredictor   region_predictor;
+    LinearPredictor   grid_predictor;
+    MatrixXd*         u = nullptr;
+    dblvec            parameters;
     
-    regionLinearPredictor(
+    regionLinearPredictor(glmmr::Formula& form_region,glmmr::Formula& form_grid,const Eigen::ArrayXXd &data_region,
+      const Eigen::ArrayXXd &data_grid,const strvec& colnames_region,const strvec& colnames_grid,rts::RegionData& region_);    
+    regionLinearPredictor(const rts::regionLinearPredictor& linpred);
+    
+    void        update_parameters(const dblvec& parameters_);
+    void        update_parameters(const Eigen::ArrayXd& parameters_);
+    int         P();
+    int         n();
+    strvec      colnames();
+    VectorXd    xb();
+    ArrayXXd    xb_region(const MatrixXd& u);
+    MatrixXd    X();
+    strvec      parameter_names();
+    VectorXd    parameter_vector();
+    bool        any_nonlinear();
+    void        update_u(MatrixXd* u_);
+    VectorXd    predict_xb(const ArrayXXd& newdata_,
+                        const ArrayXd& newoffset_);
+    
+};
+
+}
+
+
+
+inline rts::regionLinearPredictor::regionLinearPredictor(
       glmmr::Formula& form_region,
       glmmr::Formula& form_grid,
       const Eigen::ArrayXXd &data_region,
@@ -28,39 +52,21 @@ class regionLinearPredictor{
       rts::RegionData& region_
     ) : region(region_), region_predictor(form_region,data_region,colnames_region),
         grid_predictor(form_grid,data_grid,colnames_grid), 
-        parameters(region_predictor.P() + grid_predictor.P(), 0.0),
-        Xdata(region_predictor.Xdata) {};
+        parameters(region_predictor.P() + grid_predictor.P(), 0.0) {};
     
-    regionLinearPredictor(const rts::regionLinearPredictor& linpred) : region(linpred.region), 
+inline rts::regionLinearPredictor::regionLinearPredictor(const rts::regionLinearPredictor& linpred) : region(linpred.region), 
       region_predictor(linpred.region_predictor),
       grid_predictor(linpred.grid_predictor), 
-      parameters(linpred.parameters),
-      Xdata(region_predictor.Xdata) {};
+      parameters(linpred.parameters) {};
     
-    void update_parameters(const dblvec& parameters_);
-    void update_parameters(const Eigen::ArrayXd& parameters_);
-    int P();
-    int n();
-    strvec colnames();
-    VectorXd xb();
-    ArrayXXd xb_region(const MatrixXd& u);
-    MatrixXd X();
-    strvec parameter_names();
-    VectorXd parameter_vector();
-    bool any_nonlinear();
-    void update_u(MatrixXd* u_);
-    VectorXd predict_xb(const ArrayXXd& newdata_,
-                        const ArrayXd& newoffset_);
-    
-};
 
-}
-
-inline void rts::regionLinearPredictor::update_u(MatrixXd* u_){
+inline void rts::regionLinearPredictor::update_u(MatrixXd* u_)
+{
   u = u_;
 }
 
-inline void rts::regionLinearPredictor::update_parameters(const dblvec& parameters_){
+inline void rts::regionLinearPredictor::update_parameters(const dblvec& parameters_)
+{
   dblvec r_beta(region_predictor.P());
   dblvec g_beta(grid_predictor.P());
   for(int i = 0; i < region_predictor.P(); i++) r_beta[i] = parameters_[i];
@@ -70,7 +76,8 @@ inline void rts::regionLinearPredictor::update_parameters(const dblvec& paramete
   parameters = parameters_;
 }
 
-inline void rts::regionLinearPredictor::update_parameters(const Eigen::ArrayXd& parameters_){
+inline void rts::regionLinearPredictor::update_parameters(const Eigen::ArrayXd& parameters_)
+{
   dblvec new_parameters(parameters_.data(),parameters_.data()+parameters_.size());
   update_parameters(new_parameters);
 };
@@ -83,7 +90,8 @@ inline int rts::regionLinearPredictor::n(){
   return region_predictor.n();
 }
 
-inline strvec rts::regionLinearPredictor::colnames(){
+inline strvec rts::regionLinearPredictor::colnames()
+{
   strvec cnames = region_predictor.colnames();
   strvec g_cnames = grid_predictor.colnames();
   cnames.insert(cnames.end(),g_cnames.begin(),g_cnames.end());
@@ -105,7 +113,8 @@ inline ArrayXXd rts::regionLinearPredictor::xb_region(const MatrixXd& u){
   return xbr;
 }
 
-inline MatrixXd rts::regionLinearPredictor::X(){
+inline MatrixXd rts::regionLinearPredictor::X()
+{
   MatrixXd Xg = grid_predictor.X();
   MatrixXd xbg = MatrixXd::Zero(grid_predictor.n(),1);
   if(u != nullptr){

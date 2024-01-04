@@ -58,20 +58,20 @@ void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_,
   std::visit(functor,model.ptr);
 }
 
-// [[Rcpp::export]]
-void rtsModel__set_cov_bobyqa_control(SEXP xp, int covtype_, int lptype_,
-                                      SEXP rhobeg_, SEXP rhoend_){
-  TypeSelector model(xp,covtype_,lptype_);
-  double rhobeg = as<double>(rhobeg_);
-  double rhoend = as<double>(rhoend_);
-  auto functor = overloaded {
-    [](int) {}, 
-    [&](auto mptr){
-      mptr->optim.set_cov_bobyqa_control(rhobeg,rhoend);
-    }
-  };
-  std::visit(functor,model.ptr);
-}
+// // [[Rcpp::export]]
+// void rtsModel__set_cov_bobyqa_control(SEXP xp, int covtype_, int lptype_,
+//                                       SEXP rhobeg_, SEXP rhoend_){
+//   TypeSelector model(xp,covtype_,lptype_);
+//   double rhobeg = as<double>(rhobeg_);
+//   double rhoend = as<double>(rhoend_);
+//   auto functor = overloaded {
+//     [](int) {}, 
+//     [&](auto mptr){
+//       mptr->optim.set_cov_bobyqa_control(rhobeg,rhoend);
+//     }
+//   };
+//   std::visit(functor,model.ptr);
+// }
 
 // [[Rcpp::export]]
 SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_){

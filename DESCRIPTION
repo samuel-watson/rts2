@@ -1,7 +1,7 @@
 Package: rts2
 Title: Real-Time Disease Surveillance
 Version: 0.6.1
-Date: 2023-12-12
+Date: 2024-01-04
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -42,8 +42,7 @@ LinkingTo:
     RcppEigen (>= 0.3.3.3.0),
     RcppParallel (>= 5.0.1),
     rstan (>= 2.18.1),
-    glmmrBase (>= 0.5.3),
-    rminqa (>= 0.2.2),
+    glmmrBase (>= 0.6.1),
     SparseChol (>= 0.2.2),
     StanHeaders (>= 2.18.0)
 SystemRequirements: GNU make

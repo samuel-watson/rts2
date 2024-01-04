@@ -61,18 +61,6 @@ void rtsModel__update_beta(SEXP xp, SEXP beta_,int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
-SEXP rtsModel__hessian_numerical(SEXP xp, SEXP tol_, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  double tol = as<double>(tol_);
-  auto functor = overloaded {
-    [](int) {return returns(0);}, 
-    [&tol](auto mptr){return returns(mptr->optim.hessian_numerical(tol));}
-  };
-  auto S = std::visit(functor,model.ptr);
-  return wrap(std::get<Eigen::MatrixXd>(S));
-}
-
-// [[Rcpp::export]]
 void rtsModel__update_rho(SEXP xp, double rho_,int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
@@ -127,31 +115,76 @@ SEXP rtsModel__get_W(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
-void rtsModel__ml_theta(SEXP xp, int covtype_, int lptype_){
+void rtsModel__ml_theta(SEXP xp, int algo, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) {}, 
-    [](auto mptr){mptr->optim.ml_theta();}
+    [&algo](auto ptr){
+      switch(algo){
+        case 1:
+          ptr->optim.template ml_theta<NEWUOA>();
+          break;
+        case 2:
+          ptr->optim.template ml_theta<LBFGS>();
+          break;
+        case 3:
+          ptr->optim.template ml_theta<DIRECT>();
+          break;
+        default:
+          ptr->optim.template ml_theta<BOBYQA>();
+          break;
+      }
+    }
   };
   std::visit(functor,model.ptr);
 }
 
 // [[Rcpp::export]]
-void rtsModel__ml_beta(SEXP xp, int covtype_, int lptype_){
+void rtsModel__ml_beta(SEXP xp, int algo, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) {}, 
-    [](auto mptr){mptr->optim.ml_beta();}
+    [&algo](auto ptr){
+      switch(algo){
+        case 1:
+          ptr->optim.template ml_beta<NEWUOA>();
+          break;
+        case 2:
+          ptr->optim.template ml_beta<LBFGS>();
+          break;
+        case 3:
+          ptr->optim.template ml_beta<DIRECT>();
+          break;
+        default:
+          ptr->optim.template ml_beta<BOBYQA>();
+          break;
+      }
+    }
   };
   std::visit(functor,model.ptr);
 }
 
 // [[Rcpp::export]]
-void rtsModel__ml_rho(SEXP xp, int covtype_, int lptype_){
+void rtsModel__ml_rho(SEXP xp, int algo, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) {}, 
-    [](auto mptr){mptr->optim.ml_rho();}
+    [&algo](auto ptr){
+      switch(algo){
+        case 1:
+          ptr->optim.template ml_rho<NEWUOA>();
+          break;
+        case 2:
+          ptr->optim.template ml_rho<LBFGS>();
+          break;
+        case 3:
+          ptr->optim.template ml_rho<DIRECT>();
+          break;
+        default:
+          ptr->optim.template ml_rho<BOBYQA>();
+          break;
+      }
+    }
   };
   std::visit(functor,model.ptr);
 }

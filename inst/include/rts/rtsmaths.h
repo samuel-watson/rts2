@@ -114,4 +114,5 @@ inline MatrixXd cholesky(const MatrixXd& A){
   return B;
 }
 
+
 }

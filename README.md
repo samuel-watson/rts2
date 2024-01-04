@@ -9,4 +9,4 @@ These data may include daily hospital admissions, positive tests, or calls to pu
 principled basis for generating predictions of disease epidemiology and its spatial and temporal distribution from these data.
 `rts2` provides a set of functions to conduct disease surveillance using a real-time feed of spatial or spatio-temporal data of cases.
 
-A vignette describing use of the package with examples can be found at http://www.sam-watson.xyz/vignette.html
+This readme is now out of date. It will be updated along with a manual describing use. The package supports LGCP with full Gaussian Process, Nearest Neigbour Gaussian Process, and Hibert Space Gaussian Process models, Bayesian (via Stan) and MCMC Maximum likelihood model fitting, "regional" data models for data aggregated to an irregular lattice, and more!

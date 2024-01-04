@@ -25,9 +25,19 @@ length counting back from the most recent case. The columns in the output
 will be named \code{t1}, \code{t2},... up to the lag length, where the highest number
 is the most recent period.
 
-\emph{Spatially-varying data only} \verb{cov_data`` is an sf object describing covariate values for a set of polygons over the area of interest. The values are mapped onto }grid_data\verb{. For each grid cell in }grid_data\verb{a weighted average of each covariate listed in}zcols\verb{is generated with weights either equal to the area of intersection of the grid cell and the polygons in}cov_data\verb{ (}weight_type="area"\verb{), or this area multiplied by the population density of the polygon for population weighted (}weight_type="pop"\verb{). Columns with the names in }zcols` are added to the output.
+\emph{ADDING COVARIATES}
+\emph{Spatially-varying data only}
+\code{cov_data} is an sf object describing covariate
+values for a set of polygons over the area of interest. The values are mapped
+onto \code{grid_data}. For each grid cell in \code{grid_data} a weighted
+average of each covariate listed in \code{zcols} is generated with weights either
+equal to the area of intersection of the grid cell and the polygons in
+\code{cov_data} (\code{weight_type="area"}), or this area multiplied by the population
+density of the polygon for population weighted (\code{weight_type="pop"}). Columns
+with the names in \code{zcols} are added to the output.
 
-\emph{Temporally-varying only data} \code{cov_data} is a data frame with number of rows
+\emph{Temporally-varying only data}
+\code{cov_data} is a data frame with number of rows
 equal to the number of time periods. One of the columns must be called \code{t} and
 have values from 1 to the number of time periods. The other columns of the data
 frame have the values of the covariates for each time period. See
@@ -36,7 +46,8 @@ length(zcols)*(number of time periods) columns are added to the output: for each
 covariate there will be columns appended with each time period number. For example,
 \code{dayMon1}, \code{dayMon2}, etc.
 
-\emph{Spatially and temporally varying data} There are two ways to add data that
+\emph{Spatially and temporally varying data}
+There are two ways to add data that
 vary both spatially and temporally. The final output for use in analysis must
 have a column for each covariate and each time period with the same name appended
 by the time period number, e.g. \code{covariateA1},\code{covariateA2},... If the covariate
@@ -46,6 +57,7 @@ using the argument \code{t_label}. If the values for different time periods are 
 sf object then they should be named as described above and then can be added
 as for spatially-varying covariates, e.g. \code{zcols=c("covariateA1","covariateA2")}.
 
+\emph{BAYESIAN MODEL FITTING}
 The grid data must contain columns \verb{t*}, giving the case
 count in each time period (see \code{points_to_grid}), as well as any covariates to include in the model
 (see \code{add_covariates}) and the population density.
@@ -64,17 +76,12 @@ Z(s,t) is a latent field. We use an auto-regressive specification for the
 latent field, with spatial innovation in each field specified as a spatial
 Gaussian process.
 
-We use the fast and accurate approximation for fully Bayesian Gaussian
-Processes proposed by Solin and Särkkä (1), using basis function
-approximations based on approximation
-via Laplace eigenfunctions for stationary covariance functions.
-See references (1) and (2) for complete details. The approximation is a linear sum
-of \code{m} eigenfunctions with the boundary conditions in each dimension \verb{[-L,L]}.
-Coordinates in each dimension are scaled to \verb{[-1,1]}, so L represents the
-proportionate extension of the analysis area.
-
+The argument \code{approx} specifies whether to use a full LGCP model (\code{approx='none'}) or whether
+to use either a nearest neighbour approximation (\code{approx='nngp'}) or a "Hilbert space" approximation
+(\code{approx='hsgp'}). For full details of NNGPs see XX and for Hilbert space approximations see references (1) and (2).
+#'
 \emph{Priors}
-The priors should be provided as a list to the griddata object:
+For Bayesian model fitting, the priors should be provided as a list to the griddata object:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{griddata$priors <- list(
   prior_lscale=c(0,0.5),
@@ -94,6 +101,7 @@ then the linear prediction contains the term \eqn{X'\gamma}. Each parameter in \
 \code{prior_linpred_mean} should be the vector \verb{(a_1,a_2,...,a_Q)} and
 \code{prior_linpred_sd} should be \verb{(b_1,b_2,...,b_Q)}.
 
+\emph{EXTRACTING PREDICTIONS}
 Three outputs can be extracted from the model fit, which will be added as columns to \code{grid_data}:
 
 Predicted incidence: If type includes \code{pred} then \code{pred_mean_total} and
@@ -114,6 +122,14 @@ last period minus \code{irr_lag} (minus \code{t_lag}). For example, if the time 
 is in days then setting \code{irr_lag} to 7 and leaving \code{t_lag=0} then the IRR
 is the relative change in incidence in the present period compared to a week
 prior.
+
+\emph{MAXIMUM LIKELIHOOD MODEL FITTING}
+The arguments \code{mcml_options} and \code{la_options} for the functions \code{lgcp_fit_ml} and \code{lgcp_fit_la} are named lists
+with the options of whether to use NNGP (\code{useNN}), whether to use
+Newton-Raphson (\code{mcnr}), whether to treat the covariance parameters as known (\code{known_theta}), whether to provide
+more detailed output (\code{trace}), the number of nearest neighbours if using NNGP (\code{nNN}), the tolerance for when to
+terminate the algorithm (\code{tol}), and the maximum number of algorithm iterations (\code{maxiter}). The argument
+\code{mcmc_options} is a named list with the number of warmup and sampling iterations for the MCMC sampler.
 }
 \examples{
 
@@ -297,7 +313,11 @@ points_to_grid, add_covariates
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
 \describe{
-\item{\code{grid_data}}{sf object with the grid data}
+\item{\code{grid_data}}{sf object specifying the computational grid for the analysis}
+
+\item{\code{region_data}}{sf object specifying an irregular lattice, such as census areas,
+within which case counts are aggregated. Only used if polygon data are provided on
+class initialisation.}
 
 \item{\code{priors}}{list of prior distributions for the analysis}
 
@@ -319,6 +339,11 @@ points_to_grid, add_covariates
 \item \href{#method-grid-hotspots}{\code{grid$hotspots()}}
 \item \href{#method-grid-aggregate_output}{\code{grid$aggregate_output()}}
 \item \href{#method-grid-scale_conversion_factor}{\code{grid$scale_conversion_factor()}}
+\item \href{#method-grid-lgcp_fit_ml}{\code{grid$lgcp_fit_ml()}}
+\item \href{#method-grid-lgcp_fit_la}{\code{grid$lgcp_fit_la()}}
+\item \href{#method-grid-get_region_data}{\code{grid$get_region_data()}}
+\item \href{#method-grid-variogram}{\code{grid$variogram()}}
+\item \href{#method-grid-reorder}{\code{grid$reorder()}}
 \item \href{#method-grid-clone}{\code{grid$clone()}}
 }
 }
@@ -334,15 +359,18 @@ Given a contiguous boundary describing an area of interest, which is stored as a
 object of a regular grid within the limits of the boundary at \verb{$grid_data}. The boundary
 is also stored in the object as \verb{$boundary}
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{grid$new(boundary, cellsize)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{grid$new(poly, cellsize, verbose = TRUE)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{boundary}}{An sf object containing one polygon describing the area of interest}
+\item{\code{poly}}{An sf object containing either one polygon describing the area of interest or multiple polygons
+representing survey or census regions in which the case data counts are aggregated}
 
 \item{\code{cellsize}}{The dimension of the grid cells}
+
+\item{\code{verbose}}{Logical indicating whether to provide feedback to the console.}
 }
 \if{html}{\out{</div>}}
 }
@@ -543,9 +571,7 @@ g1$get_dow()
 \if{html}{\out{<a id="method-grid-lgcp_fit"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-lgcp_fit}{}}}
 \subsection{Method \code{lgcp_fit()}}{
-Fit an approximate log-Gaussian Cox Process model
-
-Fit an approximate log-Gaussian Cox Process model
+Fit an (approximate) log-Gaussian Cox Process model
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit(
   popdens,
@@ -554,6 +580,7 @@ Fit an approximate log-Gaussian Cox Process model
   m = 10,
   L = 1.5,
   model = "exp",
+  known_theta = NULL,
   dir = NULL,
   iter_warmup = 500,
   iter_sampling = 500,
@@ -588,6 +615,9 @@ number of nearest neighbours for nearest neighbour Gaussian process. See Details
 \item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
 covariance function}
 
+\item{\code{known_theta}}{An optional vector of two values of the covariance parameters. If these are provided
+then the covariance parameters are assumed to be known and will not be estimated.}
+
 \item{\code{dir}}{character string. Directory to save ouptut.}
 
 \item{\code{iter_warmup}}{integer. Number of warmup iterations}
@@ -599,6 +629,8 @@ covariance function}
 \item{\code{parallel_chains}}{integer. Number of parallel chains}
 
 \item{\code{verbose}}{logical. Provide feedback on progress}
+
+\item{\code{vb}}{Logical indicating whether to use variational Bayes (TRUE) or full MCMC sampling (FALSE)}
 
 \item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
 instead of rstan.}
@@ -648,19 +680,20 @@ Extract predictions
 Extract incidence and relative risk predictions
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$extract_preds(
-  stan_fit,
+  fit,
   type = c("pred", "rr", "irr"),
   irr.lag = NULL,
   t.lag = 0,
-  popdens = NULL
+  popdens = NULL,
+  verbose = TRUE
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{stan_fit}}{A \link[rstan]{stanfit} or \link[cmdstanr]{CmdStanMCMC} object.
-Output of \code{lgcp_fit()}}
+\item{\code{fit}}{A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, \link[cmdstanr]{CmdStanVB} object.
+Output of \code{lgcp_fit()} or the output of \code{lgcp_fit_ml()} or \code{lgcp_fit_la()}}
 
 \item{\code{type}}{Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
 posterior mean incidence (overall and population standardised), relative risk,
@@ -673,6 +706,8 @@ periods lag previous the ratio is in comparison to}
 
 \item{\code{popdens}}{character string. Name of the column in \code{grid_data} with the
 population density data}
+
+\item{\code{verbose}}{Logical indicating whether to print messages to the console}
 }
 \if{html}{\out{</div>}}
 }
@@ -890,6 +925,176 @@ g1$scale_conversion_factor()
 
 }
 
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-lgcp_fit_ml"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-lgcp_fit_ml}{}}}
+\subsection{Method \code{lgcp_fit_ml()}}{
+Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+
+Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and
+regional models, and using a full LGCP or nearest neighbour approximation.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit_ml(
+  popdens,
+  covs = NULL,
+  start,
+  model = "exp",
+  mcml_options = list(useNN = FALSE, mcnr = FALSE, known_theta = FALSE, trace = 1, nNN =
+    10, tol = 0.01, maxiter = 10),
+  mcmc_options = list(warmup = 100, sampling = 100),
+  verbose = TRUE,
+  use_cmdstanr = FALSE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{popdens}}{character string. Name of the population density column}
+
+\item{\code{covs}}{vector of character string. Base names of the covariates to
+include. For temporally-varying covariates only the stem is required and not
+the individual column names for each time period (e.g. \code{dayMon} and not \code{dayMon1},
+\code{dayMon2}, etc.)}
+
+\item{\code{start}}{Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1}
+
+\item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
+covariance function}
+
+\item{\code{mcml_options}}{List of options for the algorithm. See details.}
+
+\item{\code{mcmc_options}}{List of options for the MCMC sampling. See details.}
+
+\item{\code{verbose}}{logical. Provide feedback on progress}
+
+\item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
+instead of rstan.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A named list with the estimated parameters, number of iterations, whether the algorithm converged, and
+the random effect samples.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-lgcp_fit_la"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-lgcp_fit_la}{}}}
+\subsection{Method \code{lgcp_fit_la()}}{
+Fit the LGCP using Markov Chain Monte Carlo Maximum likelihood
+
+Various Markov Chain Monte Carlo Maximum Likelihood algorithms are provided for the full and
+regional models, and using a full LGCP or nearest neighbour approximation.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_fit_la(
+  popdens,
+  covs = NULL,
+  start,
+  model = "exp",
+  la_options = list(useNN = FALSE, known_theta = FALSE, nr = FALSE, trace = 1, nNN = 10,
+    tol = 0.01, maxiter = 10),
+  verbose = TRUE,
+  use_cmdstanr = TRUE
+)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{popdens}}{character string. Name of the population density column}
+
+\item{\code{covs}}{vector of character string. Base names of the covariates to
+include. For temporally-varying covariates only the stem is required and not
+the individual column names for each time period (e.g. \code{dayMon} and not \code{dayMon1},
+\code{dayMon2}, etc.)}
+
+\item{\code{start}}{Starting values of the model parameteters in the order c(beta, theta, rho). Rho is optional for models with nT>1}
+
+\item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
+covariance function}
+
+\item{\code{la_options}}{List of options for the algorithm. See details.}
+
+\item{\code{verbose}}{logical. Provide feedback on progress}
+
+\item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
+instead of rstan to sample random effects at the end of the algorithm}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A named list with the estimated parameters, number of iterations, whether the algorithm converged, and
+the random effect samples.
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-get_region_data"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-get_region_data}{}}}
+\subsection{Method \code{get_region_data()}}{
+Returns summary data of the region/grid intersections
+
+Information on the intersection between the region areas and the computational grid
+including the number of cells intersecting each region (\code{n_cell}), the indexes of the
+cells intersecting each region in order (\code{cell_id}), and the proportion of each region's
+area covered by each intersecting grid cell (\code{q_weights}).
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$get_region_data()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+A named list
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-variogram"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-variogram}{}}}
+\subsection{Method \code{variogram()}}{
+Plots the empirical semi-variogram
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$variogram(popdens, yvar, nbins = 20)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{popdens}}{String naming the variable in the data specifying the offset. If not
+provided then no offset is used.}
+
+\item{\code{yvar}}{String naming the outcome variable to calculate the variogram for. Optional, if
+not provided then the last time period of data will be used.}
+
+\item{\code{nbins}}{The number of bins in the empirical semivariogram}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+A ggplot plot is printed and optionally returned
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-reorder"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-reorder}{}}}
+\subsection{Method \code{reorder()}}{
+Re-orders the computational grid
+
+The quality of the nearest neighbour approximation can depend on the ordering of
+the grid cells. This function reorders the grid cells.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$reorder(option = "y")}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{option}}{Either "y" for order of the y coordinate, "x" for order of the x coordinate,
+"minimax"  in which the next observation in the order is the one which maximises the
+minimum distance to the previous observations,g1$grid_data <- g1$grid_data\link{o0,} or "random" which randomly orders them.
+@return No return, used for effects.}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-grid-clone"></a>}}

@@ -25,12 +25,10 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
     void            ml_rho();
     double          log_likelihood_rho(const dblvec &rho);
-    double          log_likelihood_rho_hsgp(const dblvec &rho);
     double          log_likelihood_rho_with_gradient(const VectorXd &rho, VectorXd& g);
     double          log_likelihood_beta(const dblvec &beta);
     double          log_likelihood_beta_with_gradient(const VectorXd &beta, VectorXd& g);
-    double          log_likelihood_theta_hsgp_with_gradient(const VectorXd& theta, VectorXd& g);
-    double          log_likelihood_rho_hsgp_with_gradient(const VectorXd& theta, VectorXd& g);
+    double          log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g);
     
 };
 
@@ -130,11 +128,11 @@ inline void rts::rtsModelOptim<modeltype>::ml_theta()
     this->set_lbfgs_control(op);
     if constexpr (std::is_same_v<modeltype,BitsAR>) {
       op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_theta_with_gradient, rts::rtsModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_theta_with_gradient, rts::rtsModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
-      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_hsgp_with_gradient, rts::rtsModelOptim<BitsHSGP> >(this);
-    } else {
-      throw std::runtime_error("L-BFGS not available for this model type");
-    }
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_with_gradient, rts::rtsModelOptim<BitsHSGP> >(this);
+    } 
     op.minimise();
   } else {
     optim<double(const std::vector<double>&),algo> op(start);
@@ -156,7 +154,7 @@ inline void rts::rtsModelOptim<modeltype>::ml_theta()
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
       op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_theta, rts::rtsModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
-      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_hsgp, rts::rtsModelOptim<BitsHSGP> >(this);
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta, rts::rtsModelOptim<BitsHSGP> >(this);
     }
     op.minimise();
   }
@@ -181,11 +179,11 @@ inline void rts::rtsModelOptim<modeltype>::ml_rho()
     this->set_lbfgs_control(op);
     if constexpr (std::is_same_v<modeltype,BitsAR>) {
       op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_rho_with_gradient, rts::rtsModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_rho_with_gradient, rts::rtsModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
-      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_hsgp_with_gradient, rts::rtsModelOptim<BitsHSGP> >(this);
-    } else {
-      throw std::runtime_error("L-BFGS not available for this model type");
-    }
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_with_gradient, rts::rtsModelOptim<BitsHSGP> >(this);
+    } 
     op.minimise();
   } else {
     optim<double(const std::vector<double>&),algo> op(start);
@@ -205,7 +203,7 @@ inline void rts::rtsModelOptim<modeltype>::ml_rho()
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
       op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_rho, rts::rtsModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
-      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_hsgp, rts::rtsModelOptim<BitsHSGP> >(this);
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho, rts::rtsModelOptim<BitsHSGP> >(this);
     }
     op.minimise();
   }
@@ -223,16 +221,17 @@ inline double rts::rtsModelOptim<modeltype>::log_likelihood_rho(const dblvec& rh
 {
   update_rho(rho[0]);
   double logl = 0;
-  #pragma omp parallel for reduction (+:logl)
-    for(int i = 0; i < this->re.scaled_u_.cols(); i++)
+  int niter = this->re.u_.cols();
+  #pragma omp parallel for reduction (+:logl) if(niter > 30)
+    for(int i = 0; i < niter; i++)
     {
       logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
     }
-  return -1*logl;
+  return -1.0*logl/niter;
 }
 
-template<typename modeltype>
-inline double rts::rtsModelOptim<modeltype>::log_likelihood_rho_hsgp(const dblvec& rho)
+template<>
+inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho(const dblvec& rho)
 {
   update_rho(rho[0]);
   double logl = this->log_likelihood();
@@ -244,27 +243,29 @@ inline double rts::rtsModelOptim<modeltype>::log_likelihood_rho_with_gradient(co
 {
   update_rho(rho(0));
   double logl = 0;
-  #pragma omp parallel for reduction (+:logl)
-    for(int i = 0; i < this->re.scaled_u_.cols(); i++)
+  int niter = this->re.u_.cols();
+  #pragma omp parallel for reduction (+:logl) if(niter > 30)
+    for(int i = 0; i < niter; i++)
     {
       logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
     }
   g = this->model.covariance.log_gradient_rho(this->re.scaled_u_);
   g.array() *= -1.0;
-  return -1*logl;
+  return -1.0*logl/niter;
 }
 
 template<>
-inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_hsgp_with_gradient(const VectorXd& theta, VectorXd& g)
+inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g)
 {
-  this->model.covariance.update_parameters(theta);
+  this->model.covariance.update_parameters(theta.array());
   double ll = this->log_likelihood();
   ArrayXd xb = this->model.xb();
   MatrixXd grad(2,this->re.u_.cols());
   MatrixXd ZLd0 = this->model.covariance.ZL_deriv(0,true);
   MatrixXd ZLd1 = this->model.covariance.ZL_deriv(1,true);
-#pragma omp parallel for
-  for(int i = 0; i < this->re.u_.cols(); i++)
+  int niter = this->re.u_.cols();
+#pragma omp parallel for if(niter > 30)
+  for(int i = 0; i < niter; i++)
   { 
     ArrayXd mu = xb + this->re.zu_.col(i).array();
     mu = mu.exp();    
@@ -276,13 +277,35 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta_hsgp_with_gradi
   return -1.0*ll;
 }
 
-template<typename modeltype>
-inline double rts::rtsModelOptim<modeltype>::log_likelihood_theta_hsgp_with_gradient(const VectorXd& theta, VectorXd& g){
-
+template<>
+inline double rts::rtsModelOptim<BitsNNGP>::log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g)
+{
+  this->model.covariance.update_parameters_d(theta.array());
+  double logl = 0;
+  g = this->model.covariance.log_gradient(re.scaled_u_, logl);
+  g.array() *= -1.0;
+  return -1.0*logl;
 }
 
+template<typename modeltype>
+inline double rts::rtsModelOptim<modeltype>::log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g){
+    this->model.covariance.update_parameters(theta);
+    double logl = 0;
+    int niter = this->re.u_.cols();
+  #pragma omp parallel for reduction (+:logl) if(niter > 30)
+    for(int i = 0; i < niter; i++)
+    {
+      logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
+    }
+    g = this->model.covariance.log_gradient(this->re.scaled_u_);
+    g.array() *= -1.0;
+    return -1*logl/niter;
+}
+
+
+
 template<>
-inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_hsgp_with_gradient(const VectorXd& rho, VectorXd& g)
+inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_with_gradient(const VectorXd& rho, VectorXd& g)
 {
   update_rho(rho(0));
   double ll = this->log_likelihood();
@@ -290,8 +313,9 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_hsgp_with_gradien
   ArrayXd xb = this->model.xb();
   MatrixXd grad(1,this->re.u_.cols());
   MatrixXd ZLd0 = this->model.covariance.ZL_deriv(0,false);
-#pragma omp parallel for
-  for(int i = 0; i < this->re.u_.cols(); i++)
+  int niter = this->re.u_.cols();
+#pragma omp parallel for if(niter > 30)
+  for(int i = 0; i < niter; i++)
   { 
     ArrayXd mu = xb + this->re.zu_.col(i).array();
     mu = mu.exp();    
@@ -300,11 +324,6 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_hsgp_with_gradien
   g = grad.rowwise().mean();
   g.array() *= -1.0;
   return -1.0*ll;
-}
-
-template<typename modeltype>
-inline double rts::rtsModelOptim<modeltype>::log_likelihood_rho_hsgp_with_gradient(const VectorXd& rho, VectorXd& g){
-
 }
 
 template<typename modeltype>

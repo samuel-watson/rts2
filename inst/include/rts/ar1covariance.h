@@ -31,7 +31,7 @@ public:
   void      update_parameters(const ArrayXd& parameters) override;
   void      update_parameters_extern(const dblvec& parameters) override;
   MatrixXd  ar_matrix(bool chol = false);
-  VectorXd  log_gradient(const MatrixXd& u);
+  VectorXd  log_gradient(const MatrixXd& u, double& logl);
   VectorXd  log_gradient_rho(const MatrixXd& u);
   
 protected:
@@ -164,7 +164,8 @@ inline double rts::ar1Covariance::log_likelihood(const VectorXd &u)
   return -1.0*ll;
 }
 
-inline VectorXd rts::ar1Covariance::log_gradient(const MatrixXd& u)
+// this needs to be updated to the version in glmmrBase which is faster
+inline VectorXd rts::ar1Covariance::log_gradient(const MatrixXd& u, double& logl)
 {
   std::vector<MatrixXd> derivs;
   derivatives(derivs,1);
@@ -174,8 +175,10 @@ inline VectorXd rts::ar1Covariance::log_gradient(const MatrixXd& u)
   Sinv = Sinv.llt().solve(MatrixXd::Identity(Sinv.rows(),Sinv.cols()));
   int niter = u.cols();
   MatrixXd ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
-  MatrixXd umat(grid.N,grid.T);
-  MatrixXd vmat(grid.N,grid.T);
+  logl = 0;
+#pragma omp parallel for reduction(+:logl)
+  for(int j = 0; j < niter; j++) logl += log_likelihood(u.col(j));
+  logl *= 1.0 / (double) niter;
   for(int i = 1; i < derivs.size(); i++)
   {
     MatrixXd Sdi = Sinv * derivs[i];
@@ -183,8 +186,11 @@ inline VectorXd rts::ar1Covariance::log_gradient(const MatrixXd& u)
     grad(i-1) = -grid.T*dlogdet;
     MatrixXd dinv = Sdi * Sinv;
     double val = 0;
+  #pragma omp parallel for reduction(+:val)
     for(int j = 0; j < niter; j++)
     {
+      MatrixXd umat(grid.N,grid.T);
+      MatrixXd vmat(grid.N,grid.T);
       for(int t = 0; t < grid.T; t++)
       {
         umat.col(t) = u.col(j).segment(t*grid.N, grid.N);

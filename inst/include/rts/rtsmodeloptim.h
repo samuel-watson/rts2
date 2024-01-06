@@ -287,22 +287,20 @@ inline double rts::rtsModelOptim<BitsNNGP>::log_likelihood_theta_with_gradient(c
   return -1.0*logl;
 }
 
-template<typename modeltype>
-inline double rts::rtsModelOptim<modeltype>::log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g){
+template<>
+inline double rts::rtsModelOptim<BitsAR>::log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g){
     this->model.covariance.update_parameters(theta);
     double logl = 0;
-    int niter = this->re.u_.cols();
-  #pragma omp parallel for reduction (+:logl) if(niter > 30)
-    for(int i = 0; i < niter; i++)
-    {
-      logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
-    }
-    g = this->model.covariance.log_gradient(this->re.scaled_u_);
+    // int niter = this->re.u_.cols();
+  // #pragma omp parallel for reduction (+:logl) if(niter > 30)
+  //   for(int i = 0; i < niter; i++)
+  //   {
+  //     logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
+  //   }
+    g = this->model.covariance.log_gradient(this->re.scaled_u_, logl);
     g.array() *= -1.0;
-    return -1*logl/niter;
+    return -1*logl;
 }
-
-
 
 template<>
 inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho_with_gradient(const VectorXd& rho, VectorXd& g)

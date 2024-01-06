@@ -28,7 +28,8 @@ Imports:
     methods,
     R6,
     Rcpp (>= 0.12.0),
-    rstan (>= 2.18.1),
+    RcppParallel (>= 5.0.1),
+    rstan (>= 2.26.0),
     rstantools (>= 2.1.1),
     RcppParallel (>= 5.0.1),
     sf (>= 1.0-5),
@@ -41,8 +42,8 @@ LinkingTo:
     Rcpp (>= 0.12.0),
     RcppEigen (>= 0.3.3.3.0),
     RcppParallel (>= 5.0.1),
-    rstan (>= 2.18.1),
+    rstan (>= 2.26.0),
+    StanHeaders (>= 2.26.0)
     glmmrBase (>= 0.6.1),
-    SparseChol (>= 0.2.2),
-    StanHeaders (>= 2.18.0)
+    SparseChol (>= 0.2.2)
 SystemRequirements: GNU make

@@ -1,15 +1,21 @@
 functions {
-  matrix getAD(real alpha, real theta, int M, int n,
-                 real[] dists, int[,] NN, int mod){
-    matrix[M+1,n] AD = rep_matrix(0,M+1,n);
-    int idxlim; 
-    int idx1; 
-    int idx2;
+  matrix getAD(real alpha, real theta, 
+                 matrix x, array[,] int NN, int mod){
+                   int n = rows(x);
+    int M = size(NN);
+    matrix[M,n] A = rep_matrix(0,M,n);
+    row_vector[n] D = rep_row_vector(0,n);
+    matrix[M+1,n] AD;
+    int idxlim;
+    matrix[M,M] smat;
+    vector[M] svec;
     real dist;
     AD[M+1,1] = alpha;
     matrix[M,M] smat = rep_matrix(0,M,M);
     vector[M] svec = rep_vector(0,M);
     int index;
+    int idx1;
+    int idx2;
     
     for(i in 2:n){
       idxlim = i<=(M) ? i-1 : M;
@@ -44,7 +50,7 @@ functions {
     return(AD);
    }
    
-   real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
+   real nngp_split_lpdf(vector u, matrix AD, array[,] int NN){
     int n = cols(AD);
     int M = rows(AD) - 1;
     real logdetD;
@@ -82,15 +88,15 @@ data {
   int<lower=1> M; // number of nearest neighbours
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int NN[M,Nsample];
-  int y[Nsample*nT]; //outcome
+  array[M,Nsample] int NN;
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[Nsample*nT] popdens; //population density
   matrix[Nsample*nT,Q] X;
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
   int<lower = 0, upper = 1> known_cov;
   real<lower=0> sigma_data; 

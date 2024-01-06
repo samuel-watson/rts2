@@ -891,7 +891,8 @@ grid <- R6::R6Class("grid",
                                if(algo %in% c(1,3) & private$lp_type == 1){
                                  tryCatch(rtsModel__ml_beta(private$ptr,2,private$cov_type,private$lp_type),
                                           error = function(e){
-                                            cat("\nL-BFGS failed beta: ", e ,", trying BOBYQA")
+                                            message(conditionMessage(e))
+                                            cat("\nL-BFGS failed beta: trying BOBYQA")
                                             rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
                                           })
                                } else {
@@ -899,17 +900,18 @@ grid <- R6::R6Class("grid",
                                }
                                
                                if(is.null(known_theta)){
-                                 if(algo == 1 & private$cov_type %in% c(1,3)){
+                                 if(algo == 1){
                                    tryCatch(rtsModel__ml_theta(private$ptr,2,private$cov_type,private$lp_type),
                                             error = function(e){
-                                              cat("\nL-BFGS failed theta: ", e, ", trying BOBYQA")
+                                              message(conditionMessage(e))
+                                              cat("\nL-BFGS failed theta: trying BOBYQA")
                                               rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
                                             })
                                  } else {
                                    rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
                                  }
                                 if(datlist$nT > 1){
-                                  if(algo == 1 & private$cov_type %in% c(1,3)){
+                                  if(algo == 1){
                                     tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
                                              error = function(e){
                                                cat("\nL-BFGS failed rho, trying BOBYQA")

@@ -7,7 +7,7 @@ test_that("data functions work", {
 
 
   # create a coarse grid over the area
-  g1 <- grid$new(b1,0.5)
+  g1 <- grid$new(poly = b1,cellsize = 0.1)
 
   expect_s3_class(g1$grid_data,"sf")
 
@@ -17,7 +17,7 @@ test_that("data functions work", {
   expect_s3_class(dp,"sf")
 
   #create a random covariate over the area to act as population density
-  cov1 <- grid$new(b1,0.8)
+  cov1 <- grid$new(poly = b1,cellsize = 0.12)
   cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 
   # map the population density to the grid
@@ -43,13 +43,13 @@ test_that("sampler and analysis works", {
 
 
   # create a coarse grid over the area
-  g1 <- grid$new(b1,0.5)
+  g1 <- grid$new(poly = b1,cellsize = 0.1)
 
   # create the points sf object
   dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 
   #create a random covariate over the area to act as population density
-  cov1 <- grid$new(b1,0.8)
+  cov1 <- grid$new(poly = b1,cellsize = 0.12)
   cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 
   # map the population density to the grid

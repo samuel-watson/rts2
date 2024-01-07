@@ -1,5 +1,5 @@
 functions {
-  matrix genChol(int n, real alpha, real theta, real[] dists, int mod){
+  matrix genChol(int n, real alpha, real theta, array[] real dists, int mod){
     matrix[n,n] L = rep_matrix(0,n,n);
     real s;
     real dist;
@@ -7,7 +7,6 @@ functions {
     int idx;
     
     for(i in 2:n){
-      //dist = sqrt((x[1,1] - x[i,1]) * (x[1,1] - x[i,1]) + (x[1,2] - x[i,2]) * (x[1,2] - x[i,2]));
       idx = i-1;
       dist = dists[idx];
       if(mod == 0){
@@ -62,27 +61,31 @@ data {
   real<lower=0> phi_data; 
 }
 transformed data {
-  vector[Nsample*nT] logpopdens = log(popdens);
-  matrix[known_cov ? Nsample : 0, known_cov ? Nsample :0] L_data;
-  real dists[(Nsample*(Nsample-1))%/%2];
+  vector[Nsample*nT] logpopdens;
+  matrix[known_cov ? Nsample : 0, known_cov ? Nsample : 0] L_data;
+  array[(Nsample*(Nsample-1))%/%2] real dists;
+  logpopdens = log(popdens);
   for(i in 1:(Nsample-1)){
     for(j in (i+1):Nsample){
       dists[(Nsample-1)*(i-1)-(((i-2)*(i-1))%/%2)+(j-i-1)+1] = sqrt((x_grid[i,1] - x_grid[j,1]) * (x_grid[i,1] - x_grid[j,1]) +
               (x_grid[i,2] - x_grid[j,2]) * (x_grid[i,2] - x_grid[j,2]));
     }
   }
+  
   if(known_cov){
     L_data = genChol(Nsample, sigma_data, phi_data, dists, mod);
-  } 
+  }
 }
+
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
-  real<lower=-1,upper=1> ar[nT > 1 ? 0 : 1];
-  vector[Nsample*nT] f_raw;
+  array[nT > 1 ? 0 : 1] real<lower=-1,upper=1> ar;
+  array[Nsample*nT] real f_raw;
 }
-transformed parameters {
+
+transformed parameters{
   matrix[Nsample,Nsample] L;
   vector[Nsample*nT] f;
   real<lower=1e-05> sigma;
@@ -100,53 +103,36 @@ transformed parameters {
   } else {
     L = L_data;
   }
-  
   for(t in 1:nT){
     if(nT>1){
       if(t==1){
-        f[1:Nsample] = (1/(1-ar[1]^2))*f_raw[1:Nsample];
+        f[1:Nsample] = (1/(1-ar[1]^2))*L*to_vector(f_raw[1:Nsample]);
       } else {
-        f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + f_raw[(Nsample*(t-1)+1):(t*Nsample)];
+        f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*L*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + L*to_vector(f_raw[(Nsample*(t-1)+1):(t*Nsample)]);
       }
     } else {
-      f = f_raw;
+      f = L*to_vector(f_raw);
     }
 
   }
 }
-
 model{
-  vector[Nsample] zeros = rep_vector(0,Nsample);
   if(!known_cov){
-    phi ~ normal(prior_lscale[1],prior_lscale[2]);
-    sigma ~ normal(prior_var[1],prior_var[2]);
+    phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
+    sigma_param ~ normal(prior_var[1],prior_var[2]);
   }
   if(nT > 1) ar ~ normal(0,1);
   for(q in 1:Q){
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  
-  for(t in 1:nT){
-    if(nT>1){
-      if(t==1){
-        f_raw[1:Nsample] ~ multi_normal_cholesky(zeros,L);
-      } else {
-        f_raw[(Nsample*(t-1)+1):(t*Nsample)] ~ multi_normal_cholesky(zeros,L);
-      }
-    } else {
-      f_raw ~ multi_normal_cholesky(zeros,L);
-    }
-
-  }
-  
+  f_raw ~ std_normal();
   y ~ poisson_log(X*gamma+logpopdens+f);
 }
 
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
-  
+
   for(i in 1:(Nsample*nT)){
     y_grid_predict[i] = exp(X[i,]*gamma+logpopdens[i]+f[i]);
   }
 }
-

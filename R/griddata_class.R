@@ -659,9 +659,9 @@ grid <- R6::R6Class("grid",
                            #' @param covs vector of strings. Base names of the covariates to
                            #' include. For temporally-varying covariates only the stem is required and not
                            #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
-                           #' `dayMon2`, etc.)
+                           #' `dayMon2`, etc.) Alternatively, a formula can be passed to the `formula` arguments below.
                            #' @param covs_grid If using a region model, covariates at the level of the grid can also be specified by providing their
-                           #' names to this argument.
+                           #' names to this argument. Alternatively, a formula can be passed to the `formula` arguments below.
                            #' @param approx Either "rank" for reduced rank approximation, or "nngp" for nearest 
                            #' neighbour Gaussian process. 
                            #' @param m integer. Number of basis functions for reduced rank approximation, or
@@ -677,6 +677,12 @@ grid <- R6::R6Class("grid",
                            #' If there are covariates for the grid in a region data model then their parameters are `gamma_g`. The list elements must be a 
                            #' vector of starting values. If this is not provided then the non-intercept linear predictor parameters are initialised randomly
                            #' as N(0,0.1), the covariance parameters as Uniform(0,0.5) and the auto-regressive parameter to 0.1. 
+                           #' @param lower_bound Optional. Vector of lower bound values for the fixed effect parameters.
+                           #' @param upper_bound Optional. Vector of upper bound values for the fixed effect parameters.
+                           #' @param formula_1 Optional. Instead of providing a list of covariates above (to `covs`) a formula can be specified here. For a regional model, this 
+                           #' argument specified the regional-level fixed effects model.
+                           #' @param formula_2 Optional. Instead of providing a list of covariates above (to `covs_grid`) a formula can be specified here. For a regional model, this 
+                           #' argument specified the grid-level fixed effects model.
                            #' @param algo integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
@@ -709,6 +715,10 @@ grid <- R6::R6Class("grid",
                                               model = "exp",
                                               known_theta = NULL,
                                               starting_values = NULL,
+                                              lower_bound = NULL,
+                                              upper_bound = NULL,
+                                              formula_1 = NULL,
+                                              formula_2 = NULL,
                                               algo = 1,
                                               tol = 1e-2,
                                               max.iter = 30,
@@ -724,7 +734,7 @@ grid <- R6::R6Class("grid",
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              
                              # set up main data and initialise the pointer to the C++ class
-                             datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE)
+                             datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE, formula_1, formula_2)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
                                datlist$known_cov <- 1
@@ -768,16 +778,23 @@ grid <- R6::R6Class("grid",
                                }
                              }
                              
-                             ## update the BOBYQA control parameters if necessary
-                             if(!is.null(self$bobyqa_control)){
-                               npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
-                               rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
-                               rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
-                               #if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
-                               rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
-                               rhobeg <- ifelse("covrhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$covrhobeg,0)
-                               rhoend <- ifelse("covrhoend"%in%names(self$bobyqa_control),self$bobyqa_control$covrhoend,0)
-                               rtsModel__set_cov_bobyqa_control(private$ptr,private$cov_type,private$lp_type,rhobeg,rhoend)
+                             # ## update the BOBYQA control parameters if necessary
+                             # if(!is.null(self$bobyqa_control)){
+                             #   npt <- ifelse("npt"%in%names(self$bobyqa_control),self$bobyqa_control$npt,0)
+                             #   rhobeg <- ifelse("rhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$rhobeg,0)
+                             #   rhoend <- ifelse("rhoend"%in%names(self$bobyqa_control),self$bobyqa_control$rhoend,0)
+                             #   #if(verbose)cat("\nBOBYQA control parameters: npt(",npt,"), rhobeg(",rhobeg,"), rhoend(",rhoend,")")
+                             #   rtsModel__set_bobyqa_control(private$ptr,private$cov_type,private$lp_type,npt,rhobeg,rhoend)
+                             #   rhobeg <- ifelse("covrhobeg"%in%names(self$bobyqa_control),self$bobyqa_control$covrhobeg,0)
+                             #   rhoend <- ifelse("covrhoend"%in%names(self$bobyqa_control),self$bobyqa_control$covrhoend,0)
+                             #   rtsModel__set_cov_bobyqa_control(private$ptr,private$cov_type,private$lp_type,rhobeg,rhoend)
+                             # }
+                             
+                             if(!is.null(lower_bound)){
+                               rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,lower_bound,lower=TRUE)
+                             }
+                             if(!is.null(upper_bound)){
+                               rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,upper_bound,lower=FALSE)
                              }
                              
                              # initialise the parameters and data on the R side
@@ -1706,7 +1723,9 @@ grid <- R6::R6Class("grid",
                                             covs,
                                             covs_grid,
                                             L = 1.5,
-                                            update = TRUE){
+                                            update = TRUE,
+                                            formula_1 = NULL,
+                                            formula_2 = NULL){
 
                         data <- private$prepare_data(m,
                                                      model,
@@ -1729,17 +1748,30 @@ grid <- R6::R6Class("grid",
 
                         if(is.null(private$ptr) || update){
                           # build formulae
-                          f1 <- "1"
-                          if(length(covs) > 0){
-                            for(i in 1:length(covs)){
-                              f1 <- paste0(f1,"+",covs[[i]])
+                          if(!is.null(formula_1)){
+                            if(!is(formula_1,"formula"))stop("Not a formula")
+                            f1 <- as.character(formula_1[[2]])
+                            f1 <- gsub(" ","",f1)
+                          } else {
+                            f1 <- "1"
+                            if(length(covs) > 0){
+                              for(i in 1:length(covs)){
+                                f1 <- paste0(f1,"+",covs[[i]])
+                              }
                             }
                           }
+                          
 
-                          if(length(covs_grid)>0){
-                            f2 <- "1"
-                            for(i in 1:length(covs)){
-                              f2 <- paste0(f2,"+",covs_grid[[i]])
+                          if(length(covs_grid)>0 || !is.null(formula_2)){
+                            if(!is.null(formula_2)){
+                              if(!is(formula_2,"formula"))stop("Not a formula")
+                              f2 <- as.character(formula_2[[2]])
+                              f2 <- gsub(" ","",f2)
+                            } else {
+                              f2 <- "1"
+                              for(i in 1:length(covs)){
+                                f2 <- paste0(f2,"+",covs_grid[[i]])
+                              }
                             }
                           } else {
                             f2 <- "1"

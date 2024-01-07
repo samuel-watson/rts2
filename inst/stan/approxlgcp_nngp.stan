@@ -1,21 +1,15 @@
 functions {
-  matrix getAD(real alpha, real theta, 
-                 matrix x, array[,] int NN, int mod){
-                   int n = rows(x);
-    int M = size(NN);
-    matrix[M,n] A = rep_matrix(0,M,n);
-    row_vector[n] D = rep_row_vector(0,n);
-    matrix[M+1,n] AD;
-    int idxlim;
-    matrix[M,M] smat;
-    vector[M] svec;
+  matrix getAD(real alpha, real theta, int M, int n,
+                 array[] real dists, array[,] int NN, int mod){
+    matrix[M+1,n] AD = rep_matrix(0,M+1,n);
+    int idxlim; 
+    int idx1; 
+    int idx2;
     real dist;
     AD[M+1,1] = alpha;
     matrix[M,M] smat = rep_matrix(0,M,M);
     vector[M] svec = rep_vector(0,M);
     int index;
-    int idx1;
-    int idx2;
     
     for(i in 2:n){
       idxlim = i<=(M) ? i-1 : M;
@@ -50,7 +44,7 @@ functions {
     return(AD);
    }
    
-   real nngp_split_lpdf(vector u, matrix AD, array[,] int NN){
+   real nngp_split_lpdf(array[] real u, matrix AD, array[,] int NN, int start){
     int n = cols(AD);
     int M = rows(AD) - 1;
     real logdetD;
@@ -106,7 +100,7 @@ data {
 transformed data {
   vector[Nsample*nT] logpopdens = log(popdens);
   matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
-  real dists[(Nsample*(Nsample-1))%/%2];
+  array[(Nsample*(Nsample-1))%/%2] real dists;
   for(i in 1:(Nsample-1)){
     for(j in (i+1):Nsample){
       dists[(Nsample-1)*(i-1)-(((i-2)*(i-1))%/%2)+(j-i-1)+1] = sqrt((x_grid[i,1] - x_grid[j,1]) * (x_grid[i,1] - x_grid[j,1]) +
@@ -120,10 +114,10 @@ transformed data {
 }
 
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
-  real<lower=-1,upper=1> ar[nT > 1 ? 1 : 0];
+  array[nT > 1 ? 1 : 0] real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
 }
 

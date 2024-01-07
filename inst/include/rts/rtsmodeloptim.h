@@ -44,12 +44,7 @@ inline void rts::rtsModelOptim<modeltype>::ml_beta()
     VectorXd start_vec = Map<VectorXd>(start.data(),start.size());
     optim<double(const VectorXd&, VectorXd&),algo> op(start_vec);
     this->set_lbfgs_control(op);
-    if(this->lower_bound.size()==this->P())
-    {
-      dblvec lower = this->get_lower_values(true,false,false);
-      dblvec upper = this->get_upper_values(true,false,false);
-      op.set_bounds(lower,upper);
-    }
+    if(this->beta_bounded) op.set_bounds(this->lower_bound,this->upper_bound);
       if constexpr (std::is_same_v<modeltype,BitsAR>) {
       op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_beta_with_gradient, rts::rtsModelOptim<BitsAR> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
@@ -68,12 +63,7 @@ inline void rts::rtsModelOptim<modeltype>::ml_beta()
     } else if constexpr (std::is_same_v<algo,NEWUOA>) {
       this->set_newuoa_control(op);
     }
-    if(this->lower_bound.size()==this->P())
-    {
-      dblvec lower = this->get_lower_values(true,false,false);
-      dblvec upper = this->get_upper_values(true,false,false);
-      op.set_bounds(lower,upper);
-    }
+    if(this->beta_bounded) op.set_bounds(this->lower_bound,this->upper_bound);
     if constexpr (std::is_same_v<modeltype,BitsAR>) {
       op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_beta, rts::rtsModelOptim<BitsAR> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {

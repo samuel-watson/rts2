@@ -33,7 +33,6 @@ public:
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_rho();
   double      log_likelihood_rho(const dblvec &rho);
-  double      log_likelihood_rho_hsgp(const dblvec &rho);
   double      log_likelihood_rho_with_gradient(const VectorXd &rho, VectorXd& g);
   double      log_likelihood_beta(const dblvec &beta);
   double      log_likelihood() override;
@@ -63,12 +62,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_beta()
     } else if constexpr (std::is_same_v<algo,NEWUOA>) {
       this->set_newuoa_control(op);
     }
-    if(this->lower_bound.size()==this->P())
-    {
-      dblvec lower = this->get_lower_values(true,false,false);
-      dblvec upper = this->get_upper_values(true,false,false);
-      op.set_bounds(lower,upper);
-    }
+    if(this->beta_bounded) op.set_bounds(lower_bound,upper_bound);
     if constexpr (std::is_same_v<modeltype,BitsAR>)
     {
       op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsAR> >(this);
@@ -129,13 +123,13 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsNNGP>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
-      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta_hsgp, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsHSGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsARRegion> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsNNGPRegion>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsNNGPRegion>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsNNGPRegion> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
-      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta_hsgp, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
     }
     op.minimise();
   }
@@ -185,13 +179,13 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_rho()
     } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsNNGP>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsNNGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
-      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho_hsgp, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsHSGP> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsARRegion>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsARRegion>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsARRegion> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsNNGPRegion>) {
       op.template fn<&rts::rtsRegionModelOptim<BitsNNGPRegion>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsNNGPRegion> >(this);
     } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
-      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho_hsgp, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
     }
     op.minimise();
   }
@@ -209,8 +203,15 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho(const dblv
   return -1*logl;
 }
 
-template<typename modeltype>
-inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho_hsgp(const dblvec& rho){
+template<>
+inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho(const dblvec& rho){
+  update_rho(rho[0]);
+  double logl = log_likelihood();
+  return -1*logl;
+}
+
+template<>
+inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho(const dblvec& rho){
   update_rho(rho[0]);
   double logl = log_likelihood();
   return -1*logl;

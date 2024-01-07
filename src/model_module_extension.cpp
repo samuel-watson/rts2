@@ -58,6 +58,17 @@ void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_,
   std::visit(functor,model.ptr);
 }
 
+// [[Rcpp::export]]
+void rtsModel__set_bound(SEXP xp, int covtype_, int lptype_, SEXP bound_, bool lower = true){
+  TypeSelector model(xp,covtype_,lptype_);
+  std::vector<double> bound = as<std::vector<double> >(bound_);
+  auto functor = overloaded {
+      [](int) {}, 
+      [&](auto ptr){ptr->optim.set_bound(bound,lower);}
+  };
+  std::visit(functor,model.ptr);
+}
+
 // // [[Rcpp::export]]
 // void rtsModel__set_cov_bobyqa_control(SEXP xp, int covtype_, int lptype_,
 //                                       SEXP rhobeg_, SEXP rhoend_){

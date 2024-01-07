@@ -18,4 +18,3 @@ model {
   to_array_1d(gamma) ~ std_normal();
   y ~ poisson_log(Xb + zu);
 }
-

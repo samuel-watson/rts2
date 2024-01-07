@@ -1,5 +1,5 @@
 functions {
-  vector lambda_nD(real[] L, int[] m, int D) {
+  vector lambda_nD(array[] real L, array[] int m, int D) {
     vector[D] lam;
     for(i in 1:D){
       lam[i] = ((m[i]*pi())/(2*L[i]))^2; }
@@ -24,7 +24,7 @@ functions {
 
     return S;
   }
-  vector phi_nD(real[] L, int[] m, matrix x) {
+  vector phi_nD(array[] real L, array[] int m, matrix x) {
     int c = cols(x);
     int r = rows(x);
 
@@ -52,23 +52,23 @@ data {
   int nT; //number of time periods
   int n_region; // number of regions
   int n_Q; // number of intersections
-  int<lower=1> n_cell[n_region+1]; //number of cells intersecting region  
-  int<lower=1> cell_id[n_Q]; // IDs of the cells intersecting the region
+  array[n_region+1] int<lower=1> n_cell; //number of cells intersecting region  
+  array[n_Q] int<lower=1> cell_id; // IDs of the cells intersecting the region
   vector[n_Q] q_weights; // proportionate weights
   
   // outcomes data
-  int y[n_region*nT]; //outcome
+  array[n_region*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
-  int indices[M_nD,D]; //indices
+  array[M_nD,D] int indices; //indices
   vector[n_region*nT] popdens; //population density
   matrix[n_region*nT,Q] X;
   matrix[Nsample*nT,Q_g == 0 ? 1 : Q_g] X_g;
   
   // distribution parameters
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
   int<lower = 0, upper = 1> known_cov;
   real<lower=0> sigma_data; 
@@ -76,7 +76,7 @@ data {
 }
 transformed data {
   matrix[Nsample,M_nD] PHI;
-  real diagSPD_data[known_cov ? M_nD : 0];
+  array[known_cov ? M_nD : 0] real diagSPD_data;
 
   for (m in 1:M_nD){
     PHI[,m] = phi_nD(L, indices[m,], x_grid);
@@ -91,11 +91,11 @@ transformed data {
 
 parameters {
   matrix[M_nD,nT] beta;
-  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   vector[Q_g] gamma_g;
-  real<lower=-1,upper=1> ar[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=-1,upper=1> ar;
 }
 
 transformed parameters{

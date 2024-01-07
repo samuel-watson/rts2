@@ -1,6 +1,6 @@
 functions {
   matrix getAD(real alpha, real theta, int M, int n,
-                 real[] dists, int[,] NN, int mod){
+                 array[] real dists, array[,] int NN, int mod){
     matrix[M+1,n] AD = rep_matrix(0,M+1,n);
     int idxlim;
     int idx1;
@@ -84,20 +84,20 @@ data {
   int NN[M,Nsample];
   int n_region; // number of regions
   int n_Q; // number of intersections
-  int<lower=1> n_cell[n_region+1]; //number of cells intersecting region  
-  int<lower=1> cell_id[n_Q]; // IDs of the cells intersecting the region
+  array[n_region+1] int<lower=1> n_cell; //number of cells intersecting region  
+  array[n_Q] int<lower=1> cell_id; // IDs of the cells intersecting the region
   vector[n_Q] q_weights; // proportionate weights
   
-  int y[n_region*nT]; //outcome
+  array[n_region*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[n_region*nT] popdens; //population density
   matrix[n_region*nT,Q] X;
   matrix[Nsample*nT,Q_g == 0 ? 1 : Q_g] X_g;
   
-  real prior_lscale[2];
-  real prior_var[2];
-  real prior_linpred_mean[Q];
-  real prior_linpred_sd[Q];
+  array[2] real prior_lscale;
+  array[2] real prior_var;
+  array[Q] real prior_linpred_mean;
+  array[Q] real prior_linpred_sd;
   int mod;
   int<lower = 0, upper = 1> known_cov;
   real<lower=0> sigma_data; 
@@ -106,7 +106,7 @@ data {
 
 transformed data {
   matrix[known_cov ? M+1 : 0,known_cov ? Nsample : 0] AD_data;
-  real dists[(Nsample*(Nsample-1))%/%2];
+  array[(Nsample*(Nsample-1))%/%2] real dists;
   for(i in 1:(Nsample-1)){
     for(j in (i+1):Nsample){
       dists[(Nsample-1)*(i-1)-(((i-2)*(i-1))%/%2)+(j-i-1)+1] = sqrt((x_grid[i,1] - x_grid[j,1]) * (x_grid[i,1] - x_grid[j,1]) +
@@ -120,11 +120,11 @@ transformed data {
 }
 
 parameters {
-  real<lower=1e-05> phi_param[known_cov ? 0 : 1]; //length scale
-  real<lower=1e-05> sigma_param[known_cov ? 0 : 1];
+  array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
+  array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
   vector[Q_g] gamma_g;
-  real<lower=-1,upper=1> ar[nT > 1 ? 1 : 0];
+  array[nT > 1 ? 1 : 0] real<lower=-1,upper=1> ar;
   vector[Nsample*nT] f_raw;
 }
 

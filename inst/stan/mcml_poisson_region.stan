@@ -36,4 +36,3 @@ model {
   to_array_1d(gamma) ~ std_normal();
   y ~ poisson(Xb .* to_vector(u));
 }
-

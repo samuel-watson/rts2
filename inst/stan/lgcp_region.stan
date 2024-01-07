@@ -52,7 +52,7 @@ data {
   array[n_Q] int<lower=1> cell_id; // IDs of the cells intersecting the region
   vector[n_Q] q_weights; // proportionate weights
   
-  aray[Nsample*nT] int y; //outcome
+  array[Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
   vector[Nsample*nT] popdens; //population density
   matrix[Nsample*nT,Q] X;

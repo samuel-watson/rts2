@@ -62,7 +62,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_beta()
     } else if constexpr (std::is_same_v<algo,NEWUOA>) {
       this->set_newuoa_control(op);
     }
-    if(this->beta_bounded) op.set_bounds(lower_bound,upper_bound);
+    if(this->beta_bounded) op.set_bounds(this->lower_bound,this->upper_bound);
     if constexpr (std::is_same_v<modeltype,BitsAR>)
     {
       op.template fn<&rts::rtsRegionModelOptim<BitsAR>::log_likelihood_beta, rts::rtsRegionModelOptim<BitsAR> >(this);

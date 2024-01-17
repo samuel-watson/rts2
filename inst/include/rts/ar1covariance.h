@@ -39,6 +39,7 @@ protected:
   MatrixXd ar_factor;    
   MatrixXd ar_factor_chol;
   MatrixXd ar_factor_deriv;  
+  MatrixXd ar_factor_inverse;  
 };
 
 }
@@ -48,13 +49,13 @@ inline rts::ar1Covariance::ar1Covariance(const str& formula,
                 const ArrayXXd &data,
                 const strvec& colnames, int T) : Covariance(formula, data, colnames), 
                   grid(data, T), L(data.rows(),data.rows()),
-                  ar_factor(T,T), ar_factor_chol(T,T), ar_factor_deriv(T,T) { 
+                  ar_factor(T,T), ar_factor_chol(T,T), ar_factor_deriv(T,T), ar_factor_inverse(T,T) { 
       isSparse = false;
       update_rho(0.1);
     };
   
   inline rts::ar1Covariance::ar1Covariance(const rts::ar1Covariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid), 
-    L(cov.L), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol), ar_factor_deriv(cov.ar_factor_deriv) {
+    L(cov.L), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol), ar_factor_deriv(cov.ar_factor_deriv), ar_factor_inverse(cov.ar_factor_inverse) {
       isSparse = false; 
       update_rho(cov.rho);
   };
@@ -269,6 +270,7 @@ inline void rts::ar1Covariance::update_rho(const double rho_)
   }
   //ar_factor_chol = rts::cholesky(ar_factor);
   ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
+  ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T, grid.T));
 }
 
 

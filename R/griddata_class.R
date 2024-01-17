@@ -686,7 +686,7 @@ grid <- R6::R6Class("grid",
                            #' @param algo integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
-                           #' @param verbose logical. Provide feedback on progress
+                           #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
                            #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
@@ -724,14 +724,14 @@ grid <- R6::R6Class("grid",
                                               max.iter = 30,
                                               iter_warmup=100,
                                               iter_sampling=250,
-                                              verbose=TRUE,
+                                              trace = 1,
                                               use_cmdstanr = TRUE){
                              
                              # some checks at the beginning
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
-                             if(m >25 & verbose)message("m is large, sampling may take a long time.")
-                             if(!is.null(self$region_data)&verbose)message("Using regional data model.")
+                             if(m >25 & trace >= 1)message("m is large, sampling may take a long time.")
+                             if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
                              
                              # set up main data and initialise the pointer to the C++ class
                              datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE, formula_1, formula_2)
@@ -747,7 +747,6 @@ grid <- R6::R6Class("grid",
                                datlist$sigma_data <- c()
                                datlist$phi_data <- c()
                              }
-                             trace <- ifelse(verbose,2,0)
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
                              
                              ## deal with starting values and initialise parameters
@@ -801,11 +800,15 @@ grid <- R6::R6Class("grid",
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
+                             
                              xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
                              all_pars <- c(beta = beta,theta = theta)
                              if(datlist$nT > 1) all_pars <- c(all_pars, rho = rho)
                              all_pars_new <- rep(1,length(all_pars))
-                             if(verbose)cat("\nStart: ",all_pars,"\n")
+                             beta_new <- beta
+                             theta_new <- theta
+                             rho_new <- rho
+                             if(trace >= 1)cat("\nStart: ",all_pars,"\n")
                              t_start <- Sys.time()
                              L <- rtsModel__L(private$ptr,private$cov_type,private$lp_type)
                              ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
@@ -845,7 +848,7 @@ grid <- R6::R6Class("grid",
                                  stop("cmdstanr is recommended but not installed, see https://mc-stan.org/cmdstanr/ for details on how to install.\n
                                     Set option use_cmdstanr=FALSE to use rstan instead.")
                                } else {
-                                 if(verbose)message("If this is the first time running this model, it will be compiled by cmdstan.")
+                                 if(trace == 2)message("If this is the first time running this model, it will be compiled by cmdstan.")
                                  model_file <- system.file("cmdstan",
                                                            filecmd,
                                                            package = "rts2",
@@ -860,8 +863,10 @@ grid <- R6::R6Class("grid",
                                
                                # step 1. MCMC sampling of random effects
                                all_pars <- all_pars_new
+                               theta <- theta_new
+                               if(data$nT > 1) rho <- rho_new
                                iter <- iter + 1
-                               if(verbose)cat("\nIter: ",iter,"\n",Reduce(paste0,rep("-",40)))
+                               if(trace >= 1)cat("\nIter: ",iter,"\n",Reduce(paste0,rep("-",40)))
                                if(trace==2)t1 <- Sys.time()
                                
                                # update the data for stan
@@ -878,7 +883,7 @@ grid <- R6::R6Class("grid",
                                }
                                if(use_cmdstanr){
                                  if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
-                                 if(verbose)cat("\nStarting MCMC sampling")
+                                 if(trace >= 1)cat("\nStarting MCMC sampling")
                                  capture.output(fit <- mod$sample(data = data,
                                                                   chains = 1,
                                                                   iter_warmup = iter_warmup,
@@ -931,6 +936,7 @@ grid <- R6::R6Class("grid",
                                   if(algo == 1){
                                     tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
                                              error = function(e){
+                                               message(conditionMessage(e))
                                                cat("\nL-BFGS failed rho, trying BOBYQA")
                                                rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
                                              })
@@ -953,13 +959,15 @@ grid <- R6::R6Class("grid",
                                if(trace==2)t3 <- Sys.time()
                                td1 <- t3-t2
                                if(trace==2)cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
-                               if(verbose){
+                               if(trace==2){
+                                 cat("\nPARAMETER VALUES:\n")
                                  cat("\nBeta: ", beta_new)
                                  cat("\nTheta: ", theta_new)
-                                 if(datlist$nT > 1) cat("\nRho: ", rho_new)
+                                 if(datlist$nT > 1) cat(" | Rho: ", rho_new)
+                                 cat("\nDifferences:")
                                  cat("\nBeta diff: ", round(max(abs(all_pars-all_pars_new)[1:length(beta)]),5))
                                  cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))
-                                 if(datlist$nT > 1) cat("\nRho diff: ", round(abs(rho-rho_new)[length(all_pars)],5))
+                                 if(datlist$nT > 1) cat(" | Rho diff: ", round(abs(rho-rho_new),5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }
@@ -970,7 +978,7 @@ grid <- R6::R6Class("grid",
                              if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
                              
                              ## get the standard errors
-                             if(verbose)cat("\n\nCalculating standard errors...\n")
+                             if(trace >= 1)cat("\n\nCalculating standard errors...\n")
                              u <- rtsModel__u(private$ptr, private$cov_type,private$lp_type)
                              if(private$lp_type == 1){
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
@@ -1023,7 +1031,7 @@ grid <- R6::R6Class("grid",
                              }
                              t_end <- Sys.time()
                              t_diff <- t_end - t_start
-                             if(verbose)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
+                             if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
                              out <- list(coefficients = res,
                                          converged = !not_conv,
                                          method = "mcem",
@@ -1047,7 +1055,7 @@ grid <- R6::R6Class("grid",
                                          var_par_family = FALSE,
                                          y=datlist$y,
                                          y_predicted  = ypred)
-                             class(out) <- "mcml"
+                             class(out) <- "mcmlrts"
                              return(out)
                            },
                            #' @description

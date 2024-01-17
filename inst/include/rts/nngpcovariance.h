@@ -49,7 +49,7 @@ public:
 protected:
   MatrixXd        ar_factor;    
   MatrixXd        ar_factor_chol;
-  sparse          ar_factor_inverse;
+  MatrixXd        ar_factor_inverse;
   bool            sq_exp = false;
   MatrixXd        ar_factor_deriv;
 };
@@ -186,20 +186,18 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
   double ll1 = 0.0;
   double logdet = log_determinant();
   int idxlim;
-  double au,av;
-  // need to collapse u to v
-  // MatrixXd umat(grid.N,grid.T);
-  // for(int t = 0; t< grid.T; t++){
-  //   umat.col(t) = u.segment(t*grid.N,grid.N);
-  // }
-  // MatrixXd vmat = umat * ar_factor_inverse;
+  double au,av; 
   if(grid.T > 1)
   {
-    VectorXd v(grid.N);    
+    // requires copying a lot of data, is there a better way of doing this? 
+    MatrixXd umat(grid.N,grid.T);
+    for(int t = 0; t< grid.T; t++){
+      umat.col(t) = u.segment(t*grid.N,grid.N);
+    }
+    MatrixXd vmat = umat * ar_factor_inverse;
     for(int t = 0; t < grid.T; t++)
     {
-      v = ar_factor_inverse * u.segment(t*grid.N,grid.N);
-      double qf = u(t*grid.N)*v(t*grid.N)/Dvec(0);
+      double qf = umat(0,t)*vmat(0,t)/Dvec(0);
       for(int i = 1; i < grid.N; i++)
       {
         idxlim = i <= m ? i : m;
@@ -207,11 +205,11 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
         VectorXd vsec(idxlim);
         for(int j = 0; j < idxlim; j++) 
         {
-          usec(j) = u(grid.NN(j,i)+t*grid.N);
-          vsec(j) = v(grid.NN(j,i)+t*grid.N);
+          usec(j) = umat(grid.NN(j,i),t);
+          vsec(j) = vmat(grid.NN(j,i),t);
         }
-        au = u(i+t*grid.N) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
-        av = v(i+t*grid.N) - (A.col(i).segment(0,idxlim).transpose() * vsec)(0);
+        au = umat(i,t) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
+        av = vmat(i,t) - (A.col(i).segment(0,idxlim).transpose() * vsec)(0);
         qf += au*av/Dvec(i);
       }
       ll1 -= 0.5*qf; 
@@ -263,8 +261,7 @@ inline void rts::nngpCovariance::update_rho(const double rho_)
     }
   }
   ar_factor_chol = MatrixXd(ar_factor.llt().matrixL());
-  MatrixXd ar_factor_inv = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
-  ar_factor_inverse = rts::ar_factor_inv_to_sparse(ar_factor_inv,grid.N);
+  ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
 }
 
 inline void rts::nngpCovariance::gen_AD()
@@ -393,11 +390,6 @@ inline VectorXd rts::nngpCovariance::log_gradient(const MatrixXd& umat, double& 
   VectorXd D2(grid.N);
   gen_AD_derivatives(D1,D2,A1,A2);
 
-  // Rcpp::Rcout << "\nA deriv 1: \n" << A1.block(0,0,5,10);
-  // Rcpp::Rcout << "\nD deriv 1: \n" << D1.head(10).transpose();
-  // Rcpp::Rcout << "\nA deriv 2: \n" << A2.block(0,0,5,10);
-  // Rcpp::Rcout << "\nD deriv 2: \n" << D2.head(10).transpose();
-
   //log determinant derivatives
   double dlogdet1 = 0;
   double dlogdet2 = 0;
@@ -412,8 +404,6 @@ inline VectorXd rts::nngpCovariance::log_gradient(const MatrixXd& umat, double& 
   } 
   dlogdet1 *= grid.T;
   dlogdet2 *= grid.T;
-
-  // Rcpp::Rcout << "\nLOG DETERMINANTS: " << dlogdet1 << " " << dlogdet2 << " " << logdet;
 
   double au, av, dau1, dav1, dau2, dav2, qf1, qf2, qf0;
   double ll1 = 0.0;
@@ -487,9 +477,6 @@ inline VectorXd rts::nngpCovariance::log_gradient(const MatrixXd& umat, double& 
   grad(1) = -0.5 * dlogdet2 + ll2 / (double)niter;
   ll *= 1.0/(double)niter;
   ll -= 0.5*logdet + 0.5*grid.N*grid.T*log(2*M_PI);
-
-  // Rcpp::Rcout << "\nTHETA: " << this->parameters_[0] << " " << this->parameters_[1];
-  // Rcpp::Rcout << "\nGRAD THETA: " << grad.transpose();
 
   return grad;
 }

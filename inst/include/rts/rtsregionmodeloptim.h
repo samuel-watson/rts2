@@ -213,7 +213,6 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_theta(const db
     //   this->model.covariance.update_parameters(theta_p);
     //   this->model.covariance.update_rho(theta[2]);
     // }
-    //Rcpp::Rcout << "\nLog lik. theta: " << theta[0] << " " << theta[1];
     this->model.covariance.update_parameters(theta);
     double logl = 0;
   #pragma omp parallel for reduction (+:logl)
@@ -221,45 +220,44 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_theta(const db
     {
       logl += this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
     }
-    // Rcpp::Rcout << "\nLog lik. end: " << logl;
     return -1*logl/this->re.u_.cols();
 }
 
-// template<>
-// inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& theta){
-//   // if(this->model.covariance.grid.T == 1)
-//   //   {
-//   //     this->model.covariance.update_parameters(theta);
-//   //   } else {
-//   //     dblvec theta_p(2);
-//   //     theta_p[0] = theta[0];
-//   //     theta_p[1] = theta[1];
-//   //     this->model.covariance.update_parameters(theta_p);
-//   //     this->model.covariance.update_rho(theta[2]);
-//   //   }
-//   this->model.covariance.update_parameters(theta);
-//   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-//   double ll = this->log_likelihood();
-//   return -1*ll;
-// }
+template<>
+inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& theta){
+  // if(this->model.covariance.grid.T == 1)
+  //   {
+  //     this->model.covariance.update_parameters(theta);
+  //   } else {
+  //     dblvec theta_p(2);
+  //     theta_p[0] = theta[0];
+  //     theta_p[1] = theta[1];
+  //     this->model.covariance.update_parameters(theta_p);
+  //     this->model.covariance.update_rho(theta[2]);
+  //   }
+  this->model.covariance.update_parameters(theta);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  double ll = this->log_likelihood();
+  return -1*ll;
+}
 
-// template<>
-// inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(const dblvec& theta){
-//   this->model.covariance.update_parameters(theta);
-//   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-//   // if(this->model.covariance.grid.T == 1)
-//   //   {
-//   //     this->model.covariance.update_parameters(theta);
-//   //   } else {
-//   //     dblvec theta_p(2);
-//   //     theta_p[0] = theta[0];
-//   //     theta_p[1] = theta[1];
-//   //     this->model.covariance.update_parameters(theta_p);
-//   //     this->model.covariance.update_rho(theta[2]);
-//   //   }
-//   double ll = this->log_likelihood();
-//   return -1*ll;
-// }
+template<>
+inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(const dblvec& theta){
+  this->model.covariance.update_parameters(theta);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  // if(this->model.covariance.grid.T == 1)
+  //   {
+  //     this->model.covariance.update_parameters(theta);
+  //   } else {
+  //     dblvec theta_p(2);
+  //     theta_p[0] = theta[0];
+  //     theta_p[1] = theta[1];
+  //     this->model.covariance.update_parameters(theta_p);
+  //     this->model.covariance.update_rho(theta[2]);
+  //   }
+  double ll = this->log_likelihood();
+  return -1*ll;
+}
 
 template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho(const dblvec& rho){
@@ -277,7 +275,6 @@ template<>
 inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho(const dblvec& rho){
   this->model.covariance.update_rho(rho[0]);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-  //update_rho(rho[0]);
   double logl = log_likelihood();
   return -1*logl;
 }
@@ -286,7 +283,6 @@ template<>
 inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho(const dblvec& rho){
   this->model.covariance.update_rho(rho[0]);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-  // update_rho(rho[0]);
   double logl = log_likelihood();
   return -1*logl;
 }
@@ -332,7 +328,8 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_rho(double rho)
 template<typename modeltype>
 inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_)
 {
-  if(u_.cols()!=this->re.u(false).cols()){
+  if(u_.cols()!=this->re.u(false).cols())
+  {
     this->re.u_.conservativeResize(this->model.covariance.Q(),u_.cols());
     this->re.zu_.resize(this->model.covariance.Q(),u_.cols());
   }
@@ -347,16 +344,20 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood()
   ArrayXXd xb = y_predicted(true);
   if(this->model.weighted){
 #pragma omp parallel for reduction (+:ll) collapse(2)
-    for(int j=0; j<xb.cols() ; j++){
-      for(int i = 0; i<xb.rows(); i++){
+    for(int j=0; j<xb.cols() ; j++)
+    {
+      for(int i = 0; i<xb.rows(); i++)
+      {
         ll += this->model.data.weights(i)*glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
       }
     }
     ll *= this->model.data.weights.sum()/this->model.n();
   } else {
 #pragma omp parallel for reduction (+:ll) collapse(2)
-  for(int j=0; j<xb.cols() ; j++){
-    for(int i = 0; i< xb.rows(); i++){
+  for(int j=0; j<xb.cols() ; j++)
+  {
+    for(int i = 0; i< xb.rows(); i++)
+    {
       ll += glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
     }
   }
@@ -368,7 +369,8 @@ template<typename modeltype>
 inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog)
 {
   ArrayXXd xb(this->model.n(), this->re.u_.cols());
-  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsHSGP >){
+  if constexpr (std::is_same_v<modeltype, BitsAR> || std::is_same_v<modeltype, BitsNNGP > || std::is_same_v<modeltype, BitsHSGP >)
+  {
     xb = region_intensity(true);
   } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion > || std::is_same_v<modeltype, BitsHSGPRegion >){
     xb = this->model.linear_predictor.xb_region(this->re.zu_);
@@ -384,9 +386,7 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselo
   MatrixXd regionu = region.grid_to_region(this->re.zu_);
   ArrayXXd intens = ArrayXXd::Zero(region.nRegion * region.gridT,this->re.u_.cols());
   ArrayXd expxb = this->model.linear_predictor.xb().array().exp();
-  for(int j=0; j<intens.cols(); j++){
-    intens.col(j) = expxb * regionu.col(j).array();
-  }
+  for(int j=0; j<intens.cols(); j++) intens.col(j) = expxb * regionu.col(j).array();
   if(uselog){
     return intens.log();
   } else {
@@ -401,7 +401,8 @@ inline double rts::rtsRegionModelOptim<modeltype>::full_log_likelihood()
   double logl = 0;
   MatrixXd Lu = this->model.covariance.Lu(this->re.u_);
 #pragma omp parallel for reduction (+:logl)
-  for(int i = 0; i < Lu.cols(); i++){
+  for(int i = 0; i < Lu.cols(); i++)
+  {
     logl += this->model.covariance.log_likelihood(Lu.col(i));
   }
   logl *= 1/Lu.cols();

@@ -202,7 +202,7 @@ inline void rts::hsgpCovariance::update_parameters(const ArrayXd& parameters)
 
 inline MatrixXd rts::hsgpCovariance::ZL()
 {
-  MatrixXd ZL = rts::kronecker(ar_factor_chol, PhiSPD());
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, PhiSPD(true, false));
   return ZL;
 }
 
@@ -236,14 +236,14 @@ inline MatrixXd rts::hsgpCovariance::LZWZL(const VectorXd& w)
 
 inline MatrixXd rts::hsgpCovariance::ZLu(const MatrixXd& u)
 {
-  MatrixXd ZLu = rts::hsgpCovariance::ZL() * u;
-  return ZLu;
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, PhiSPD(true, false));
+  return ZL * u;
 }
 
 inline MatrixXd rts::hsgpCovariance::Lu(const MatrixXd& u)
 {
-  MatrixXd ZLu = rts::hsgpCovariance::ZL() * u;
-  return ZLu;
+  MatrixXd ZL = rts::kronecker(ar_factor_chol, PhiSPD(true, false));
+  return ZL * u;
 }
 
 inline sparse rts::hsgpCovariance::ZL_sparse()
@@ -360,9 +360,6 @@ inline ArrayXd rts::hsgpCovariance::LambdaSPD()
 
 inline void rts::hsgpCovariance::update_lambda()
 {
-#pragma omp parallel for
-  for(int i = 0; i < (m*m); i++){
-    Lambda(i) = spd_nD(i);
-  }
+  for(int i = 0; i < (m*m); i++) Lambda(i) = spd_nD(i);
   L = PhiSPD(true,true);
 }

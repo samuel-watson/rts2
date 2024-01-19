@@ -690,7 +690,7 @@ grid <- R6::R6Class("grid",
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
                            #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
-                           #' @return A \link[glmmrBase]{mcml} model fit object
+                           #' @return A `mcmlrts` model fit object
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
                            #' \dontrun{
@@ -1130,7 +1130,7 @@ grid <- R6::R6Class("grid",
 
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
                              if(!(is(fit,"CmdStanMCMC")|is(fit,"stanfit")|
-                                  is(fit,"CmdStanVB")|is(fit,"mcml")))stop("stan fit or MCMCML fit required")
+                                  is(fit,"CmdStanVB")|is(fit,"mcmlrts")))stop("stan fit or MCMCML fit required")
                              if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
 
                              nCells <- nrow(self$grid_data)
@@ -1156,7 +1156,7 @@ grid <- R6::R6Class("grid",
                                } else {
                                  stop("No cmdstanr package")
                                }
-                             } else if(is(fit,"mcml")){
+                             } else if(is(fit,"mcmlrts")){
                                ypred <- t(fit$y_predicted)
                                f <- t(fit$re.samps)
                                nT <- ncol(f)/nCells
@@ -1237,9 +1237,7 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              } else {
-
                                if("irr"%in%type)stop("cannot estimate irr as only one time period")
-
                                if("pred"%in%type){
                                  if(is.null(self$region_data)){
                                    if(!cmdst){
@@ -1294,7 +1292,7 @@ grid <- R6::R6Class("grid",
                            #' will be added to `grid_data`. Note that for incidence threshold, the threshold should
                            #' be specified as the per individual incidence.
                            #'
-                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, or \link[glmmrBase]{mcml} object.
+                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, or `mcmlrts` object.
                            #' Output of `lgcp_bayes()` or `lgcp_ml()`
                            #' @param incidence.threshold Numeric. Threshold of population standardised incidence
                            #' above which an area is a hotspot
@@ -1309,7 +1307,7 @@ grid <- R6::R6Class("grid",
                            #' `NULL`
                            #' @param col_label character string. If not NULL then the name of the column
                            #' for the hotspot probabilities.
-                           #' @return NULL
+                           #' @return None, called for effects. Columns are added to grid or region data.
                            #' @examples
                            #' \dontrun{
                            #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
@@ -1343,19 +1341,24 @@ grid <- R6::R6Class("grid",
 
                              if(all(is.null(incidence.threshold),is.null(irr.threshold),is.null(rr.threshold)))stop("At least one criterion required.")
                              if(!is.null(irr.threshold)&is.null(irr.lag))stop("irr.lag must be set")
-                             if(!(is(fit,"CmdStanMCMC")|is(fit,"CmdStanVB")|is(fit,"stanfit")|is(fit,"mcml")))stop("model fit required")
-
+                             if(!(is(fit,"CmdStanMCMC")|is(fit,"CmdStanVB")|is(fit,"stanfit")|is(fit,"mcmlrts")))stop("model fit required")
+                             if(!is.null(self$region_data) & !is.null(rr.threshold) & (!is.null(irr.threshold) | !is.null(incidence.threshold)))stop("Cannot combine region-level measures (IRR/incidence) with grid relative risk.")
+                             
+                             useRegion <- FALSE
+                             if(!is.null(self$region_data) & is.null(rr.threshold))useRegion <- TRUE
+                             
                              nCells <- nrow(self$grid_data)
-                             nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
-                             if(nT == 0)nT <- 1
+                             nRegion <- ifelse(is.null(self$region_data),0,nrow(self$region_data))
                              if(is(fit,"stanfit")){
                                ypred <- rstan::extract(fit,"y_grid_predict")$y_grid_predict
                                f <- rstan::extract(fit,"f")$f
+                               nT <- dim(ypred)[2]/nCells
                                f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                              } else if(is(fit,"CmdStanMCMC")){
                                if(requireNamespace("cmdstanr")){
                                  ypred <- fit$draws("y_grid_predict")
                                  ypred <- matrix(ypred, prod(dim(ypred)[1:2]), dim(ypred)[3])
+                                 nT <- dim(ypred)[3]/nCells
                                  f <- fit$draws("f")
                                  f <- f[,,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                                  f <- matrix(f, prod(dim(f)[1:2]), dim(f)[3])
@@ -1363,37 +1366,50 @@ grid <- R6::R6Class("grid",
                              } else if(is(fit,"CmdStanVB")){
                                if(requireNamespace("cmdstanr")){
                                  ypred <- fit$draws("y_grid_predict")
+                                 nT <- dim(ypred)[3]/nCells
                                  f <- fit$draws("f")
                                  f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                                }
-                             } else if(is(fit,"mcml")){
+                             } else if(is(fit,"mcmlrts")){
                                ypred <- t(fit$y_predicted)
                                f <- t(fit$re.samps)
+                               nT <- ncol(f)/nCells
                                f <- f[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]
                              }
 
                              nCr <- sum(c(!is.null(incidence.threshold),
                                           !is.null(irr.threshold),
                                           !is.null(rr.threshold)))
-
-
-                             inc1 <- matrix(0,nrow=nrow(f),ncol=nCells)
+                             inc1 <- matrix(0,nrow=nrow(f),ncol=ifelse(useRegion,nRegion,nCells))
 
                              if(!is.null(incidence.threshold)){
-                               fmu <- matrix(0,nrow=nrow(f),ncol=nCells)
-                               for(i in 1:nCells){
-                                 fmu[,i] <- ypred[,((nT-1)*nCells+i)]/as.data.frame(self$grid_data)[i,popdens]
+                               if(!useRegion){
+                                 fmu <- matrix(0,nrow=nrow(f),ncol=nCells)
+                                 for(i in 1:nCells){
+                                   fmu[,i] <- ypred[,((nT-1)*nCells+i)]/as.data.frame(self$grid_data)[i,popdens]
+                                 }
+                                 inc1 <- inc1 + I(fmu > incidence.threshold)*1
+                               } else {
+                                 fmu <- matrix(0,nrow=nrow(f),ncol=nRegion)
+                                 for(i in 1:nRegion){
+                                   fmu[,i] <- ypred[,((nT-1)*nRegion+i)]/as.data.frame(self$region_data)[i,popdens]
+                                 }
+                                 inc1 <- inc1 + I(fmu > incidence.threshold)*1
                                }
-                               inc1 <- inc1 + I(fmu > incidence.threshold)*1
-
                              }
 
                              if(!is.null(irr.threshold)){
-                               if(nT==1)stop("cannot estimate irr as only one time period") else {
-                                 inc1 <- inc1 + I(ypred[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]/
-                                                    ypred[,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells),drop=FALSE] > irr.threshold)*1
+                               if(!useRegion){
+                                 if(nT==1)stop("cannot estimate irr as only one time period") else {
+                                   inc1 <- inc1 + I(ypred[,((nT-1)*nCells+1):(nT*nCells),drop=FALSE]/
+                                                      ypred[,((nT-irr.lag)*nCells+1):((nT-irr.lag+1)*nCells),drop=FALSE] > irr.threshold)*1
+                                 }
+                               } else {
+                                 if(nT==1)stop("cannot estimate irr as only one time period") else {
+                                   inc1 <- inc1 + I(ypred[,((nT-1)*nRegion+1):(nT*nRegion),drop=FALSE]/
+                                                      ypred[,((nT-irr.lag)*nRegion+1):((nT-irr.lag+1)*nRegion),drop=FALSE] > irr.threshold)*1
+                                 }
                                }
-
                              }
 
                              if(!is.null(rr.threshold)){
@@ -1401,12 +1417,17 @@ grid <- R6::R6Class("grid",
                              }
 
                              inc1 <- I(inc1 == nCr)*1
-                             self$grid_data$hotspot_prob <- apply(inc1,2,mean)
-
-                             if(!is.null(col_label)){
-                               colnames(self$grid_data)[length(colnames(self$grid_data))] <- col_label
+                             if(useRegion){
+                               self$region_data$hotspot_prob <- apply(inc1,2,mean)
+                               if(!is.null(col_label)){
+                                 colnames(self$region_data)[length(colnames(self$region_data))] <- col_label
+                               }
+                             } else {
+                               self$grid_data$hotspot_prob <- apply(inc1,2,mean)
+                               if(!is.null(col_label)){
+                                 colnames(self$grid_data)[length(colnames(self$grid_data))] <- col_label
+                               }
                              }
-
                            },
                            #' @description
                            #' Aggregate output

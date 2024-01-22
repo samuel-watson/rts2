@@ -683,6 +683,9 @@ grid <- R6::R6Class("grid",
                            #' argument specified the regional-level fixed effects model.
                            #' @param formula_2 Optional. Instead of providing a list of covariates above (to `covs_grid`) a formula can be specified here. For a regional model, this 
                            #' argument specified the grid-level fixed effects model.
+                           #' @param tol Scalar indicating the upper bound for the maximum absolute difference between parameter estimates on sucessive iterations, after which the algorithm 
+                           #' terminates.
+                           #' @param max.iter Integer. The maximum number of iterations for the algorithm.
                            #' @param algo integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
@@ -726,7 +729,6 @@ grid <- R6::R6Class("grid",
                                               iter_sampling=250,
                                               trace = 1,
                                               use_cmdstanr = TRUE){
-                             
                              # some checks at the beginning
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
@@ -1658,8 +1660,9 @@ grid <- R6::R6Class("grid",
                            #' then the intersections are recomputed.
                            #' @param option Either "y" for order of the y coordinate, "x" for order of the x coordinate,
                            #' "minimax"  in which the next observation in the order is the one which maximises the
-                           #'  minimum distance to the previous observations,g1$grid_data <- g1$grid_data[o0,] or "random" which randomly orders them.
-                           #'  @return No return, used for effects.
+                           #'  minimum distance to the previous observations, or "random" which randomly orders them.
+                           #' @param verbose Logical indicating whether to print a progress bar (TRUE) or not (FALSE).
+                           #' @return No return, used for effects.
                            reorder = function(option="y", verbose = TRUE){
                              df <- suppressWarnings(as.data.frame(sf::st_coordinates(sf::st_centroid(self$grid_data))))
                              colnames(df) <- c("x","y")
@@ -1708,6 +1711,8 @@ grid <- R6::R6Class("grid",
                            #' @param m The number of nearest neighbours or basis functions. 
                            #' @param popdens String naming the variable in the data specifying the offset. If not 
                            #' provided then no offset is used.
+                           #' @param approx Either "rank" for reduced rank approximation, or "nngp" for nearest 
+                           #' neighbour Gaussian process. 
                            #' @param covs An optional vector of covariate names. For regional data models, this is specifically for the region-level covariates.
                            #' @param covs_grid An optional vector of covariate names for region data models, identifying the covariates at the grid level.
                            #' @return A named list of data items used in model fitting

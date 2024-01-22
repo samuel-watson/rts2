@@ -63,3 +63,20 @@ progress_bar <- function(i,n,len=30){
   msg <- paste0("|",pt1,pt2,"| ",round((i*100/n),0),"%")
   return(msg)
 }
+
+#' Simulated point data for running single-period examples
+#' 
+#' A set of 261 points simulated within the boundary of the city Birmingham, UK 
+#' from a log-Gaussian Cox process.
+"example_points"
+
+#' Boundary polygon for Birmingham, UK
+#' 
+#' A Boundary polygon describing the border of the city of Birmingham, UK.
+"boundary"
+
+#' Birmingham crime data
+#' 
+#' Counts of burglaries for the months of 2022 for the city of Birmingham, UK at the 
+#' Middle-Layer Super Output Area.
+"birmingham_crime"

@@ -1736,7 +1736,7 @@ grid <- R6::R6Class("grid",
                            #' @return A matrix of random effects samples if a MCMCML model has been initialised, otherwise returns FALSE
                            get_random_effects = function(){
                              if(!is.null(private$ptr)){
-                               u <- rtsModel__u(private$ptr,data$y,private$cov_type,private$lp_type)
+                               u <- rtsModel__u(private$ptr,private$cov_type,private$lp_type)
                                return(u)
                              } else {
                                return(FALSE)

@@ -8,9 +8,9 @@ using namespace Eigen;
 
 class griddata {
 public:
+  ArrayXXd  X; // centroids
   int       T; // number of time periods
   int       N; // number of cells
-  ArrayXXd  X; // centroids
   ArrayXXi  NN = ArrayXXi::Constant(1,1,1);
   int       m = 10;
   

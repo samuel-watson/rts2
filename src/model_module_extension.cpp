@@ -99,6 +99,8 @@ SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_){
     XPtr<ModelNNGPRegionG> ptr(ptr_);
     Eigen::MatrixXd A = ptr->model.covariance.A;
     return wrap(A);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -117,6 +119,8 @@ SEXP rtsModel_nngp__D(SEXP ptr_, SEXP lptype_){
     XPtr<ModelNNGPRegionG> ptr(ptr_);
     Eigen::MatrixXd A = ptr->model.covariance.Dvec;
     return wrap(A);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -136,6 +140,8 @@ SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_){
     XPtr<ModelNNGPRegionG> ptr(ptr_);
     VectorMatrix A = ptr->model.covariance.submatrix(i);
     return wrap(A);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -154,6 +160,8 @@ SEXP rtsModel_hsgp__Phi(SEXP ptr_, SEXP lptype_, bool lambda, bool inverse){
     XPtr<ModelHSGPRegionG> ptr(ptr_);
     Eigen::MatrixXd A = ptr->model.covariance.PhiSPD(lambda,inverse);
     return wrap(A);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -172,6 +180,8 @@ SEXP rtsModel_hsgp__Lambda(SEXP ptr_, SEXP lptype_){
     XPtr<ModelHSGPRegionG> ptr(ptr_);
     Eigen::ArrayXd A = ptr->model.covariance.LambdaSPD();
     return wrap(A);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -187,6 +197,8 @@ void rtsModel_hsgp__set_function(SEXP ptr_, SEXP lptype_, bool sqexp){
   } else if(lptype == 3){
     XPtr<ModelHSGPRegionG> ptr(ptr_);
     ptr->model.covariance.set_function(sqexp);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -215,6 +227,8 @@ void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_){
   } else if(lptype == 3){
     XPtr<ModelARRegionG> ptr(ptr_);
     ptr->model.covariance.set_sparse(sparse);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -290,6 +304,8 @@ SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.region_intensity();
     return wrap(intens);
+  } else {
+    Rcpp::stop("Invalid lp type.")
   }
 }
 
@@ -322,6 +338,8 @@ SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd intens = ptr->optim.y_predicted(false);
     return wrap(intens);
+  } else {
+    Rcpp::stop("Invalid type.")
   }
 }
 
@@ -353,6 +371,8 @@ SEXP rtsModel__grid_to_region_multiplier_matrix(SEXP xp, SEXP covtype_, SEXP lpt
     XPtr<ModelHSGPRegionG> ptr(xp);
     sparse P = ptr->grid_to_region_multiplier_matrix();
     return wrap(P);
+  } else {
+    Rcpp::stop("Invalid type.")
   }
 }
 
@@ -371,7 +391,9 @@ SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::VectorXd intens = ptr->model.linear_predictor.grid_predictor.xb();
     return wrap(intens);
-  } 
+  }  else {
+    Rcpp::stop("Invalid cov type.")
+  }
 }
 
 // [[Rcpp::export]]

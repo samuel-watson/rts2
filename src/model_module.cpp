@@ -266,6 +266,8 @@ SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::ArrayXXd M = ptr->intersection_infomat();
     return wrap(M);
+  } else {
+    Rcpp::stop("Invalid type");
   }
 }
 

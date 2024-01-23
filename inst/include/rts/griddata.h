@@ -16,7 +16,7 @@ public:
   
   griddata(const ArrayXXd& X_, int T_) : X(X_), T(T_), N(X_.rows()) {};
   griddata(const ArrayXXd& X_, int T_, int M) : X(X_), T(T_), N(X_.rows()) {genNN(M);};
-  griddata(const rts::griddata& g) : X(g.X), N(g.N), T(g.T) {};
+  griddata(const rts::griddata& g) : X(g.X), T(g.T), N(g.N) {};
 
   void      genNN(int M);
   void      setup(const ArrayXXd& X_, int T_);

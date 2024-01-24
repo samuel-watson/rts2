@@ -43,7 +43,7 @@ public:
   MatrixXd        ar_matrix(bool chol = false);
   // generates AD and the derivatives
   void            gen_AD_derivatives(VectorXd& D1, VectorXd& D2, MatrixXd& A1, MatrixXd& A2); 
-  VectorXd        log_gradient(const MatrixXd& u, double& ll);
+  VectorXd        log_gradient(const MatrixXd& u, double& ll) override;
   VectorXd        log_gradient_rho(const MatrixXd& u);
   
 protected:

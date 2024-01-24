@@ -693,14 +693,14 @@ then the covariance parameters are assumed to be known and will not be estimated
 \item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
 instead of rstan.}
 
-\item{\code{...}}{additional options to pass to `$sample()``, see \link[cmdstanr]{sample}}
+\item{\code{...}}{additional options to pass to `$sample()``.}
 
 \item{\code{priors}}{list. See Details}
 }
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A \link[rstan]{stanfit} or a \link[cmdstanr]{CmdStanMCMC} object
+A \link[rstan]{stanfit} or a \code{CmdStanMCMC} object
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
@@ -819,7 +819,7 @@ terminates.}
 \item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
 instead of rstan.}
 
-\item{\code{...}}{additional options to pass to `$sample()``, see \link[cmdstanr]{sample}}
+\item{\code{...}}{additional options to pass to \verb{$sample()}}
 }
 \if{html}{\out{</div>}}
 }
@@ -868,7 +868,7 @@ Extract incidence and relative risk predictions
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fit}}{A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, \link[cmdstanr]{CmdStanVB} object.
+\item{\code{fit}}{A \link[rstan]{stanfit}, \code{CmdStanMCMC}, \code{CmdStanVB}, or \code{mcmlrts} object.
 Output of \code{lgcp_fit()} or the output of \code{lgcp_fit_ml()} or \code{lgcp_fit_la()}}
 
 \item{\code{type}}{Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
@@ -948,7 +948,7 @@ be specified as the per individual incidence.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fit}}{A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, or \code{mcmlrts} object.
+\item{\code{fit}}{A \link[rstan]{stanfit}, \code{CmdStanMCMC}, \code{CmdStanVB}, or \code{mcmlrts} object.
 Output of \code{lgcp_bayes()} or \code{lgcp_ml()}}
 
 \item{\code{incidence.threshold}}{Numeric. Threshold of population standardised incidence

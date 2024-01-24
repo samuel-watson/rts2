@@ -689,6 +689,7 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   Xcombined.leftCols(AX.cols()) = AX;
   Xcombined.rightCols(BX.cols()) = BX;
   MatrixXd M = Xcombined.transpose() * S * Xcombined;
+  return M;
 }
 
 inline sparse rts::rtsRegionModel<BitsAR>::grid_to_region_multiplier_matrix(){

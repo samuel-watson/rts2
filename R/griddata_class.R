@@ -487,8 +487,8 @@ grid <- R6::R6Class("grid",
                            #' @param vb Logical indicating whether to use variational Bayes (TRUE) or full MCMC sampling (FALSE)
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
-                           #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
-                           #' @return A \link[rstan]{stanfit} or a \link[cmdstanr]{CmdStanMCMC} object
+                           #' @param ... additional options to pass to `$sample()``.
+                           #' @return A \link[rstan]{stanfit} or a `CmdStanMCMC` object
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
                            #' \dontrun{
@@ -692,7 +692,7 @@ grid <- R6::R6Class("grid",
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
-                           #' @param ... additional options to pass to `$sample()``, see \link[cmdstanr]{sample}
+                           #' @param ... additional options to pass to `$sample()`
                            #' @return A `mcmlrts` model fit object
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
@@ -1065,7 +1065,7 @@ grid <- R6::R6Class("grid",
                            #'
                            #' Extract incidence and relative risk predictions
                            #'
-                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, \link[cmdstanr]{CmdStanVB} object.
+                           #' @param fit A \link[rstan]{stanfit}, `CmdStanMCMC`, `CmdStanVB`, or `mcmlrts` object.
                            #' Output of `lgcp_fit()` or the output of `lgcp_fit_ml()` or `lgcp_fit_la()`
                            #' @param type Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
                            #' posterior mean incidence (overall and population standardised), relative risk,
@@ -1294,7 +1294,7 @@ grid <- R6::R6Class("grid",
                            #' will be added to `grid_data`. Note that for incidence threshold, the threshold should
                            #' be specified as the per individual incidence.
                            #'
-                           #' @param fit A \link[rstan]{stanfit}, \link[cmdstanr]{CmdStanMCMC}, or `mcmlrts` object.
+                           #' @param fit A \link[rstan]{stanfit}, `CmdStanMCMC`, `CmdStanVB`, or `mcmlrts` object.
                            #' Output of `lgcp_bayes()` or `lgcp_ml()`
                            #' @param incidence.threshold Numeric. Threshold of population standardised incidence
                            #' above which an area is a hotspot

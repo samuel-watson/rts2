@@ -31,7 +31,7 @@ public:
   void      update_parameters(const ArrayXd& parameters) override;
   void      update_parameters_extern(const dblvec& parameters) override;
   MatrixXd  ar_matrix(bool chol = false);
-  VectorXd  log_gradient(const MatrixXd& u, double& logl);
+  VectorXd  log_gradient(const MatrixXd& u, double& logl) override;
   VectorXd  log_gradient_rho(const MatrixXd& u);
   
 protected:

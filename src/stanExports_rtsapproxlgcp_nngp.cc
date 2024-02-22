@@ -2,12 +2,12 @@
 
 #include <Rcpp.h>
 using namespace Rcpp ;
-#include "stanExports_mcml_poisson.h"
+#include "stanExports_rtsapproxlgcp_nngp.h"
 
-RCPP_MODULE(stan_fit4mcml_poisson_mod) {
+RCPP_MODULE(stan_fit4rtsapproxlgcp_nngp_mod) {
 
 
-    class_<rstan::stan_fit<stan_model, boost::random::ecuyer1988> >("rstantools_model_mcml_poisson")
+    class_<rstan::stan_fit<stan_model, boost::random::ecuyer1988> >("rstantools_model_rtsapproxlgcp_nngp")
 
     .constructor<SEXP,SEXP,SEXP>()
 

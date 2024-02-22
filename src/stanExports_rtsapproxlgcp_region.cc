@@ -2,12 +2,12 @@
 
 #include <Rcpp.h>
 using namespace Rcpp ;
-#include "stanExports_lgcp_region.h"
+#include "stanExports_rtsapproxlgcp_region.h"
 
-RCPP_MODULE(stan_fit4lgcp_region_mod) {
+RCPP_MODULE(stan_fit4rtsapproxlgcp_region_mod) {
 
 
-    class_<rstan::stan_fit<stan_model, boost::random::ecuyer1988> >("rstantools_model_lgcp_region")
+    class_<rstan::stan_fit<stan_model, boost::random::ecuyer1988> >("rstantools_model_rtsapproxlgcp_region")
 
     .constructor<SEXP,SEXP,SEXP>()
 

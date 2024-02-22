@@ -72,14 +72,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }
@@ -132,14 +143,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }
@@ -192,14 +214,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }
@@ -252,14 +285,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }
@@ -313,14 +357,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }
@@ -374,14 +429,25 @@ public:
     model.covariance.update_rho(rho_);
     re.zu_ = model.covariance.ZLu(re.u_);
   }
-  void update_u(const MatrixXd &u_){
-    if(u_.cols()!=re.u(false).cols()){
-      re.u_.conservativeResize(model.covariance.Q(),u_.cols());
-      re.zu_.conservativeResize(model.covariance.Q(),u_.cols());
+  void update_u(const MatrixXd &u_, bool append = false){
+      int newcolsize = u_.cols();
+      int currcolsize = re.u_.cols();
+
+      if(append){
+        re.u_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.zu_.conservativeResize(NoChange,currcolsize + newcolsize);
+        re.u_.rightCols(newcolsize) = u_;
+        optim.ll_current.resize(currcolsize + newcolsize,NoChange);
+      } else {
+        if(u_.cols()!=re.u_.cols()){
+          re.u_.resize(NoChange,newcolsize);
+          re.zu_.resize(NoChange,newcolsize);
+          re.u_ = u_;
+          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
+        }
+      }
+      re.zu_ = model.covariance.ZLu(re.u_);
     }
-    re.u_ = u_;
-    re.zu_ = model.covariance.ZLu(re.u_);
-  }
   void set_trace(int trace_){
     optim.trace = trace_;
   }

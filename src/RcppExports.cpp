@@ -345,15 +345,16 @@ BEGIN_RCPP
 END_RCPP
 }
 // rtsModel__update_u
-void rtsModel__update_u(SEXP xp, SEXP u_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__update_u(SEXP xpSEXP, SEXP u_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+void rtsModel__update_u(SEXP xp, SEXP u_, bool append, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__update_u(SEXP xpSEXP, SEXP u_SEXP, SEXP appendSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
     Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
+    Rcpp::traits::input_parameter< bool >::type append(appendSEXP);
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__update_u(xp, u_, covtype_, lptype_);
+    rtsModel__update_u(xp, u_, append, covtype_, lptype_);
     return R_NilValue;
 END_RCPP
 }
@@ -639,6 +640,63 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
     Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
     rcpp_result_gen = Rcpp::wrap(rtsModel__xb(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel__get_log_likelihood_values
+SEXP rtsModel__get_log_likelihood_values(SEXP xp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__get_log_likelihood_values(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__get_log_likelihood_values(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel__u_diagnostic
+SEXP rtsModel__u_diagnostic(SEXP xp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__u_diagnostic(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__u_diagnostic(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// rtsModel__saem
+void rtsModel__saem(SEXP xp, bool saem_, int block_size, double alpha, bool pr_average, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__saem(SEXP xpSEXP, SEXP saem_SEXP, SEXP block_sizeSEXP, SEXP alphaSEXP, SEXP pr_averageSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< bool >::type saem_(saem_SEXP);
+    Rcpp::traits::input_parameter< int >::type block_size(block_sizeSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< bool >::type pr_average(pr_averageSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rtsModel__saem(xp, saem_, block_size, alpha, pr_average, covtype_, lptype_);
+    return R_NilValue;
+END_RCPP
+}
+// rtsModel__ll_diff_variance
+SEXP rtsModel__ll_diff_variance(SEXP xp, bool beta, bool theta, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__ll_diff_variance(SEXP xpSEXP, SEXP betaSEXP, SEXP thetaSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< bool >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< bool >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__ll_diff_variance(xp, beta, theta, covtype_, lptype_));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -943,14 +1001,14 @@ BEGIN_RCPP
 END_RCPP
 }
 
-RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4approxlgcp_region_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4lgcp_region_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4mcml_poisson_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsapproxlgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsapproxlgcp_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtslgcp_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtslgcp_region_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsmcml_poisson_mod();
+RcppExport SEXP _rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod();
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rts2_nngpCovariance__new", (DL_FUNC) &_rts2_nngpCovariance__new, 6},
@@ -974,7 +1032,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__update_beta", (DL_FUNC) &_rts2_rtsModel__update_beta, 4},
     {"_rts2_rtsModel__update_rho", (DL_FUNC) &_rts2_rtsModel__update_rho, 4},
     {"_rts2_rtsModel__update_theta", (DL_FUNC) &_rts2_rtsModel__update_theta, 4},
-    {"_rts2_rtsModel__update_u", (DL_FUNC) &_rts2_rtsModel__update_u, 4},
+    {"_rts2_rtsModel__update_u", (DL_FUNC) &_rts2_rtsModel__update_u, 5},
     {"_rts2_rtsModel__use_attenuation", (DL_FUNC) &_rts2_rtsModel__use_attenuation, 4},
     {"_rts2_rtsModel__get_W", (DL_FUNC) &_rts2_rtsModel__get_W, 3},
     {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 4},
@@ -997,6 +1055,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__L", (DL_FUNC) &_rts2_rtsModel__L, 3},
     {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
     {"_rts2_rtsModel__xb", (DL_FUNC) &_rts2_rtsModel__xb, 3},
+    {"_rts2_rtsModel__get_log_likelihood_values", (DL_FUNC) &_rts2_rtsModel__get_log_likelihood_values, 3},
+    {"_rts2_rtsModel__u_diagnostic", (DL_FUNC) &_rts2_rtsModel__u_diagnostic, 3},
+    {"_rts2_rtsModel__saem", (DL_FUNC) &_rts2_rtsModel__saem, 7},
+    {"_rts2_rtsModel__ll_diff_variance", (DL_FUNC) &_rts2_rtsModel__ll_diff_variance, 5},
     {"_rts2_rtsModel__hess_and_grad", (DL_FUNC) &_rts2_rtsModel__hess_and_grad, 3},
     {"_rts2_rtsModel__set_bobyqa_control", (DL_FUNC) &_rts2_rtsModel__set_bobyqa_control, 6},
     {"_rts2_rtsModel__set_bound", (DL_FUNC) &_rts2_rtsModel__set_bound, 5},
@@ -1020,14 +1082,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
     {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 5},
-    {"_rcpp_module_boot_stan_fit4approxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_mod, 0},
-    {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_mod, 0},
-    {"_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_nngp_region_mod, 0},
-    {"_rcpp_module_boot_stan_fit4approxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4approxlgcp_region_mod, 0},
-    {"_rcpp_module_boot_stan_fit4lgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_mod, 0},
-    {"_rcpp_module_boot_stan_fit4lgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4lgcp_region_mod, 0},
-    {"_rcpp_module_boot_stan_fit4mcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_mod, 0},
-    {"_rcpp_module_boot_stan_fit4mcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4mcml_poisson_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsapproxlgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsapproxlgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsapproxlgcp_nngp_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsapproxlgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsapproxlgcp_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtslgcp_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtslgcp_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtslgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtslgcp_region_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsmcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsmcml_poisson_mod, 0},
+    {"_rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod, 0},
     {NULL, NULL, 0}
 };
 

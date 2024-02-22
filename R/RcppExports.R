@@ -85,8 +85,8 @@ rtsModel__update_theta <- function(xp, theta_, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__update_theta`, xp, theta_, covtype_, lptype_))
 }
 
-rtsModel__update_u <- function(xp, u_, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__update_u`, xp, u_, covtype_, lptype_))
+rtsModel__update_u <- function(xp, u_, append, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__update_u`, xp, u_, append, covtype_, lptype_))
 }
 
 rtsModel__use_attenuation <- function(xp, use_, covtype_, lptype_) {
@@ -175,6 +175,22 @@ rtsModel__D <- function(xp, covtype_, lptype_) {
 
 rtsModel__xb <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__xb`, xp, covtype_, lptype_)
+}
+
+rtsModel__get_log_likelihood_values <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__get_log_likelihood_values`, xp, covtype_, lptype_)
+}
+
+rtsModel__u_diagnostic <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__u_diagnostic`, xp, covtype_, lptype_)
+}
+
+rtsModel__saem <- function(xp, saem_, block_size, alpha, pr_average, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__saem`, xp, saem_, block_size, alpha, pr_average, covtype_, lptype_))
+}
+
+rtsModel__ll_diff_variance <- function(xp, beta, theta, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__ll_diff_variance`, xp, beta, theta, covtype_, lptype_)
 }
 
 rtsModel__hess_and_grad <- function(xp, covtype_, lptype_) {

@@ -54,5 +54,6 @@ struct TypeSelector
   }
 };
 
-using returns = std::variant<int, double, Eigen::VectorXd, Eigen::MatrixXd, std::vector<double>, std::vector<std::string>, VectorMatrix, MatrixMatrix >;
+using returns = std::variant<int, double, Eigen::VectorXd, Eigen::MatrixXd, std::vector<double>, std::vector<std::string>, 
+    VectorMatrix, MatrixMatrix, std::pair<double, double> >;
  

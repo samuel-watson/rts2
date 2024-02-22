@@ -27,9 +27,67 @@ SEXP wrap(const sparse& x){
       Rcpp::Named("Ax") = Rcpp::wrap(x.Ax)
   ));
 }
+
+template<typename T1, typename T2> SEXP wrap( const std::pair<T1,T2>& _v ) {
+  return Rcpp::List::create(
+    Rcpp::Named("first")  = Rcpp::wrap<T1>( _v.first ),
+    Rcpp::Named("second") = Rcpp::wrap<T2>( _v.second )
+  );
+};
+
 }
 
 using namespace Rcpp;
+
+// [[Rcpp::export]]
+SEXP rtsModel__get_log_likelihood_values(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {  return returnType(0);}, 
+    [](auto ptr){return returnType(ptr->optim.current_likelihood_values());}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<std::pair<double,double> >(S));
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__u_diagnostic(SEXP xp, int covtype_, int lptype_){
+ TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {  return returnType(0);}, 
+    [](auto ptr){return returnType(ptr->optim.u_diagnostic());}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<std::pair<double,double> >(S));
+}
+
+// [[Rcpp::export]]
+void rtsModel__saem(SEXP xp, bool saem_, int block_size, double alpha, bool pr_average, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {}, 
+    [&](auto ptr){
+      ptr->optim.control.saem = saem_;
+      ptr->optim.control.alpha = alpha;
+      ptr->re.mcmc_block_size = block_size;
+      ptr->optim.control.pr_average = pr_average;
+    }
+  };
+  std::visit(functor,model.ptr);
+}
+
+// [[Rcpp::export]]
+SEXP rtsModel__ll_diff_variance(SEXP xp, bool beta, bool theta, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {return returnType(0);}, 
+    [&](auto ptr){
+      return returnType(ptr->optim.ll_diff_variance(beta,theta));
+    }
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<double>(S));
+}
 
 // [[Rcpp::export]]
 SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){

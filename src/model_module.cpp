@@ -82,12 +82,12 @@ void rtsModel__update_theta(SEXP xp, SEXP theta_,int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
-void rtsModel__update_u(SEXP xp, SEXP u_,int covtype_, int lptype_){
+void rtsModel__update_u(SEXP xp, SEXP u_,bool append,int covtype_, int lptype_){
   Eigen::MatrixXd u = as<Eigen::MatrixXd>(u_);
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) {}, 
-    [&u](auto mptr){mptr->update_u(u);}
+    [&](auto mptr){mptr->update_u(u,append);}
   };
   std::visit(functor,model.ptr);
 }
@@ -342,7 +342,7 @@ SEXP rtsModel__log_likelihood(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) { return returns(0);}, 
-    [](auto mptr){return returns(mptr->optim.log_likelihood());}
+    [](auto mptr){return returns(mptr->optim.log_likelihood(true));}
   };
   auto ll = std::visit(functor,model.ptr);
   return wrap(std::get<double>(ll));

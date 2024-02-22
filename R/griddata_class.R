@@ -548,27 +548,27 @@ grid <- R6::R6Class("grid",
 
                              if(approx == "hsgp"){
                                if(!is.null(self$region_data)){
-                                 filen <- "approxlgcp_region_cmd.stan"
-                                 fname <- "approxlgcp_region"
+                                 filen <- "rtsapproxlgcp_region_cmd.stan"
+                                 fname <- "rtsapproxlgcp_region"
                                } else {
-                                 filen <- "approxlgcp_cmd.stan"
-                                 fname <- "approxlgcp"
+                                 filen <- "rtsapproxlgcp_cmd.stan"
+                                 fname <- "rtsapproxlgcp"
                                }
                              } else if(approx == "nngp"){
                                if(!is.null(self$region_data)){
-                                 filen <- "approxlgcp_nngp_region_cmd.stan"
-                                 fname <- "approxlgcp_nngp_region"
+                                 filen <- "rtsapproxlgcp_nngp_region_cmd.stan"
+                                 fname <- "rtsapproxlgcp_nngp_region"
                                } else {
-                                 filen <- "approxlgcp_nngp_cmd.stan"
-                                 fname <- "approxlgcp_nngp"
+                                 filen <- "rtsapproxlgcp_nngp_cmd.stan"
+                                 fname <- "rtsapproxlgcp_nngp"
                                }
                              } else {
                                if(!is.null(self$region_data)){
-                                 filen <- "lgcp_region_cmd.stan"
-                                 fname <- "lgcp_region"
+                                 filen <- "rtslgcp_region_cmd.stan"
+                                 fname <- "rtslgcp_region"
                                } else {
-                                 filen <- "lgcp_cmd.stan"
-                                 fname <- "lgcp"
+                                 filen <- "rtslgcp_cmd.stan"
+                                 fname <- "rtslgcp"
                                }
                              }
 
@@ -648,12 +648,15 @@ grid <- R6::R6Class("grid",
                            #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
                            #' to use either a nearest neighbour approximation (`approx='nngp'`) 
                            #' 
-                           #' Model fitting uses MCMC Maximum likelihood, which has three steps:
+                           #' Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
                            #'  1. Sample random effects using MCMC. Using cmdstanr is recommended as it is much faster. The arguments 
                            #'    `mcmc_warmup` and `mcmc_sampling` specify the warmup and sampling iterations for this step.
                            #'  2. Fit fixed effect parameters using expectation maximisation.
                            #'  3. Fit covariance parameters using expectation maximisation. This third step is the slowest. The NNGP approximation
                            #'     provides some speed improvements. Otherwise this step can be skipped if the covaraince parameters are "known".   
+                           #'  The argument `algo` specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation 
+                           #'  expectation maximisation with or without Ruppert-Polyak averaging. MCMC-ML can be used with or without adaptive MCMC sample sizes
+                           #'  and either a derivative free or quasi-Newton optimiser (depending on the underlying model).
                            #' 
                            #' @param popdens character string. Name of the population density column
                            #' @param covs vector of strings. Base names of the covariates to
@@ -686,7 +689,13 @@ grid <- R6::R6Class("grid",
                            #' @param tol Scalar indicating the upper bound for the maximum absolute difference between parameter estimates on sucessive iterations, after which the algorithm 
                            #' terminates.
                            #' @param max.iter Integer. The maximum number of iterations for the algorithm.
-                           #' @param algo integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.
+                           #' @param algo integer. 1 = MCMC ML with L-BFGS for beta and non-approximate covariance parameters, 
+                           #'   2 = MCMC ML with BOBYQA for both, 3 = MCMC ML with L-BFGS for beta, BOBYQA for covariance parameters,
+                           #'   4 = SAEM with BOBYQA for both, 5 = SAEM with RP averaging and BOBYQA for both (default), 6-8 = as 1-3 but 
+                           #'   with adaptive MCMC sample size that starts at 20 with a max of `iter_sampling`
+                           #' @param alpha Optional. Value for alpha in the SAEM parameter.
+                           #' @param conv_criterion Integer. The convergence criterion for the algorithm. 1 = No improvement in the overall log-likelihood with probability 0.95,
+                           #' 2 = No improvement in the log-likelihood for beta with probability 0.95, 3 = Difference between model parameters is less than `tol` between iterations.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
@@ -722,18 +731,25 @@ grid <- R6::R6Class("grid",
                                               upper_bound = NULL,
                                               formula_1 = NULL,
                                               formula_2 = NULL,
-                                              algo = 1,
+                                              algo = 5,
+                                              alpha = 0.7,
+                                              conv_criterion = 1,
                                               tol = 1e-2,
                                               max.iter = 30,
                                               iter_warmup=100,
                                               iter_sampling=250,
                                               trace = 1,
-                                              use_cmdstanr = TRUE){
+                                              use_cmdstanr = FALSE){
                              # some checks at the beginning
                              if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & trace >= 1)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
+                             if(! algo %in% 1:8)stop("Algo must be in 1 - 5")
+                             if(! conv_criterion %in% c(1,2,3))stop("conv_criterion must be 1, 2, or 3")
+                             if(algo %in% c(4,5) & (alpha < 0.5 | alpha >= 1))stop("alpha must be in [0,1) for SAEM")
+                             append_u <- FALSE
+                             adaptive <- algo %in% 6:8
                              
                              # set up main data and initialise the pointer to the C++ class
                              datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE, formula_1, formula_2)
@@ -750,6 +766,8 @@ grid <- R6::R6Class("grid",
                                datlist$phi_data <- c()
                              }
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
+                             n_mcmc_sampling <- ifelse(adaptive, 20, iter_sampling)
+                             rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
                              
                              ## deal with starting values and initialise parameters
                              if(!is.null(starting_values)){
@@ -797,12 +815,16 @@ grid <- R6::R6Class("grid",
                              if(!is.null(upper_bound)){
                                rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,upper_bound,lower=FALSE)
                              }
+                             # run one iteration of fitting beta without re (i.e. glm) to get reasonable starting values
+                             # otherwise the algorithm can struggle to converge
+                             rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx=="hsgp", m * m, datlist$Nsample),ncol=1),FALSE,private$cov_type,private$lp_type)
+                             if(trace >= 1)cat("\nIter: 0\n")
+                             rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
                              
                              # initialise the parameters and data on the R side
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
                              rho <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
-                             
                              xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
                              all_pars <- c(beta = beta,theta = theta)
                              if(datlist$nT > 1) all_pars <- c(all_pars, rho = rho)
@@ -827,8 +849,8 @@ grid <- R6::R6Class("grid",
                              
                              ## set up the stan model
                              if(!is.null(self$region_data)){
-                               filecmd <- "mcml_poisson_region_cmd.stan"
-                               filers <- "mcml_poisson_region"
+                               filecmd <- "rtsmcml_poisson_region_cmd.stan"
+                               filers <- "rtsmcml_poisson_region"
                                if(private$lp_type == 3){
                                  xb_grid <- rtsModel__region_grid_xb(private$ptr,private$cov_type)
                                } else {
@@ -842,8 +864,8 @@ grid <- R6::R6Class("grid",
                                                         Ai = P$Ai+1,
                                                         Ax = P$Ax))
                              } else {
-                               filecmd <- "mcml_poisson_cmd.stan"
-                               filers <- "mcml_poisson"
+                               filecmd <- "rtsmcml_poisson_cmd.stan"
+                               filers <- "rtsmcml_poisson"
                              }
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr")){
@@ -861,13 +883,15 @@ grid <- R6::R6Class("grid",
                              
                              # this is the main algorithm. iterate until convergence
                              iter <- 0
-                             while(any(abs(all_pars-all_pars_new)>tol)&iter < max.iter){
+                             converged <- FALSE
+                             while(!converged &iter < max.iter){
                                
                                # step 1. MCMC sampling of random effects
                                all_pars <- all_pars_new
                                theta <- theta_new
                                if(data$nT > 1) rho <- rho_new
                                iter <- iter + 1
+                               append_u <- I(algo %in% 4:5 & iter > 1)
                                if(trace >= 1)cat("\nIter: ",iter,"\n",Reduce(paste0,rep("-",40)))
                                if(trace==2)t1 <- Sys.time()
                                
@@ -889,7 +913,7 @@ grid <- R6::R6Class("grid",
                                  capture.output(fit <- mod$sample(data = data,
                                                                   chains = 1,
                                                                   iter_warmup = iter_warmup,
-                                                                  iter_sampling = iter_sampling,
+                                                                  iter_sampling = n_mcmc_sampling,
                                                                   refresh = 0),
                                                 file=tempfile())
                                  dsamps <- fit$draws("gamma",format = "matrix")
@@ -899,20 +923,22 @@ grid <- R6::R6Class("grid",
                                  capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[filers]],
                                                                                          data=data,
                                                                                          chains=1,
-                                                                                         iter = iter_warmup+iter_sampling,
+                                                                                         iter = iter_warmup+n_mcmc_sampling,
                                                                                          warmup = iter_warmup,
                                                                                          cores = 1,
                                                                                          refresh = 0)), file=tempfile())
                                  dsamps <- rstan::extract(res,"gamma",permuted = FALSE)
                                  dsamps <- dsamps[,1,]
-                                 rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),private$cov_type,private$lp_type)
+                                 rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),append_u,private$cov_type,private$lp_type)
                                }
-                               if(trace==2)t2 <- Sys.time()
-                               td1 <- t2-t1
-                               if(trace==2)cat("\nMCMC sampling took: ",td1[[1]],attr(td1,"units"))
+                               if(trace==2){
+                                 t2 <- Sys.time()
+                                 td1 <- t2-t1
+                                 cat("\nMCMC sampling took: ",td1[[1]],attr(td1,"units"))
+                               }
                                
                                # step 2. fit beta 
-                               if(algo %in% c(1,3) & private$lp_type == 1){
+                               if(algo %in% c(1,3,6,8) & private$lp_type == 1){
                                  tryCatch(rtsModel__ml_beta(private$ptr,2,private$cov_type,private$lp_type),
                                           error = function(e){
                                             message(conditionMessage(e))
@@ -924,7 +950,7 @@ grid <- R6::R6Class("grid",
                                }
                                
                                if(is.null(known_theta)){
-                                 if(algo == 1){
+                                 if(algo %in% c(1,6)){
                                    tryCatch(rtsModel__ml_theta(private$ptr,2,private$cov_type,private$lp_type),
                                             error = function(e){
                                               message(conditionMessage(e))
@@ -935,7 +961,7 @@ grid <- R6::R6Class("grid",
                                    rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
                                  }
                                 if(datlist$nT > 1){
-                                  if(algo == 1){
+                                  if(algo %in% c(1,6)){
                                     tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
                                              error = function(e){
                                                message(conditionMessage(e))
@@ -956,12 +982,25 @@ grid <- R6::R6Class("grid",
                                  rho_new <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
                                  all_pars_new <- c(all_pars_new,rho_new)
                                }
-                               
+                               llvals <- rtsModel__get_log_likelihood_values(private$ptr,private$cov_type,private$lp_type)
+                               if(conv_criterion == 3){
+                                 converged <- !(beta_diff > tol & theta_diff > tol)
+                               } 
+                               if(iter > 1){
+                                 udiagnostic <- rtsModel__u_diagnostic(private$ptr,private$cov_type,private$lp_type)
+                                 uval <- ifelse(conv_criterion == 1, Reduce(sum,udiagnostic), udiagnostic$first)
+                                 llvar <- rtsModel__ll_diff_variance(private$ptr, TRUE, conv_criterion==1, private$cov_type,private$lp_type)
+                                 if(adaptive) n_mcmc_sampling <- max(n_mcmc_sampling, min(iter_sampling, ceiling(llvar * 6.182557)/uval^2)) # (qnorm(0.95) + qnorm(0.8))^2
+                                 if(conv_criterion %in% c(1,2)){
+                                   conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/n_mcmc_sampling)
+                                   converged <- conv.criterion.value < 0
+                                 } 
+                               }
                                # some summary output
-                               if(trace==2)t3 <- Sys.time()
-                               td1 <- t3-t2
-                               if(trace==2)cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
                                if(trace==2){
+                                 t3 <- Sys.time()
+                                 td1 <- t3-t2
+                                 cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
                                  cat("\nPARAMETER VALUES:\n")
                                  cat("\nBeta: ", beta_new)
                                  cat("\nTheta: ", theta_new)
@@ -971,13 +1010,19 @@ grid <- R6::R6Class("grid",
                                  cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))
                                  if(datlist$nT > 1) cat(" | Rho diff: ", round(abs(rho-rho_new),5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
+                                 cat("\nLog-likelihoods: Fixed: ", round(llvals$first,5)," Covariance: ",round(llvals$second,5))
+                                 if(iter>1){
+                                   if(adaptive)cat("\nMCMC sample size (adaptive): ",n_mcmc_sampling)
+                                   cat("\nLog-lik diff values: ", round(udiagnostic$first,5),", ", round(udiagnostic$second,5)," overall: ", round(Reduce(sum,udiagnostic), 5))
+                                   cat("\nLog-lik variance: ", round(llvar,5))
+                                   if(conv_criterion %in% 1:2)cat(" convergence criterion:", round(conv.criterion.value,5))
+                                 }
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }
                              }
                              
                              # end of algorithm. 
-                             not_conv <- iter > max.iter|any(abs(all_pars-all_pars_new)>tol)
-                             if(not_conv)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
+                             if(!converged)message(paste0("algorithm not converged. Max. difference between iterations :",round(max(abs(all_pars-all_pars_new)),4)))
                              
                              ## get the standard errors
                              if(trace >= 1)cat("\n\nCalculating standard errors...\n")
@@ -1035,7 +1080,7 @@ grid <- R6::R6Class("grid",
                              t_diff <- t_end - t_start
                              if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
                              out <- list(coefficients = res,
-                                         converged = !not_conv,
+                                         converged = converged,
                                          method = "mcem",
                                          m = dim(u)[2],
                                          tol = tol,

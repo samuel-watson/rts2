@@ -22,7 +22,8 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
 Biarch: true
 Depends: 
-    R (>= 3.5.0)
+    R (>= 3.5.0),
+    sf (>= 1.0-14)
 Imports: 
     methods,
     R6,

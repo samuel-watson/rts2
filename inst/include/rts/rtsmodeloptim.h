@@ -30,7 +30,6 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     double          log_likelihood_theta(const dblvec &theta);
     double          log_likelihood_beta_with_gradient(const VectorXd &beta, VectorXd& g);
     double          log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g);
-    
 };
 
 }

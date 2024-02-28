@@ -1461,7 +1461,7 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              }
-                             if(!is.null(rr.threshold)) inc1 <- inc1 + I(exp(private$last_model_fit$re.samps[((nT-t.lag)*nCells+1):((nT-t.lag+1)*nCells),,drop=FALSE]) > rr.threshold)*1
+                             if(!is.null(rr.threshold)) inc1 <- inc1 + I(exp(private$last_model_fit$re.samps[((nT-t.lag-1)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]) > rr.threshold)*1
                              inc1 <- I(inc1 == nCr)*1
                              if(useRegion){
                                self$region_data$hotspot_prob <- apply(inc1,1,mean)

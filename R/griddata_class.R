@@ -1161,10 +1161,12 @@ grid <- R6::R6Class("grid",
                                  } 
                                }
                                # some summary output
-                               if(trace>=1){
+                               if(trace==2){
                                  t3 <- Sys.time()
                                  td1 <- t3-t2
                                  cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
+                               }
+                               if(trace>=1){
                                  cat("\nPARAMETER VALUES:\n")
                                  cat("\nBeta: ", beta_new)
                                  cat("\nTheta: ", theta_new)

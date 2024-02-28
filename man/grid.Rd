@@ -2,18 +2,51 @@
 % Please edit documentation in R/griddata_class.R
 \name{grid}
 \alias{grid}
-\title{R6 class holding sf grid data with data and analysis functions}
+\title{An rts grid object}
 \description{
-R6 class holding sf grid data with data and analysis functions
+An rts grid object
 
-R6 class holding sf grid data with data and analysis functions
+An rts grid object
 }
 \details{
-Grid data consists of the computational grid over the area of interest. Outcomes and
-covariates are projected onto the grid, which can then be sent to the LGCP model.
+An rts grid object is an R6 class holding the spatial data with data, model fitting, and analysis functions.
+
+\strong{INTRODUCTION}
+
+The various methods of the class include examples and details of their implementation. The \pkg{sf} package is used for
+all spatial data. A typical workflow with this class would
+be:
+\enumerate{
+\item Create a new grid object. The class is initialized with either a single polygon describing the area of interest or a collection
+of polygons if spatially aggregated data are used.
+\item If the location (and times) of cases are available (i.e. the data are not spatially aggregated), then we map the points to the computational
+grid. The function \link[rts2]{create_points} can generate point data in the correct \pkg{sf} format. The member function \code{points_to_grid} will then
+map these data to the grid. Counts can also be manually added to grid data. For region data, since the counts are assumed to be already aggregated, these
+must be manually provided by the user. The case counts must appear in columns with specific names. If there is only a single time period then the counts
+must be in a column named \code{y}. If there are multiple time periods then the counts must be in columns names \code{t1}, \code{t2}, \code{t3},... Associated columns labelled
+\code{date1}, \code{date2}, etc. will permit use of some functionality regarding specific time intervals.
+\item If any covariates are to be used for the modelling, then these can be mapped to the compuational grid using the function \code{add_covariates()}. Other
+functions, \code{add_time_indicators()} and \code{get_dow()} will also generate relevant temporal indicators where required. At a minimum we would recommend including
+a measure of population density.
+\item Fit a model. There are multiple methods for model fitting, which are available through the member functions \code{lgcp_ml()} and \code{lgcp_bayes()} for maximum likelihood
+and Bayesian approaches, respectively. The results are stored internally and optionally returned as a \code{rtsFit} object.
+\item Summarise the output. The main functions for summarising the output are \code{extract_preds()}, which will generate predictions of relative risk, incidence rate
+ratios, and predicted incidence, and \code{hotspots()}, which will estimate probabilities that these statistics exceed given thresholds. For spatially-aggregated data models,
+the relative risk applies to the grid, whereas rate ratios and predicted incidence applies to the areas.
+\item Predictions can be visualised or aggregated to relevant geographies with the \code{plot()} and \code{aggregate()} functions.
+}
+Specific details of the implementation of each of these functions along with examples appear below.
+
+\strong{PLOTTING}
 
 If \code{zcol} is not specified then only the geometry is plotted, otherwise the covariates specified will be plotted.
-The user can also use sf plotting functions on grid$grid_data directly.
+The user can also use sf plotting functions on self$grid_data and self$region_data directly.
+
+\strong{POINTS TO GRID}
+
+Given the sf object with the point locations and date output from
+\code{create_points()}, the functions will add columns to \code{grid_data} indicating
+the case count in each cell in each time period.
 
 Case counts are generated for each grid cell for each time period. The user
 can specify the length of each time period; currently \code{day}, \code{week}, and \code{month}
@@ -25,8 +58,10 @@ length counting back from the most recent case. The columns in the output
 will be named \code{t1}, \code{t2},... up to the lag length, where the highest number
 is the most recent period.
 
-\emph{ADDING COVARIATES}
+\strong{ADDING COVARIATES}
+
 \emph{Spatially-varying data only}
+
 \code{cov_data} is an sf object describing covariate
 values for a set of polygons over the area of interest. The values are mapped
 onto \code{grid_data}. For each grid cell in \code{grid_data} a weighted
@@ -37,6 +72,7 @@ density of the polygon for population weighted (\code{weight_type="pop"}). Colum
 with the names in \code{zcols} are added to the output.
 
 \emph{Temporally-varying only data}
+
 \code{cov_data} is a data frame with number of rows
 equal to the number of time periods. One of the columns must be called \code{t} and
 have values from 1 to the number of time periods. The other columns of the data
@@ -47,6 +83,7 @@ covariate there will be columns appended with each time period number. For examp
 \code{dayMon1}, \code{dayMon2}, etc.
 
 \emph{Spatially and temporally varying data}
+
 There are two ways to add data that
 vary both spatially and temporally. The final output for use in analysis must
 have a column for each covariate and each time period with the same name appended
@@ -57,7 +94,8 @@ using the argument \code{t_label}. If the values for different time periods are 
 sf object then they should be named as described above and then can be added
 as for spatially-varying covariates, e.g. \code{zcols=c("covariateA1","covariateA2")}.
 
-\emph{BAYESIAN MODEL FITTING}
+\strong{BAYESIAN MODEL FITTING}
+
 The grid data must contain columns \verb{t*}, giving the case
 count in each time period (see \code{points_to_grid}), as well as any covariates to include in the model
 (see \code{add_covariates}) and the population density. Otherwise, if the data are regional data, then the outcome
@@ -80,8 +118,9 @@ Gaussian process.
 The argument \code{approx} specifies whether to use a full LGCP model (\code{approx='none'}) or whether
 to use either a nearest neighbour approximation (\code{approx='nngp'}) or a "Hilbert space" approximation
 (\code{approx='hsgp'}). For full details of NNGPs see XX and for Hilbert space approximations see references (1) and (2).
-#'
+
 \emph{Priors}
+
 For Bayesian model fitting, the priors should be provided as a list to the griddata object:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{griddata$priors <- list(
@@ -102,7 +141,8 @@ then the linear prediction contains the term \eqn{X'\gamma}. Each parameter in \
 \code{prior_linpred_mean} should be the vector \verb{(a_1,a_2,...,a_Q)} and
 \code{prior_linpred_sd} should be \verb{(b_1,b_2,...,b_Q)}.
 
-\emph{MAXIMUM LIKELIHOOD MODEL FITTING}
+\strong{MAXIMUM LIKELIHOOD MODEL FITTING}
+
 The grid data must contain columns \verb{t*}, giving the case
 count in each time period (see \code{points_to_grid}), as well as any covariates to include in the model
 (see \code{add_covariates}) and the population density. Otherwise, if the data are regional data, then the outcome
@@ -111,16 +151,20 @@ counts must be in self$region_data. See \code{lgcp_bayes()} for more details on 
 The argument \code{approx} specifies whether to use a full LGCP model (\code{approx='none'}) or whether
 to use either a nearest neighbour approximation (\code{approx='nngp'})
 
-Model fitting uses MCMC Maximum likelihood, which has three steps:
+Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
 \enumerate{
 \item Sample random effects using MCMC. Using cmdstanr is recommended as it is much faster. The arguments
 \code{mcmc_warmup} and \code{mcmc_sampling} specify the warmup and sampling iterations for this step.
 \item Fit fixed effect parameters using expectation maximisation.
 \item Fit covariance parameters using expectation maximisation. This third step is the slowest. The NNGP approximation
 provides some speed improvements. Otherwise this step can be skipped if the covaraince parameters are "known".
+The argument \code{algo} specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation
+expectation maximisation with or without Ruppert-Polyak averaging. MCMC-ML can be used with or without adaptive MCMC sample sizes
+and either a derivative free or quasi-Newton optimiser (depending on the underlying model).
 }
 
-\emph{EXTRACTING PREDICTIONS}
+\strong{EXTRACTING PREDICTIONS}
+
 Three outputs can be extracted from the model fit, which will be added as columns to \code{grid_data}:
 
 Predicted incidence: If type includes \code{pred} then \code{pred_mean_total} and
@@ -148,8 +192,14 @@ prior.
 ## Method `grid$new`
 ## ------------------------------------------------
 
+# a simple example with a square and a small number of cells
+# this same running example is used for the other functions 
 b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
+
+# an example with multiple polygons
+data("birmingham_crime")
+g2 <- grid$new(birmingham_crime,cellsize = 1000)
 
 ## ------------------------------------------------
 ## Method `grid$plot`
@@ -159,13 +209,18 @@ b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))
 g1 <- grid$new(b1,0.5)
 g1$plot()
 
+# a plot with covariates - we simulate covariates first
+g1$grid_data$cov <- stats::rnorm(nrow(g1$grid_data))
+g1$plot("cov")
+
 ## ------------------------------------------------
 ## Method `grid$points_to_grid`
 ## ------------------------------------------------
 
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
+# simulate some points
+dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20)) 
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 g1$points_to_grid(dp, laglength=5)
 
@@ -181,6 +236,18 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 
+# mapping population data from some other polygons
+data("boundary")
+data("birmingham_crime")
+g2 <- grid$new(boundary,cellsize=0.008)
+msoa <- sf::st_transform(birmingham_crime,crs = 4326)
+suppressWarnings(sf::st_crs(msoa) <- sf::st_crs(g2$grid_data)) # ensure crs matches
+g2$add_covariates(msoa,
+                  zcols="pop",
+                  weight_type="area",
+                  verbose=FALSE)
+g2$plot("pop")
+
 ## ------------------------------------------------
 ## Method `grid$get_dow`
 ## ------------------------------------------------
@@ -190,20 +257,21 @@ g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 g1$points_to_grid(dp, laglength=5)
-g1$get_dow()
+dow <- g1$get_dow()
+g1$add_covariates(dow,zcols = colnames(dow)[3:ncol(dow)])
 
 ## ------------------------------------------------
 ## Method `grid$lgcp_bayes`
 ## ------------------------------------------------
 
-\dontrun{
+# the data are just random simulated points 
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
@@ -213,79 +281,79 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-res <- g1$lgcp_bayes(popdens="cov")
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g1$model_fit()
+# we can extract predictions
+g1$extract_preds("rr")
+g1$plot("rr")
+g1$hotspots(rr.threshold = 2)
+
+\donttest{
+ # this example uses real aggregated data but will take a relatively long time to run
+ data("birmingham_crime")
+ example_data <- birmingham_crime[,c(1:8,21)]
+ example_data$y <- birmingham_crime$t12
+ g2 <- grid$new(example_data,cellsize=1000)
+ g2$priors <- list(
+  prior_lscale=c(0,0.5),
+  prior_var=c(0,0.5),
+  prior_linpred_mean=c(-3),
+  prior_linpred_sd=c(5)
+)
+g2$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g2$model_fit()
+g2$extract_preds("rr")
+g2$plot("rr")
+g2$hotspots(rr.threshold = 2)
 }
 
 ## ------------------------------------------------
 ## Method `grid$lgcp_ml`
 ## ------------------------------------------------
 
-\dontrun{
+# a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-res <- g1$lgcp_ml(popdens="cov")
+g1$lgcp_ml(popdens="cov")
+g1$model_fit()
+g1$extract_preds("rr")
+g1$plot("rr")
+g1$hotspots(rr.threshold = 2)
+
+\donttest{
+# this example uses real aggregated data but will take a relatively long time to run
+ data("birmingham_crime")
+ example_data <- birmingham_crime[,c(1:8,21)]
+ example_data$y <- birmingham_crime$t12
+ g2 <- grid$new(example_data,cellsize=1000)
+ g2$lgcp_ml(popdens = "pop")
+ g2$model_fit()
+ g2$extract_preds("rr")
+ g2$plot("rr")
+ g2$hotspots(rr.threshold = 2) 
 }
+
 
 ## ------------------------------------------------
 ## Method `grid$extract_preds`
 ## ------------------------------------------------
 
-\dontrun{
-b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
-g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
-cov1 <- grid$new(b1,0.8)
-cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
-g1$priors <- list(
-  prior_lscale=c(0,0.5),
-  prior_var=c(0,0.5),
-  prior_linpred_mean=c(0),
-  prior_linpred_sd=c(5)
-  )
-res <- g1$lgcp_fit(popdens="cov")
-g1$extract_preds(res,
-                 type=c("pred","rr"),
-                 popdens="cov")
-}
+# See examples for lgcp_bayes() and lgcp_ml()
 
 ## ------------------------------------------------
 ## Method `grid$hotspots`
 ## ------------------------------------------------
 
 \dontrun{
-b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
-g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
-cov1 <- grid$new(b1,0.8)
-cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
-g1$priors <- list(
-  prior_lscale=c(0,0.5),
-  prior_var=c(0,0.5),
-  prior_linpred_mean=c(0),
-  prior_linpred_sd=c(5)
-  )
-res <- g1$lgcp_fit(popdens="cov")
-g1$hotspots(res,
-            incidence.threshold=1,
-            popdens="cov")
+# See examples for lgcp_bayes() and lgcp_ml()
 }
 
 ## ------------------------------------------------
@@ -382,6 +450,7 @@ covariance parameter optimisation, while the former control the linear predictor
 \item \href{#method-grid-reorder}{\code{grid$reorder()}}
 \item \href{#method-grid-data}{\code{grid$data()}}
 \item \href{#method-grid-get_random_effects}{\code{grid$get_random_effects()}}
+\item \href{#method-grid-model_fit}{\code{grid$model_fit()}}
 \item \href{#method-grid-clone}{\code{grid$clone()}}
 }
 }
@@ -389,13 +458,9 @@ covariance parameter optimisation, while the former control the linear predictor
 \if{html}{\out{<a id="method-grid-new"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-new}{}}}
 \subsection{Method \code{new()}}{
-Create a new griddata object
+Create a new grid object
 
-Produces a regular grid over an area of interest as an sf object
-
-Given a contiguous boundary describing an area of interest, which is stored as an sf
-object of a regular grid within the limits of the boundary at \verb{$grid_data}. The boundary
-is also stored in the object as \verb{$boundary}
+Produces a regular grid over an area of interest as an sf object, see details for information on initialisation.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$new(poly, cellsize, verbose = TRUE)}\if{html}{\out{</div>}}
 }
@@ -417,8 +482,14 @@ NULL
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
+\preformatted{# a simple example with a square and a small number of cells
+# this same running example is used for the other functions 
+b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
+
+# an example with multiple polygons
+data("birmingham_crime")
+g2 <- grid$new(birmingham_crime,cellsize = 1000)
 }
 \if{html}{\out{</div>}}
 
@@ -429,11 +500,14 @@ g1 <- grid$new(b1,0.5)
 \if{html}{\out{<a id="method-grid-print"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-print}{}}}
 \subsection{Method \code{print()}}{
-Prints the $grid_data sf object
+Prints this object
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$print()}\if{html}{\out{</div>}}
 }
 
+\subsection{Returns}{
+None. called for effects.
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-grid-plot"></a>}}
@@ -459,6 +533,10 @@ A plot
 \preformatted{b1 = sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 g1$plot()
+
+# a plot with covariates - we simulate covariates first
+g1$grid_data$cov <- stats::rnorm(nrow(g1$grid_data))
+g1$plot("cov")
 }
 \if{html}{\out{</div>}}
 
@@ -472,10 +550,6 @@ g1$plot()
 Generates case counts of points over the grid
 
 Counts the number of cases in each time period in each grid cell
-
-Given the sf object with the point locations and date output from
-\code{create_points()}, the functions will add columns to \code{grid_data} indicating
-the case count in each cell in each time period.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$points_to_grid(
   point_data,
@@ -508,7 +582,8 @@ NULL
 \if{html}{\out{<div class="r example copy">}}
 \preformatted{b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
+# simulate some points
+dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20)) 
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 g1$points_to_grid(dp, laglength=5)
 }
@@ -523,7 +598,7 @@ g1$points_to_grid(dp, laglength=5)
 \subsection{Method \code{add_covariates()}}{
 Adds covariate data to the grid
 
-Maps spatial, temporal, or spatio-temporal covariate data onto the grid
+Maps spatial, temporal, or spatio-temporal covariate data onto the grid.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$add_covariates(
   cov_data,
@@ -568,6 +643,18 @@ cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
+
+# mapping population data from some other polygons
+data("boundary")
+data("birmingham_crime")
+g2 <- grid$new(boundary,cellsize=0.008)
+msoa <- sf::st_transform(birmingham_crime,crs = 4326)
+suppressWarnings(sf::st_crs(msoa) <- sf::st_crs(g2$grid_data)) # ensure crs matches
+g2$add_covariates(msoa,
+                  zcols="pop",
+                  weight_type="area",
+                  verbose=FALSE)
+g2$plot("pop")
 }
 \if{html}{\out{</div>}}
 
@@ -598,7 +685,8 @@ g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 g1$points_to_grid(dp, laglength=5)
-g1$get_dow()
+dow <- g1$get_dow()
+g1$add_covariates(dow,zcols = colnames(dow)[3:ncol(dow)])
 }
 \if{html}{\out{</div>}}
 
@@ -636,14 +724,14 @@ Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
   L = 1.5,
   model = "exp",
   known_theta = NULL,
-  dir = NULL,
   iter_warmup = 500,
   iter_sampling = 500,
   chains = 3,
   parallel_chains = 3,
   verbose = TRUE,
   vb = FALSE,
-  use_cmdstanr = TRUE,
+  use_cmdstanr = FALSE,
+  return_stan_fit = FALSE,
   ...
 )}\if{html}{\out{</div>}}
 }
@@ -676,8 +764,6 @@ covariance function}
 \item{\code{known_theta}}{An optional vector of two values of the covariance parameters. If these are provided
 then the covariance parameters are assumed to be known and will not be estimated.}
 
-\item{\code{dir}}{character string. Directory to save ouptut.}
-
 \item{\code{iter_warmup}}{integer. Number of warmup iterations}
 
 \item{\code{iter_sampling}}{integer. Number of sampling iterations}
@@ -693,6 +779,10 @@ then the covariance parameters are assumed to be known and will not be estimated
 \item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
 instead of rstan.}
 
+\item{\code{return_stan_fit}}{logical. The results of the model fit are stored internally as an \code{rstFit} object and
+returned in that format. If this argument is set to TRUE, then the fitted stan object will instead be returned,
+but the \code{rtsFit} object will still be saved.}
+
 \item{\code{...}}{additional options to pass to `$sample()``.}
 
 \item{\code{priors}}{list. See Details}
@@ -704,14 +794,14 @@ A \link[rstan]{stanfit} or a \code{CmdStanMCMC} object
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{\dontrun{
+\preformatted{# the data are just random simulated points 
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
@@ -721,7 +811,30 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-res <- g1$lgcp_bayes(popdens="cov")
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g1$model_fit()
+# we can extract predictions
+g1$extract_preds("rr")
+g1$plot("rr")
+g1$hotspots(rr.threshold = 2)
+
+\donttest{
+ # this example uses real aggregated data but will take a relatively long time to run
+ data("birmingham_crime")
+ example_data <- birmingham_crime[,c(1:8,21)]
+ example_data$y <- birmingham_crime$t12
+ g2 <- grid$new(example_data,cellsize=1000)
+ g2$priors <- list(
+  prior_lscale=c(0,0.5),
+  prior_var=c(0,0.5),
+  prior_linpred_mean=c(-3),
+  prior_linpred_sd=c(5)
+)
+g2$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g2$model_fit()
+g2$extract_preds("rr")
+g2$plot("rr")
+g2$hotspots(rr.threshold = 2)
 }
 }
 \if{html}{\out{</div>}}
@@ -749,13 +862,15 @@ Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
   upper_bound = NULL,
   formula_1 = NULL,
   formula_2 = NULL,
-  algo = 1,
+  algo = 4,
+  alpha = 0.7,
+  conv_criterion = 1,
   tol = 0.01,
   max.iter = 30,
   iter_warmup = 100,
   iter_sampling = 250,
   trace = 1,
-  use_cmdstanr = TRUE
+  use_cmdstanr = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -803,7 +918,15 @@ argument specified the regional-level fixed effects model.}
 \item{\code{formula_2}}{Optional. Instead of providing a list of covariates above (to \code{covs_grid}) a formula can be specified here. For a regional model, this
 argument specified the grid-level fixed effects model.}
 
-\item{\code{algo}}{integer. 1 = L-BFGS for beta and non-approximate covariance parameters (default), 2 = BOBYQA for both, 3 = L-BFGS for beta, BOBYQA for covariance parameters.}
+\item{\code{algo}}{integer. 1 = MCMC ML with L-BFGS for beta and non-approximate covariance parameters,
+2 = MCMC ML with BOBYQA for both, 3 = MCMC ML with L-BFGS for beta, BOBYQA for covariance parameters,
+4 = SAEM with BOBYQA for both, 5 = SAEM with RP averaging and BOBYQA for both (default), 6-8 = as 1-3 but
+with adaptive MCMC sample size that starts at 20 with a max of \code{iter_sampling}}
+
+\item{\code{alpha}}{Optional. Value for alpha in the SAEM parameter.}
+
+\item{\code{conv_criterion}}{Integer. The convergence criterion for the algorithm. 1 = No improvement in the overall log-likelihood with probability 0.95,
+2 = No improvement in the log-likelihood for beta with probability 0.95, 3 = Difference between model parameters is less than \code{tol} between iterations.}
 
 \item{\code{tol}}{Scalar indicating the upper bound for the maximum absolute difference between parameter estimates on sucessive iterations, after which the algorithm
 terminates.}
@@ -824,23 +947,40 @@ instead of rstan.}
 \if{html}{\out{</div>}}
 }
 \subsection{Returns}{
-A \code{mcmlrts} model fit object
+Optionally, an \code{rtsFit} model fit object. This fit is stored internally and can be retrieved with \code{model_fit()}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{\dontrun{
+\preformatted{# a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-res <- g1$lgcp_ml(popdens="cov")
+g1$lgcp_ml(popdens="cov")
+g1$model_fit()
+g1$extract_preds("rr")
+g1$plot("rr")
+g1$hotspots(rr.threshold = 2)
+
+\donttest{
+# this example uses real aggregated data but will take a relatively long time to run
+ data("birmingham_crime")
+ example_data <- birmingham_crime[,c(1:8,21)]
+ example_data$y <- birmingham_crime$t12
+ g2 <- grid$new(example_data,cellsize=1000)
+ g2$lgcp_ml(popdens = "pop")
+ g2$model_fit()
+ g2$extract_preds("rr")
+ g2$plot("rr")
+ g2$hotspots(rr.threshold = 2) 
 }
+
 }
 \if{html}{\out{</div>}}
 
@@ -853,10 +993,10 @@ res <- g1$lgcp_ml(popdens="cov")
 \subsection{Method \code{extract_preds()}}{
 Extract predictions
 
-Extract incidence and relative risk predictions
+Extract incidence and relative risk predictions. The predictions will be extracted from the last model fit. If no previous model fit then use either \code{lgcp_ml()} or \code{lgcp_bayes()}, or see
+\code{model_fit()} to update the stored model fit.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$extract_preds(
-  fit,
   type = c("pred", "rr", "irr"),
   irr.lag = NULL,
   t.lag = 0,
@@ -868,9 +1008,6 @@ Extract incidence and relative risk predictions
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fit}}{A \link[rstan]{stanfit}, \code{CmdStanMCMC}, \code{CmdStanVB}, or \code{mcmlrts} object.
-Output of \code{lgcp_fit()} or the output of \code{lgcp_fit_ml()} or \code{lgcp_fit_la()}}
-
 \item{\code{type}}{Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
 posterior mean incidence (overall and population standardised), relative risk,
 and incidence rate ratio, respectively.}
@@ -892,28 +1029,7 @@ NULL
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{\dontrun{
-b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
-g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
-cov1 <- grid$new(b1,0.8)
-cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
-g1$priors <- list(
-  prior_lscale=c(0,0.5),
-  prior_var=c(0,0.5),
-  prior_linpred_mean=c(0),
-  prior_linpred_sd=c(5)
-  )
-res <- g1$lgcp_fit(popdens="cov")
-g1$extract_preds(res,
-                 type=c("pred","rr"),
-                 popdens="cov")
-}
+\preformatted{# See examples for lgcp_bayes() and lgcp_ml()
 }
 \if{html}{\out{</div>}}
 
@@ -924,9 +1040,11 @@ g1$extract_preds(res,
 \if{html}{\out{<a id="method-grid-hotspots"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-hotspots}{}}}
 \subsection{Method \code{hotspots()}}{
-Hotspots
-
 Generate hotspot probabilities
+
+Generate hotspot probabilities. The last model fit will be used to extract
+predictions. If no previous model fit then use either \code{lgcp_ml()} or \code{lgcp_bayes()}, or see
+\code{model_fit()} to update the stored model fit.
 
 Given a definition of a hotspot in terms of threshold(s) for incidence,
 relative risk, and/or incidence rate ratio, returns the probabilities
@@ -935,11 +1053,11 @@ will be added to \code{grid_data}. Note that for incidence threshold, the thresh
 be specified as the per individual incidence.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$hotspots(
-  fit,
   incidence.threshold = NULL,
   irr.threshold = NULL,
-  irr.lag = NULL,
+  irr.lag = 1,
   rr.threshold = NULL,
+  t.lag = 0,
   popdens,
   col_label = NULL
 )}\if{html}{\out{</div>}}
@@ -948,9 +1066,6 @@ be specified as the per individual incidence.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{fit}}{A \link[rstan]{stanfit}, \code{CmdStanMCMC}, \code{CmdStanVB}, or \code{mcmlrts} object.
-Output of \code{lgcp_bayes()} or \code{lgcp_ml()}}
-
 \item{\code{incidence.threshold}}{Numeric. Threshold of population standardised incidence
 above which an area is a hotspot}
 
@@ -962,6 +1077,8 @@ Only required if \code{irr.threshold} is not \code{NULL}.}
 
 \item{\code{rr.threshold}}{numeric. Threshold of local relative risk
 above which an area is a hotspot}
+
+\item{\code{t.lag}}{integer. Extract predictions for incidence or relative risk for previous time periods.}
 
 \item{\code{popdens}}{character string. Name of variable in \code{grid_data}
 specifying the population density. Needed if \code{incidence.threshold} is not
@@ -978,26 +1095,7 @@ None, called for effects. Columns are added to grid or region data.
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
 \preformatted{\dontrun{
-b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
-g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
-cov1 <- grid$new(b1,0.8)
-cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
-g1$priors <- list(
-  prior_lscale=c(0,0.5),
-  prior_var=c(0,0.5),
-  prior_linpred_mean=c(0),
-  prior_linpred_sd=c(5)
-  )
-res <- g1$lgcp_fit(popdens="cov")
-g1$hotspots(res,
-            incidence.threshold=1,
-            popdens="cov")
+# See examples for lgcp_bayes() and lgcp_ml()
 }
 }
 \if{html}{\out{</div>}}
@@ -1211,7 +1309,7 @@ A named list of data items used in model fitting
 \if{html}{\out{<a id="method-grid-get_random_effects"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-get_random_effects}{}}}
 \subsection{Method \code{get_random_effects()}}{
-Returns the random effects stored in the object (if any) after using MCMCML fitting. For example,
+Returns the random effects stored in the object (if any) after using ML fitting. It's main use is
 if a fitting procedure is stopped, the random effects can still be returned.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$get_random_effects()}\if{html}{\out{</div>}}
@@ -1219,6 +1317,27 @@ if a fitting procedure is stopped, the random effects can still be returned.
 
 \subsection{Returns}{
 A matrix of random effects samples if a MCMCML model has been initialised, otherwise returns FALSE
+}
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-model_fit"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-model_fit}{}}}
+\subsection{Method \code{model_fit()}}{
+Either returns the stored last model fit with either \code{lgcp_ml} or \code{lgcp_bayes}, or updates
+the saved model fit if an object is provided.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$model_fit(fit = NULL)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{fit}}{Optional. A previous \code{rtsFit} object. If provided then the function updates the internally stored model fit.}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Either a \code{rtsFit} object or nothing if no model has been previously fit, or if the fit is updated.
 }
 }
 \if{html}{\out{<hr>}}

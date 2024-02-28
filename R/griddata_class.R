@@ -1,7 +1,9 @@
 #' An rts grid object
-#'
+#' 
 #' An rts grid object is an R6 class holding the spatial data with data, model fitting, and analysis functions. 
 #' @details
+#' **INTRODUCTION**
+#' 
 #' The various methods of the class include examples and details of their implementation. The \pkg{sf} package is used for 
 #' all spatial data. A typical workflow with this class would 
 #' be:
@@ -20,7 +22,7 @@
 #'  \item Fit a model. There are multiple methods for model fitting, which are available through the member functions `lgcp_ml()` and `lgcp_bayes()` for maximum likelihood 
 #'  and Bayesian approaches, respectively. The results are stored internally and optionally returned as a `rtsFit` object. 
 #'  \item Summarise the output. The main functions for summarising the output are `extract_preds()`, which will generate predictions of relative risk, incidence rate 
-#'  ratios, and predicted incidence, and `hotspot()`, which will estimate probabilities that these statistics exceed given thresholds. For spatially-aggregated data models, 
+#'  ratios, and predicted incidence, and `hotspots()`, which will estimate probabilities that these statistics exceed given thresholds. For spatially-aggregated data models, 
 #'  the relative risk applies to the grid, whereas rate ratios and predicted incidence applies to the areas.
 #'  \item Predictions can be visualised or aggregated to relevant geographies with the `plot()` and `aggregate()` functions.
 #' }
@@ -123,7 +125,7 @@ grid <- R6::R6Class("grid",
                              is_setup <- FALSE
                              cat("\nAn rts2 grid object\n")
                              if(is.null(self$region_data)){
-                               cat("\n \U2BC8 Boundary\n")
+                               cat("\n \U2BC8 Boundary\n\n")
                                print(head(self$boundary))
                              }
                              cat("\n \U2BC8 Computational grid\n     \U2BA1 ",nrow(self$grid_data)," cells")
@@ -141,7 +143,7 @@ grid <- R6::R6Class("grid",
                                  cat("\n     \U2BA1 Case data for ",nT," time periods")
                                  is_setup <- TRUE
                                }
-                               cat("\n")
+                               cat("\n\n")
                                print(head(self$grid_data))
                              } else {
                                cat("\n \U2BC8 Spatially aggregated count data:\n     \U2BA1 ",nrow(self$region_data)," regions")
@@ -165,14 +167,15 @@ grid <- R6::R6Class("grid",
                              if(!is.null(private$last_model_fit)){
                                print(private$last_model_fit)
                              } else {
-                               cat("\n     \U2BA1 No model has been fit to these data: see lgcp_ml() and lgcp_bayes()")
+                               cat("     \U2BA1 No model has been fit to these data: see lgcp_ml() and lgcp_bayes()")
                              }
                            },
                            #' @description
                            #' Plots the grid data
                            #'
                            #' @details
-                           #' ** PLOTTING **
+                           #' **PLOTTING**
+                           #' 
                            #' If `zcol` is not specified then only the geometry is plotted, otherwise the covariates specified will be plotted.
                            #' The user can also use sf plotting functions on self$grid_data and self$region_data directly.
                            #' @param zcol Vector of strings specifying names of columns of `grid_data` to plot
@@ -197,7 +200,8 @@ grid <- R6::R6Class("grid",
                            #'
                            #' Counts the number of cases in each time period in each grid cell
                            #' @details
-                           #' ** POINTS TO GRID **
+                           #' **POINTS TO GRID**
+                           #' 
                            #' Given the sf object with the point locations and date output from
                            #' `create_points()`, the functions will add columns to `grid_data` indicating
                            #' the case count in each cell in each time period.
@@ -223,7 +227,8 @@ grid <- R6::R6Class("grid",
                            #' @examples
                            #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
                            #' g1 <- grid$new(b1,0.5)
-                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20)) # simulate some points
+                           #' # simulate some points
+                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20)) 
                            #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
                            #' g1$points_to_grid(dp, laglength=5)
                            points_to_grid = function(point_data,
@@ -278,7 +283,9 @@ grid <- R6::R6Class("grid",
                            #'
                            #' @details
                            #' **ADDING COVARIATES**
+                           #' 
                            #' *Spatially-varying data only* 
+                           #' 
                            #' `cov_data` is an sf object describing covariate
                            #' values for a set of polygons over the area of interest. The values are mapped
                            #' onto `grid_data`. For each grid cell in `grid_data` a weighted
@@ -289,6 +296,7 @@ grid <- R6::R6Class("grid",
                            #' with the names in `zcols` are added to the output.
                            #'
                            #' *Temporally-varying only data* 
+                           #' 
                            #' `cov_data` is a data frame with number of rows
                            #' equal to the number of time periods. One of the columns must be called `t` and
                            #' have values from 1 to the number of time periods. The other columns of the data
@@ -299,6 +307,7 @@ grid <- R6::R6Class("grid",
                            #' `dayMon1`, `dayMon2`, etc.
                            #'
                            #' *Spatially and temporally varying data* 
+                           #' 
                            #' There are two ways to add data that
                            #' vary both spatially and temporally. The final output for use in analysis must
                            #' have a column for each covariate and each time period with the same name appended
@@ -481,7 +490,8 @@ grid <- R6::R6Class("grid",
                            #' Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
                            #'
                            #' @details
-                           #' *BAYESIAN MODEL FITTING*
+                           #' **BAYESIAN MODEL FITTING**
+                           #' 
                            #' The grid data must contain columns `t*`, giving the case
                            #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
                            #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
@@ -504,8 +514,9 @@ grid <- R6::R6Class("grid",
                            #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
                            #' to use either a nearest neighbour approximation (`approx='nngp'`) or a "Hilbert space" approximation
                            #' (`approx='hsgp'`). For full details of NNGPs see XX and for Hilbert space approximations see references (1) and (2).
-                           #'                           #'
+                           #' 
                            #' *Priors*
+                           #' 
                            #' For Bayesian model fitting, the priors should be provided as a list to the griddata object:
                            #'```
                            #'griddata$priors <- list(
@@ -549,7 +560,6 @@ grid <- R6::R6Class("grid",
                            #' covariance function
                            #' @param known_theta An optional vector of two values of the covariance parameters. If these are provided
                            #' then the covariance parameters are assumed to be known and will not be estimated.
-                           #' @param dir character string. Directory to save ouptut.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
                            #' @param chains integer. Number of chains
@@ -616,7 +626,6 @@ grid <- R6::R6Class("grid",
                                                L=1.5,
                                                model = "exp",
                                                known_theta = NULL,
-                                               dir=NULL,
                                                iter_warmup=500,
                                                iter_sampling=500,
                                                chains=3,
@@ -626,11 +635,8 @@ grid <- R6::R6Class("grid",
                                                use_cmdstanr = FALSE,
                                                return_stan_fit = FALSE,
                                                ...){
-
-                             if(verbose)if(is.null(dir))message("dir not set, files will be lost after session restart")
                              if(!approx%in%c('nngp','hsgp','none'))stop("approx must be one of nngp, hsgp, or none")
                              if(m<=1 & approx %in% c('nngp','hsgp'))stop("m must be greater than one")
-                             if(m >25 & verbose)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
                              #prepare data for model fit
                              datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE,L)
@@ -790,7 +796,9 @@ grid <- R6::R6Class("grid",
                                          time = NA,
                                          P = 1 + length(covs) + length(covs_grid),
                                          y=datlist$y,
-                                         y_predicted  = t(ypred))
+                                         y_predicted  = t(ypred),
+                                         nT = datlist$nT,
+                                         conv_criterion = NA)
                              class(out) <- "rtsFit"
                              private$last_model_fit <- out
                              if(return_stan_fit){
@@ -803,7 +811,8 @@ grid <- R6::R6Class("grid",
                            #' Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
                            #'
                            #' @details
-                           #' *MAXIMUM LIKELIHOOD MODEL FITTING*
+                           #' **MAXIMUM LIKELIHOOD MODEL FITTING**
+                           #' 
                            #' The grid data must contain columns `t*`, giving the case
                            #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
                            #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
@@ -975,12 +984,8 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              }
-                             if(!is.null(lower_bound)){
-                               rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,lower_bound,lower=TRUE)
-                             }
-                             if(!is.null(upper_bound)){
-                               rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,upper_bound,lower=FALSE)
-                             }
+                             if(!is.null(lower_bound)) rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,lower_bound,lower=TRUE)
+                             if(!is.null(upper_bound)) rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,upper_bound,lower=FALSE)
                              # run one iteration of fitting beta without re (i.e. glm) to get reasonable starting values
                              # otherwise the algorithm can struggle to converge
                              rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx=="hsgp", m * m, datlist$Nsample),ncol=1),FALSE,private$cov_type,private$lp_type)
@@ -1003,7 +1008,7 @@ grid <- R6::R6Class("grid",
                              ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
                              data <- list(
                                N = datlist$Nsample,
-                               Q = ifelse(approx=="hsgp", m * m, datlist$Nsample),
+                               Q = ifelse(approx=="hsgp", datlist$M * datlist$M, datlist$Nsample),
                                nT = datlist$nT,
                                Xb = xb,
                                ZL = as.matrix(L),
@@ -1156,7 +1161,7 @@ grid <- R6::R6Class("grid",
                                  } 
                                }
                                # some summary output
-                               if(trace==2){
+                               if(trace>=1){
                                  t3 <- Sys.time()
                                  td1 <- t3-t2
                                  cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
@@ -1238,6 +1243,7 @@ grid <- R6::R6Class("grid",
                              if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
                              out <- list(coefficients = res,
                                          converged = converged,
+                                         approx = approx,
                                          method = algo,
                                          m = dim(u)[2],
                                          tol = tol,
@@ -1245,13 +1251,15 @@ grid <- R6::R6Class("grid",
                                          se="gls",
                                          Rsq = c(cond = condR2,marg=margR2),
                                          logl = rtsModel__log_likelihood(private$ptr,private$cov_type,private$lp_type),
-                                         re.samps = u[,(ncol(u) - 2*iter_sampling):ncol(u)],
+                                         re.samps = u[,(ncol(u) - 2*iter_sampling + 1):ncol(u)],
                                          iter = iter,
                                          time = t_diff,
                                          P = length(beta_names),
                                          var_par_family = FALSE,
                                          y=datlist$y,
-                                         y_predicted  = ypred)
+                                         y_predicted  = ypred[,(ncol(ypred) - 2*iter_sampling + 1):ncol(ypred)],
+                                         nT = datlist$nT,
+                                         conv_criterion = conv_criterion)
                              class(out) <- "rtsFit"
                              private$last_model_fit <- out
                              return(invisible(out))
@@ -1273,7 +1281,8 @@ grid <- R6::R6Class("grid",
                            #' @param verbose Logical indicating whether to print messages to the console
                            #' @return NULL
                            #' @details
-                           #' *EXTRACTING PREDICTIONS*
+                           #' **EXTRACTING PREDICTIONS**
+                           #' 
                            #' Three outputs can be extracted from the model fit, which will be added as columns to `grid_data`:
                            #'
                            #' Predicted incidence: If type includes `pred` then `pred_mean_total` and
@@ -1367,7 +1376,7 @@ grid <- R6::R6Class("grid",
                              }
                            },
                            #' @description
-                           #' Hotspots
+                           #' Generate hotspot probabilities
                            #'
                            #' Generate hotspot probabilities. The last model fit will be used to extract
                            #' predictions. If no previous model fit then use either `lgcp_ml()` or `lgcp_bayes()`, or see 
@@ -1387,6 +1396,7 @@ grid <- R6::R6Class("grid",
                            #' Only required if `irr.threshold` is not `NULL`.
                            #' @param rr.threshold numeric. Threshold of local relative risk
                            #' above which an area is a hotspot
+                           #' @param t.lag integer. Extract predictions for incidence or relative risk for previous time periods.
                            #' @param popdens character string. Name of variable in `grid_data`
                            #' specifying the population density. Needed if `incidence.threshold` is not
                            #' `NULL`
@@ -1399,15 +1409,15 @@ grid <- R6::R6Class("grid",
                            #' }
                            hotspots = function(incidence.threshold=NULL,
                                                irr.threshold=NULL,
-                                               irr.lag=NULL,
+                                               irr.lag=1,
                                                rr.threshold=NULL,
+                                               t.lag=0,
                                                popdens,
                                                col_label=NULL){
 
                              if(all(is.null(incidence.threshold),is.null(irr.threshold),is.null(rr.threshold)))stop("At least one criterion required.")
                              if(!is.null(irr.threshold)&is.null(irr.lag))stop("irr.lag must be set")
                              if(!is.null(self$region_data) & !is.null(rr.threshold) & (!is.null(irr.threshold) | !is.null(incidence.threshold)))stop("Cannot combine region-level measures (IRR/incidence) with grid relative risk.")
-                             
                              useRegion <- FALSE
                              if(!is.null(self$region_data) & is.null(rr.threshold))useRegion <- TRUE
                              nCells <- nrow(self$grid_data)
@@ -1417,15 +1427,22 @@ grid <- R6::R6Class("grid",
                              nCr <- sum(c(!is.null(incidence.threshold),
                                           !is.null(irr.threshold),
                                           !is.null(rr.threshold)))
-                             inc1 <- matrix(0,nrow=nI,ncol=ifelse(useRegion,nRegion,nCells))
+                             if(!is.null(irr.threshold) & nT < irr.lag) stop("IRR lag too large")
+                             if((!is.null(incidence.threshold) | !is.null(rr.threshold)) & nT < t.lag)stop("t lag too large")
+                             inc1 <- matrix(0,nrow=ifelse(useRegion,nRegion,nCells),ncol=nI)
                              if(!is.null(incidence.threshold)){
+                               if(missing(popdens)){
+                                 popval <- rep(1,nrow(self$grid_data))
+                               } else {
+                                 popval <- as.data.frame(self$grid_data)[,popdens]
+                               }
                                if(!useRegion){
                                  fmu <- matrix(0,nrow=nCells,ncol=nI)
-                                 for(i in 1:nCells) fmu[i,] <- private$last_model_fit$y_predicted[((nT-1)*nCells+i),]/as.data.frame(self$grid_data)[i,popdens]
+                                 for(i in 1:nCells) fmu[i,] <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+i),]/popval[i]
                                  inc1 <- inc1 + I(fmu > incidence.threshold)*1
                                } else {
                                  fmu <- matrix(0,nrow=nRegion,ncol=nI)
-                                 for(i in 1:nRegion) fmu[i,] <- private$last_model_fit$y_predicted[((nT-1)*nRegion+i),]/as.data.frame(self$region_data)[i,popdens]
+                                 for(i in 1:nRegion) fmu[i,] <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+i),]/popval[i]
                                  inc1 <- inc1 + I(fmu > incidence.threshold)*1
                                }
                              }
@@ -1442,7 +1459,7 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              }
-                             if(!is.null(rr.threshold)) inc1 <- inc1 + I(exp(private$last_model_fit$re.samps) > rr.threshold)*1
+                             if(!is.null(rr.threshold)) inc1 <- inc1 + I(exp(private$last_model_fit$re.samps[((nT-t.lag)*nCells+1):((nT-t.lag+1)*nCells),,drop=FALSE]) > rr.threshold)*1
                              inc1 <- I(inc1 == nCr)*1
                              if(useRegion){
                                self$region_data$hotspot_prob <- apply(inc1,1,mean)
@@ -1766,6 +1783,7 @@ grid <- R6::R6Class("grid",
                            #' @description
                            #' Either returns the stored last model fit with either `lgcp_ml` or `lgcp_bayes`, or updates 
                            #' the saved model fit if an object is provided.
+                           #' @param fit Optional. A previous `rtsFit` object. If provided then the function updates the internally stored model fit.
                            #' @return Either a `rtsFit` object or nothing if no model has been previously fit, or if the fit is updated.
                            model_fit = function(fit = NULL){
                              if(!is.null(fit) & !is(fit,"rtsFit"))stop("fit must be an rtsFit")

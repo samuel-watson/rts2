@@ -336,9 +336,9 @@ public:
       current_statement__ = 31;
       zu_1dim__ = std::numeric_limits<int>::min();
       current_statement__ = 31;
-      zu_1dim__ = (Q * nT);
+      zu_1dim__ = (N * nT);
       current_statement__ = 31;
-      stan::math::validate_non_negative_index("zu", "Q * nT", zu_1dim__);
+      stan::math::validate_non_negative_index("zu", "N * nT", zu_1dim__);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }

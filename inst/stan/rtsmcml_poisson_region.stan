@@ -29,7 +29,7 @@ parameters {
    matrix[Q,nT] gamma;
 }
 transformed parameters {
-  vector[Q*nT] zu = to_vector(ZL*gamma*ar_chol);
+  vector[N*nT] zu = to_vector(ZL*gamma*ar_chol);
 }
 model {
   array[nRegion*nT] real u = sparse_mult(Ai,Ap,Ax,exp(zu)); 

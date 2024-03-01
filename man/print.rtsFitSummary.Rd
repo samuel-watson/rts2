@@ -4,10 +4,10 @@
 \alias{print.rtsFitSummary}
 \title{Prints an rtsFitSummary fit output}
 \usage{
-\method{print}{rtsFitSummary}(object, ...)
+\method{print}{rtsFitSummary}(x, ...)
 }
 \arguments{
-\item{object}{an object of class "\code{rtsFitSummary}"}
+\item{x}{an object of class "\code{rtsFitSummary}"}
 
 \item{...}{Further arguments passed from other methods}
 }

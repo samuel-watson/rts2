@@ -8,10 +8,7 @@ functions {
   }
   real spd_nD(real sigma, real phi, vector w, int D, int mod) {
     real S;
-    real S1;
-    //vector[2] phisq; 
     vector[2] wsq;
-    //phisq = (phi .* phi)';
     wsq = w .* w;
     
     if(mod == 0){
@@ -19,7 +16,7 @@ functions {
       S = sigma * sqrt(2*pi())^D * phi * phi * exp(-0.5*(phi*phi*(wsq[1] + wsq[2])));
     } else {
       // exponential
-      S = sigma * 4 * pi() * S1 * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-2);
+      S = sigma * 4 * pi() * phi * phi * (1 + phi*phi*(wsq[1] + wsq[2]))^(-1.5);
     }
 
     return S;
@@ -78,11 +75,13 @@ transformed data {
   matrix[Nsample,M_nD] PHI;
   array[known_cov ? M_nD : 0] real diagSPD_data;
 
-  for (m in 1:M_nD){
+  for (m in 1:M_nD)
+  {
     PHI[,m] = phi_nD(L, indices[m,], x_grid);
   }
   
-  if(known_cov){
+  if(known_cov)
+  {
     for(m in 1:M_nD){
       diagSPD_data[m] =  sqrt(spd_nD(sigma_data, phi_data, sqrt(lambda_nD(L, indices[m,], D)), D, mod));
     }
@@ -104,7 +103,8 @@ transformed parameters{
   vector[M_nD] SPD_beta;
   real<lower=1e-05> sigma;
   real<lower=1e-05> phi;
-  if(known_cov){
+  if(known_cov)
+  {
     sigma = sigma_data;
     phi = phi_data;
     diagSPD = to_vector(diagSPD_data);
@@ -116,10 +116,13 @@ transformed parameters{
     }
   }
 
-  for(t in 1:nT){
+  for(t in 1:nT)
+  {
     SPD_beta = diagSPD .* beta[,t];
-    if(nT>1){
-      if(t==1){
+    if(nT>1)
+    {
+      if(t==1)
+      {
         f[1:Nsample] = (1/(1-ar[1]^2))*PHI * SPD_beta;
       } else {
         f[(Nsample*(t-1)+1):(t*Nsample)] = ar[1]*f[(Nsample*(t-2)+1):((t-1)*Nsample)] + PHI * SPD_beta;
@@ -136,25 +139,45 @@ transformed parameters{
 }
 model{
   vector[n_region*nT] lambda_r = rep_vector(0,n_region*nT);
+  vector[Nsample*nT] region_mean = rep_vector(0,Nsample*nT);
+  real accum = 0;
   to_vector(beta) ~ normal(0,1);
-  if(!known_cov){
+  if(!known_cov)
+  {
     phi_param ~ normal(prior_lscale[1],prior_lscale[2]);
     sigma_param ~ normal(prior_var[1],prior_var[2]);
   }
   if(nT > 1)ar ~ normal(0,1);
-  for(q in 1:Q){
+  for(q in 1:Q)
+  {
     gamma[q] ~ normal(prior_linpred_mean[q],prior_linpred_sd[q]);
   }
-  if(Q_g > 0){
+  if(Q_g > 0)
+  {
     gamma_g ~ normal(0,2);
+    region_mean = X_g * gamma_g;
   }
   
-  for(r in 1:n_region){
-    for(t in 1:nT){
-      for(l in 1:(n_cell[r+1]-n_cell[r])){
-        lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
-          q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
+  // for(r in 1:n_region){
+  //   for(t in 1:nT){
+  //     for(l in 1:(n_cell[r+1]-n_cell[r])){
+  //       lambda_r[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
+  //         q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
+  //     }
+  //   }
+  // }
+  
+  for(r in 1:n_region)
+  {
+    for(t in 1:nT)
+    {
+      accum = 0;
+      lambda_r[r+(t-1)*n_region] = popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma);
+      for(l in 1:(n_cell[r+1]-n_cell[r]))
+      {
+        accum += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample] + region_mean[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }
+      lambda_r[r+(t-1)*n_region] *= accum;
     }
   }
  
@@ -165,14 +188,18 @@ generated quantities{
   vector[Nsample*nT] y_grid_predict;
   vector[n_region*nT] region_predict;
 
-  for(i in 1:(Nsample*nT)){
+  for(i in 1:(Nsample*nT))
+  {
     y_grid_predict[i] = exp(f[i]);
   }
   
   region_predict = rep_vector(0,n_region*nT);
-  for(r in 1:n_region){
-    for(t in 1:nT){
-      for(l in 1:(n_cell[r+1]-n_cell[r])){
+  for(r in 1:n_region)
+  {
+    for(t in 1:nT)
+    {
+      for(l in 1:(n_cell[r+1]-n_cell[r]))
+      {
         region_predict[r+(t-1)*n_region] += popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma)*
           q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
       }

@@ -163,46 +163,46 @@ summary.rtsFit <- function(object,...){
 #' 
 #' Print method for class "`rtsFitSummary`"
 #' 
-#' @param object an object of class "`rtsFitSummary`" 
+#' @param x an object of class "`rtsFitSummary`" 
 #' @param ... Further arguments passed from other methods
 #' @details 
 #' `print.rtsFitSummary` prints the summary of an rtsFit, see \link[rts2]{summary.rtsFit}
 #' @return No return value, called for side effects.
 #' @method print rtsFitSummary
 #' @export
-print.rtsFitSummary <- function(object,...){
+print.rtsFitSummary <- function(x,...){
   cat("\nAn rts model fit summary\n")
   digits <- 4
-  cat(ifelse(!object$ml,
+  cat(ifelse(!x$ml,
              "Bayesian Log Gaussian Cox Process Model\n",
              "Maximum Likelihood Log Gaussian Cox Process Model\n"))
-  cat("\nUsing: ",object$algo)
-  if(object$ml){
-    if(grepl("MCMC Maximum Likelihood Expectation Maximisation",object$algo)){
-      cat("\nNumber of Monte Carlo simulations per iteration: ",object$m," with tolerance ",object$tol,"\n\n")
+  cat("\nUsing: ",x$algo)
+  if(x$ml){
+    if(grepl("MCMC Maximum Likelihood Expectation Maximisation",x$algo)){
+      cat("\nNumber of Monte Carlo simulations per iteration: ",x$m," with tolerance ",x$tol,"\n\n")
     } else {
-      cat("\nFinal umber of Monte Carlo simulations: ",object$m)
+      cat("\nFinal umber of Monte Carlo simulations: ",x$m)
     }
   } else {
-    cat("\nMCMC sample size: ",object$m," with ",object$m/object$iter," chains")
+    cat("\nMCMC sample size: ",x$m," with ",x$m/x$iter," chains")
   }
-  cat("\nApproximation: ",object$approx)
+  cat("\nApproximation: ",x$approx)
   cat("\n\nRandom effects: \n")
-  print(object$covpars)
+  print(x$covpars)
   cat("\nFixed effects: \n")
-  print(object$fixef)
-  if(object$ml){
-    cat("\ncAIC: ",round(object$aic,digits))
-    cat("\nApproximate R-squared: Conditional: ",round(object$Rsq[1],digits)," Marginal: ",round(object$Rsq[2],digits))
-    cat("\nLog-likelihood: ",round(object$logl,digits))
+  print(x$fixef)
+  if(x$ml){
+    cat("\ncAIC: ",round(x$aic,digits))
+    cat("\nApproximate R-squared: Conditional: ",round(x$Rsq[1],digits)," Marginal: ",round(x$Rsq[2],digits))
+    cat("\nLog-likelihood: ",round(x$logl,digits))
   }
   cat("\n\nModel predictions: \n")
-  nT <- length(object$preds)
+  nT <- length(x$preds)
   for(t in 1:nT){
     cat("\n\U2BC8 Time period ",t,"\n     \U2BA1 Relative risk\n")
-    print(summary(exp(rowMeans(object$preds[[t]]$rr))))
+    print(summary(exp(rowMeans(x$preds[[t]]$rr))))
     cat("     \U2BA1 Predicted incidence\n")
-    print(summary(rowMeans(object$preds[[t]]$y)))
+    print(summary(rowMeans(x$preds[[t]]$y)))
   }
 }
 
@@ -226,7 +226,7 @@ coef.rtsFit <- function(object,...){
 #' the log-likelihood for either component, or the overall log-likelihood.
 #' @param object An `mcml` model fit.
 #' @param fixed Logical whether to include the log-likelihood value from the fixed effects.
-#' @param covaraince Logical whether to include the log-likelihood value from the covariance parameters.
+#' @param covariance Logical whether to include the log-likelihood value from the covariance parameters.
 #' @param ... Further arguments passed from other methods
 #' @return A numeric value. If both `fixed` and `covariance` are FALSE then it returns NA.
 #' @method logLik rtsFit

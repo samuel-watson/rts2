@@ -236,6 +236,7 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 
+\donttest{
 # mapping population data from some other polygons
 data("boundary")
 data("birmingham_crime")
@@ -247,6 +248,7 @@ g2$add_covariates(msoa,
                   weight_type="area",
                   verbose=FALSE)
 g2$plot("pop")
+}
 
 ## ------------------------------------------------
 ## Method `grid$get_dow`
@@ -281,7 +283,9 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+# number of iterations set very low to reduce example running time
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
+              iter_sampling = 50, iter_warmup = 20)
 g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
@@ -300,7 +304,7 @@ g1$hotspots(rr.threshold = 2)
   prior_linpred_mean=c(-3),
   prior_linpred_sd=c(5)
 )
-g2$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g2$lgcp_bayes(popdens="pop", approx = "hsgp", parallel_chains = 0)
 g2$model_fit()
 g2$extract_preds("rr")
 g2$plot("rr")
@@ -322,7 +326,8 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-g1$lgcp_ml(popdens="cov")
+# iterations set low to reduce example running time
+g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
@@ -360,7 +365,7 @@ g1$hotspots(rr.threshold = 2)
 ## Method `grid$aggregate_output`
 ## ------------------------------------------------
 
-\dontrun{
+\donttest{
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
@@ -644,6 +649,7 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 
+\donttest{
 # mapping population data from some other polygons
 data("boundary")
 data("birmingham_crime")
@@ -655,6 +661,7 @@ g2$add_covariates(msoa,
                   weight_type="area",
                   verbose=FALSE)
 g2$plot("pop")
+}
 }
 \if{html}{\out{</div>}}
 
@@ -811,7 +818,9 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+# number of iterations set very low to reduce example running time
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
+              iter_sampling = 50, iter_warmup = 20)
 g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
@@ -830,7 +839,7 @@ g1$hotspots(rr.threshold = 2)
   prior_linpred_mean=c(-3),
   prior_linpred_sd=c(5)
 )
-g2$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+g2$lgcp_bayes(popdens="pop", approx = "hsgp", parallel_chains = 0)
 g2$model_fit()
 g2$extract_preds("rr")
 g2$plot("rr")
@@ -962,7 +971,8 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-g1$lgcp_ml(popdens="cov")
+# iterations set low to reduce example running time
+g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
@@ -1144,7 +1154,7 @@ variables specified in \code{zcols}
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{\dontrun{
+\preformatted{\donttest{
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
@@ -1180,7 +1190,7 @@ new1 <- g1$aggregate_output(cov1,
 \subsection{Method \code{scale_conversion_factor()}}{
 Returns scale conversion factor
 
-Coordinates are scaled to \verb{[-1,1]} for \code{lgcp_fit()}. This function
+Coordinates are scaled to \verb{[-1,1]} for LGCP models fit with HSGP. This function
 returns the scaling factor for this conversion.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$scale_conversion_factor()}\if{html}{\out{</div>}}

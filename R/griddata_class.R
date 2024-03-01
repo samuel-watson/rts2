@@ -160,7 +160,7 @@ grid <- R6::R6Class("grid",
                                  cat("\n     \U2BA1 Case data for ",nT," time periods")
                                  is_setup <- TRUE
                                }
-                               cat("\n     \U2BA1 ",nrow(private$intersection_data)," region-grid intersection areas")
+                               cat("\n     \U2BA1 ",nrow(private$intersection_data)," region-grid intersection areas\n")
                                print(head(self$region_data))
                              }
                              cat("\n \U2BC8 Last model fit \n")
@@ -338,6 +338,7 @@ grid <- R6::R6Class("grid",
                            #'                   zcols="cov",
                            #'                   verbose = FALSE)
                            #' 
+                           #' \donttest{
                            #' # mapping population data from some other polygons
                            #' data("boundary")
                            #' data("birmingham_crime")
@@ -349,6 +350,7 @@ grid <- R6::R6Class("grid",
                            #'                   weight_type="area",
                            #'                   verbose=FALSE)
                            #' g2$plot("pop")
+                           #' }
                            add_covariates = function(cov_data,
                                                      zcols,
                                                      weight_type="area",
@@ -593,7 +595,9 @@ grid <- R6::R6Class("grid",
                            #'   prior_linpred_mean=c(0),
                            #'   prior_linpred_sd=c(5)
                            #'   )
-                           #' g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+                           #' # number of iterations set very low to reduce example running time
+                           #' g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
+                           #'               iter_sampling = 50, iter_warmup = 20)
                            #' g1$model_fit()
                            #' # we can extract predictions
                            #' g1$extract_preds("rr")
@@ -612,7 +616,7 @@ grid <- R6::R6Class("grid",
                            #'   prior_linpred_mean=c(-3),
                            #'   prior_linpred_sd=c(5)
                            #' )
-                           #' g2$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
+                           #' g2$lgcp_bayes(popdens="pop", approx = "hsgp", parallel_chains = 0)
                            #' g2$model_fit()
                            #' g2$extract_preds("rr")
                            #' g2$plot("rr")
@@ -889,7 +893,8 @@ grid <- R6::R6Class("grid",
                            #'                   zcols="cov",
                            #'                   verbose = FALSE)
                            #' g1$points_to_grid(dp, laglength=5)
-                           #' g1$lgcp_ml(popdens="cov")
+                           #' # iterations set low to reduce example running time
+                           #' g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
                            #' g1$model_fit()
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
@@ -1487,7 +1492,7 @@ grid <- R6::R6Class("grid",
                            #' @return An `sf` object identical to `new_geom` with additional columns with the
                            #' variables specified in `zcols`
                            #' @examples
-                           #' \dontrun{
+                           #' \donttest{
                            #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
                            #' g1 <- grid$new(b1,0.5)
                            #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
@@ -1563,7 +1568,7 @@ grid <- R6::R6Class("grid",
                            #' @description
                            #' Returns scale conversion factor
                            #'
-                           #' Coordinates are scaled to `[-1,1]` for `lgcp_fit()`. This function
+                           #' Coordinates are scaled to `[-1,1]` for LGCP models fit with HSGP. This function
                            #' returns the scaling factor for this conversion.
                            #'
                            #' @return numeric
@@ -1575,7 +1580,7 @@ grid <- R6::R6Class("grid",
                              x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(sf::st_centroid(self$grid_data))))
                              xrange <- range(x_grid[,1])
                              yrange <- range(x_grid[,2])
-                             std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
+                             std_val <- max(diff(xrange),diff(yrange))
                              return(std_val)
                            },
                            #' @description 
@@ -2047,22 +2052,23 @@ grid <- R6::R6Class("grid",
                         }
                         
                         nCell <- nrow(self$grid_data)
-                        
-                        x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(
-                          sf::st_centroid(self$grid_data))))
-                        
+                        x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(sf::st_centroid(self$grid_data))))
                         
                         if(approx=="hsgp"){
                           # scale to -1,1 in all dimensions
                           xrange <- range(x_grid[,1])
                           yrange <- range(x_grid[,2])
-                          std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
-                          diffs <- c((xrange[1]+xrange[2])/2, (yrange[1]+yrange[2])/2)
+                          scale_f <- max(diff(xrange), diff(yrange))
+                          x_grid[,1] <- (x_grid[,1] - xrange[1])/scale_f
+                          x_grid[,2] <- (x_grid[,2] - yrange[1])/scale_f
+                          # std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
+                          # diffs <- c((xrange[1]+xrange[2])/2, (yrange[1]+yrange[2])/2)
                           # x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
                           # x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
-                          x_grid[,1] <- (x_grid[,1]- diffs[1])
-                          x_grid[,2] <- (x_grid[,2]- diffs[2])
-                          L_boundary <- c(L*(xrange[2]-xrange[1])/2, L*(yrange[2]-yrange[1])/2)
+                          # x_grid[,1] <- (x_grid[,1]- diffs[1])
+                          # x_grid[,2] <- (x_grid[,2]- diffs[2])
+                          # L_boundary <- c(L*(xrange[2]-xrange[1])/2, L*(yrange[2]-yrange[1])/2)
+                          L_boundary <- c(L,L)
                         }
                         
                         

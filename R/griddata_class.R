@@ -595,16 +595,14 @@ grid <- R6::R6Class("grid",
                            #'   prior_linpred_mean=c(0),
                            #'   prior_linpred_sd=c(5)
                            #'   )
-                           #' # number of iterations set very low to reduce example running time
-                           #' g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
-                           #'               iter_sampling = 50, iter_warmup = 20)
+                           #' \donttest{
+                           #' g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
                            #' g1$model_fit()
                            #' # we can extract predictions
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
                            #' g1$hotspots(rr.threshold = 2)
                            #' 
-                           #' \donttest{
                            #'  # this example uses real aggregated data but will take a relatively long time to run
                            #'  data("birmingham_crime")
                            #'  example_data <- birmingham_crime[,c(1:8,21)]
@@ -893,20 +891,19 @@ grid <- R6::R6Class("grid",
                            #'                   zcols="cov",
                            #'                   verbose = FALSE)
                            #' g1$points_to_grid(dp, laglength=5)
-                           #' # iterations set low to reduce example running time
-                           #' g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
+                           #' \donttest{
+                           #' g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
                            #' g1$model_fit()
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
                            #' g1$hotspots(rr.threshold = 2)
                            #' 
-                           #' \donttest{
                            #' # this example uses real aggregated data but will take a relatively long time to run
                            #'  data("birmingham_crime")
                            #'  example_data <- birmingham_crime[,c(1:8,21)]
                            #'  example_data$y <- birmingham_crime$t12
                            #'  g2 <- grid$new(example_data,cellsize=1000)
-                           #'  g2$lgcp_ml(popdens = "pop")
+                           #'  g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
                            #'  g2$model_fit()
                            #'  g2$extract_preds("rr")
                            #'  g2$plot("rr")
@@ -1499,7 +1496,7 @@ grid <- R6::R6Class("grid",
                            #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-                           #' g1$add_covariates(cov1,
+                           #' g1$add_covariates(cov1$grid_data,
                            #'                   zcols="cov",
                            #'                   verbose = FALSE)
                            #' g1$points_to_grid(dp, laglength=5)
@@ -1509,11 +1506,11 @@ grid <- R6::R6Class("grid",
                            #'   prior_linpred_mean=c(0),
                            #'   prior_linpred_sd=c(5)
                            #'   )
-                           #' res <- g1$lgcp_fit(popdens="cov")
+                           #' res <- g1$lgcp_bayes(popdens="cov", parallel_chains = 1)
                            #' g1$extract_preds(res,
                            #'                  type=c("pred","rr"),
                            #'                  popdens="cov")
-                           #' new1 <- g1$aggregate_output(cov1,
+                           #' new1 <- g1$aggregate_output(cov1$grid_data,
                            #'                             zcols="rr")
                            #' }
                            aggregate_output = function(new_geom,
@@ -2050,17 +2047,15 @@ grid <- R6::R6Class("grid",
                             }
                           }
                         }
-                        
                         nCell <- nrow(self$grid_data)
                         x_grid <- as.data.frame(suppressWarnings(sf::st_coordinates(sf::st_centroid(self$grid_data))))
-                        
                         if(approx=="hsgp"){
                           # scale to -1,1 in all dimensions
                           xrange <- range(x_grid[,1])
                           yrange <- range(x_grid[,2])
                           scale_f <- max(diff(xrange), diff(yrange))
-                          x_grid[,1] <- (x_grid[,1] - xrange[1])/scale_f
-                          x_grid[,2] <- (x_grid[,2] - yrange[1])/scale_f
+                          x_grid[,1] <- -1 + 2*(x_grid[,1] - xrange[1])/scale_f
+                          x_grid[,2] <- -1 + 2*(x_grid[,2] - yrange[1])/scale_f
                           # std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
                           # diffs <- c((xrange[1]+xrange[2])/2, (yrange[1]+yrange[2])/2)
                           # x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
@@ -2070,8 +2065,6 @@ grid <- R6::R6Class("grid",
                           # L_boundary <- c(L*(xrange[2]-xrange[1])/2, L*(yrange[2]-yrange[1])/2)
                           L_boundary <- c(L,L)
                         }
-                        
-                        
                         if(is.null(self$region_data)){
                           # outcome data
                           if(nT > 1){
@@ -2079,7 +2072,6 @@ grid <- R6::R6Class("grid",
                           } else {
                             y <- as.data.frame(self$grid_data)[,"y"]
                           }
-                          
                           #population density
                           nColP <- sum(grepl(popdens,colnames(self$grid_data)))
                           if(nColP==1){
@@ -2093,7 +2085,6 @@ grid <- R6::R6Class("grid",
                               popd <- as.data.frame(self$grid_data)[,popdens]
                             }
                           }
-                          
                           #add covariates
                           if(!is.null(covs)){
                             nQ <- length(covs)
@@ -2125,7 +2116,6 @@ grid <- R6::R6Class("grid",
                           } else {
                             y <- as.data.frame(self$region_data)[,"y"]
                           }
-                          
                           #population density
                           nColP <- sum(grepl(popdens,colnames(self$region_data)))
                           if(nColP==1){
@@ -2139,7 +2129,6 @@ grid <- R6::R6Class("grid",
                               popd <- as.data.frame(self$region_data)[,popdens]
                             }
                           }
-                          
                           #add covariates
                           if(!is.null(covs)){
                             nQ <- length(covs)
@@ -2186,7 +2175,6 @@ grid <- R6::R6Class("grid",
                             X_g <- matrix(0,nrow=nrow(self$grid_data)*nT,ncol=1)
                           }
                         }
-                        
                         if(bayes){
                           if(!is.null(self$priors)){
                             if(length(self$priors$prior_linpred_mean)!=Q|length(self$priors$prior_linpred_sd)!=Q)
@@ -2203,7 +2191,6 @@ grid <- R6::R6Class("grid",
                             )
                           }
                         }
-                        
                         if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
                         if(approx == "hsgp"){
                           datlist <- list(
@@ -2221,7 +2208,6 @@ grid <- R6::R6Class("grid",
                             X= X,
                             mod = mod
                           )
-                          
                           if(!is.null(self$region_data)){
                             ncell <- unname(table(private$intersection_data$region_id))
                             ncell <- c(1, cumsum(ncell)+1)
@@ -2236,8 +2222,6 @@ grid <- R6::R6Class("grid",
                             ))
                             if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
                           } 
-                          
-                          
                         } else if(approx == "nngp"){
                           if(is.null(private$grid_ptr)){
                             private$grid_ptr <- GridData__new(as.matrix(x_grid[,1:2]),nT)
@@ -2299,14 +2283,12 @@ grid <- R6::R6Class("grid",
                             if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
                           } 
                         }
-                        
                         if(bayes){
                           datlist <- append(datlist,list(prior_lscale=self$priors$prior_lscale,
                                                          prior_var=self$priors$prior_var,
                                                          prior_linpred_mean = as.array(self$priors$prior_linpred_mean),
                                                          prior_linpred_sd=as.array(self$priors$prior_linpred_sd)))
                         }
-                        
                         return(datlist)
                       }
                     ))

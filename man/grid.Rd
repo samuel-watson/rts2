@@ -283,16 +283,14 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-# number of iterations set very low to reduce example running time
-g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
-              iter_sampling = 50, iter_warmup = 20)
+\donttest{
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
 g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(rr.threshold = 2)
 
-\donttest{
  # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
  example_data <- birmingham_crime[,c(1:8,21)]
@@ -326,20 +324,19 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-# iterations set low to reduce example running time
-g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
+\donttest{
+g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(rr.threshold = 2)
 
-\donttest{
 # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
  example_data <- birmingham_crime[,c(1:8,21)]
  example_data$y <- birmingham_crime$t12
  g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop")
+ g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")
@@ -372,7 +369,7 @@ dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
@@ -382,11 +379,11 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-res <- g1$lgcp_fit(popdens="cov")
+res <- g1$lgcp_bayes(popdens="cov", parallel_chains = 1)
 g1$extract_preds(res,
                  type=c("pred","rr"),
                  popdens="cov")
-new1 <- g1$aggregate_output(cov1,
+new1 <- g1$aggregate_output(cov1$grid_data,
                             zcols="rr")
 }
 
@@ -818,16 +815,14 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-# number of iterations set very low to reduce example running time
-g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0,
-              iter_sampling = 50, iter_warmup = 20)
+\donttest{
+g1$lgcp_bayes(popdens="cov", approx = "hsgp", parallel_chains = 0)
 g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(rr.threshold = 2)
 
-\donttest{
  # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
  example_data <- birmingham_crime[,c(1:8,21)]
@@ -971,20 +966,19 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
-# iterations set low to reduce example running time
-g1$lgcp_ml(popdens="cov",iter_warmup = 20, iter_sampling = 20)
+\donttest{
+g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(rr.threshold = 2)
 
-\donttest{
 # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
  example_data <- birmingham_crime[,c(1:8,21)]
  example_data$y <- birmingham_crime$t12
  g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop")
+ g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")
@@ -1161,7 +1155,7 @@ dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
 dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-g1$add_covariates(cov1,
+g1$add_covariates(cov1$grid_data,
                   zcols="cov",
                   verbose = FALSE)
 g1$points_to_grid(dp, laglength=5)
@@ -1171,11 +1165,11 @@ g1$priors <- list(
   prior_linpred_mean=c(0),
   prior_linpred_sd=c(5)
   )
-res <- g1$lgcp_fit(popdens="cov")
+res <- g1$lgcp_bayes(popdens="cov", parallel_chains = 1)
 g1$extract_preds(res,
                  type=c("pred","rr"),
                  popdens="cov")
-new1 <- g1$aggregate_output(cov1,
+new1 <- g1$aggregate_output(cov1$grid_data,
                             zcols="rr")
 }
 }

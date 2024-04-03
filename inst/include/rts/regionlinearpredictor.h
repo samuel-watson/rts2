@@ -16,6 +16,7 @@ class regionLinearPredictor {
     LinearPredictor   grid_predictor;
     MatrixXd*         u = nullptr;
     dblvec            parameters;
+    calculator&       calc;
     
     regionLinearPredictor(glmmr::Formula& form_region,glmmr::Formula& form_grid,const Eigen::ArrayXXd &data_region,
       const Eigen::ArrayXXd &data_grid,const strvec& colnames_region,const strvec& colnames_grid,rts::RegionData& region_);    
@@ -52,12 +53,18 @@ inline rts::regionLinearPredictor::regionLinearPredictor(
       rts::RegionData& region_
     ) : region(region_), region_predictor(form_region,data_region,colnames_region),
         grid_predictor(form_grid,data_grid,colnames_grid), 
-        parameters(region_predictor.P() + grid_predictor.P(), 0.0) {};
+        parameters(region_predictor.P() + grid_predictor.P(), 0.0),
+        calc(region_predictor.calc) {
+  if(calc.any_nonlinear)throw std::runtime_error("Nonlinear functional forms not yet compatible with aggregated data models");
+};
     
 inline rts::regionLinearPredictor::regionLinearPredictor(const rts::regionLinearPredictor& linpred) : region(linpred.region), 
       region_predictor(linpred.region_predictor),
       grid_predictor(linpred.grid_predictor), 
-      parameters(linpred.parameters) {};
+      parameters(linpred.parameters),
+      calc(region_predictor.calc) {
+  if(calc.any_nonlinear)throw std::runtime_error("Nonlinear functional forms not yet compatible with aggregated data models");
+};
     
 
 inline void rts::regionLinearPredictor::update_u(MatrixXd* u_)

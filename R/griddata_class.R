@@ -124,11 +124,7 @@ grid <- R6::R6Class("grid",
                            print = function(){
                              is_setup <- FALSE
                              cat("\nAn rts2 grid object\n")
-                             if(is.null(self$region_data)){
-                               cat("\n \U2BC8 Boundary\n\n")
-                               print(head(self$boundary))
-                             }
-                             cat("\n \U2BC8 Computational grid\n     \U2BA1 ",nrow(self$grid_data)," cells")
+                             cat("\n Computational grid\n     \U2BA1 ",nrow(self$grid_data)," cells")
                              if(is.null(self$region_data)){
                                nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
                                if(nT == 0) {
@@ -144,7 +140,6 @@ grid <- R6::R6Class("grid",
                                  is_setup <- TRUE
                                }
                                cat("\n\n")
-                               print(head(self$grid_data))
                              } else {
                                cat("\n \U2BC8 Spatially aggregated count data:\n     \U2BA1 ",nrow(self$region_data)," regions")
                                nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
@@ -161,14 +156,8 @@ grid <- R6::R6Class("grid",
                                  is_setup <- TRUE
                                }
                                cat("\n     \U2BA1 ",nrow(private$intersection_data)," region-grid intersection areas\n")
-                               print(head(self$region_data))
                              }
-                             cat("\n \U2BC8 Last model fit \n")
-                             if(!is.null(private$last_model_fit)){
-                               print(private$last_model_fit)
-                             } else {
-                               cat("     \U2BA1 No model has been fit to these data: see lgcp_ml() and lgcp_bayes()")
-                             }
+                             cat("\n")
                            },
                            #' @description
                            #' Plots the grid data
@@ -797,6 +786,8 @@ grid <- R6::R6Class("grid",
                                          iter = iter_sampling,
                                          time = NA,
                                          P = 1 + length(covs) + length(covs_grid),
+                                         region = !is.null(self$region_data),
+                                         covs = covs,
                                          y=datlist$y,
                                          y_predicted  = t(ypred),
                                          nT = datlist$nT,
@@ -1197,11 +1188,6 @@ grid <- R6::R6Class("grid",
                                M <- rtsModel__information_matrix(private$ptr,private$cov_type,private$lp_type)
                              } else {
                                M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
-                               # if(private$cov_type == 1 | private$cov_type == 2){
-                               #   M <- rtsModel__information_matrix_region(private$ptr,private$cov_type,private$lp_type)
-                               # } else {
-                               #   M <- rtsModel__hessian_numerical(private$ptr,1e-4,private$cov_type,private$lp_type)
-                               # }
                                M <- tryCatch(solve(M),error = function(i)return(diag(nrow(M))))
                              }
                              SE <- sqrt(diag(M))[1:length(beta)]
@@ -1258,6 +1244,9 @@ grid <- R6::R6Class("grid",
                                          re.samps = u[,(ncol(u) - 2*iter_sampling + 1):ncol(u)],
                                          iter = iter,
                                          time = t_diff,
+                                         region = !is.null(self$region_data),
+                                         covs = covs,
+                                         vcov = M,
                                          P = length(beta_names),
                                          var_par_family = FALSE,
                                          y=datlist$y,
@@ -1795,7 +1784,7 @@ grid <- R6::R6Class("grid",
                                if(!is.null(private$last_model_fit)) {
                                  return(private$last_model_fit)
                                } else {
-                                 message("No stored model fit")
+                                 stop("No stored model fit")
                                }
                              } else {
                                private$last_model_fit <- fit
@@ -2056,13 +2045,6 @@ grid <- R6::R6Class("grid",
                           scale_f <- max(diff(xrange), diff(yrange))
                           x_grid[,1] <- -1 + 2*(x_grid[,1] - xrange[1])/scale_f
                           x_grid[,2] <- -1 + 2*(x_grid[,2] - yrange[1])/scale_f
-                          # std_val <- max(max(xrange - mean(xrange)),max(yrange - mean(yrange)))
-                          # diffs <- c((xrange[1]+xrange[2])/2, (yrange[1]+yrange[2])/2)
-                          # x_grid[,1] <- (x_grid[,1]- mean(xrange))/std_val
-                          # x_grid[,2] <- (x_grid[,2]- mean(yrange))/std_val
-                          # x_grid[,1] <- (x_grid[,1]- diffs[1])
-                          # x_grid[,2] <- (x_grid[,2]- diffs[2])
-                          # L_boundary <- c(L*(xrange[2]-xrange[1])/2, L*(yrange[2]-yrange[1])/2)
                           L_boundary <- c(L,L)
                         }
                         if(is.null(self$region_data)){

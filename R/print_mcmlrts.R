@@ -80,6 +80,7 @@ print.rtsFit <- function(x, ...){
   cat("\nApproximation: ",approx)
   cat("\nFixed effects:",fixed.effects(x))
   cat("\nRandom effects:", covariance.parameters(x))
+  cat("\n")
 }
 
 #' Summary method for class "rtsFit"
@@ -204,39 +205,321 @@ print.rtsFitSummary <- function(x,...){
     cat("     \U2BA1 Predicted incidence\n")
     print(summary(rowMeans(x$preds[[t]]$y)))
   }
+  cat("\n")
 }
 
 
-#' Extracts coefficients from a mcml object
+#' Extracts fixed effect coefficients from a rtsFit object
 #' 
-#' Extracts the coefficients from an `mcml` object returned from a call of `MCML` or `LA` in the \link[glmmrBase]{Model} class.
-#' @param object An `mcml` model fit.
+#' Extracts the fitted fixed effect coefficients from an `rtsFit` object returned from a call of `rtsFit` or `LA` in the \link[glmmrBase]{Model} class.
+#' @param object An `rtsFit` model fit.
 #' @param ... Further arguments passed from other methods
-#' @return A data frame summarising the parameters including the random effects.
+#' @return A named vector.
 #' @method coef rtsFit
 #' @export
 coef.rtsFit <- function(object,...){
-  return(object$coefficients)
+  pars <- object$coefficients$est[1:object$P]
+  names(pars) <- object$coefficients$par[1:object$P]
+  return(pars)
 }
 
-#' Extracts the log-likelihood from an mcml object
+#' Extracts the log-likelihood from an rtsFit object
 #' 
-#' Extracts the final log-likelihood value from an mcml object returned from call of `MCML` or `LA` in the \link[glmmrBase]{Model} class. The fitting algorithm estimates
-#' the fixed effects, random effects, and covariance parameters all separately. The log-likelihood is separable in the fixed and covariance parameters, so one can return 
-#' the log-likelihood for either component, or the overall log-likelihood.
-#' @param object An `mcml` model fit.
-#' @param fixed Logical whether to include the log-likelihood value from the fixed effects.
-#' @param covariance Logical whether to include the log-likelihood value from the covariance parameters.
+#' Extracts the final log-likelihood value from an rtsFit object. Only returns a value for maximum likelihood 
+#' model fits, otherwise it produces an error.
+#' @param object An `rtsFit` model fit.
 #' @param ... Further arguments passed from other methods
-#' @return A numeric value. If both `fixed` and `covariance` are FALSE then it returns NA.
+#' @return An object of class `logLik` for maximum likelihood model fits, otherwise it returns an error.
 #' @method logLik rtsFit
 #' @export
-logLik.rtsFit <- function(object, fixed = TRUE, covariance = TRUE, ...){
-  if(object$method%in%c("mcmc","vb"))stop("Not a maximum likelihood model fit.")
-  ll <- 0
-  if(fixed) ll <- ll + object$logl
-  if(covariance) ll <- ll + object$logl_theta
-  if(!fixed & !covariance) ll <- NA
-  return(NA)
+logLik.rtsFit <- function(object, ...){
+  if(object$method%in%c("mcmc","vb"))stop("Log likelihood only available for maximum likelihood models.")
+  ll <- object$logl
+  class(ll) <- "logLik"
+  attr(ll,"df") <- object$P + 2 + ifelse(object$nT > 1,1,0)
+  attr(ll,"nobs") <- length(object$y)
+  attr(ll,"nall") <- length(object$y)
+  return(ll)
 }
 
+#' Extracts the family from a `rtsFit` object. 
+#' 
+#' Extracts the \link[stats]{family} from a `rtsFit` object.
+#' @param object A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return A \link[stats]{family} object.
+#' @method family rtsFit
+#' @export
+family.rtsFit <- function(object,...){
+  return(stats::poisson())
+}
+
+#' Extracts the formula from a `rtsFit` object. 
+#' 
+#' Extracts the \link[stats]{formula} from a `rtsFit` object. Only returns the top level formula. For region models 
+#' this is the formula at the region level, otherwise the grid-level formula is returned. No random effects 
+#' specifications are included in the returned formula.
+#' @param x A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return A \link[stats]{formula} object.
+#' @method formula rtsFit
+#' @export
+formula.rtsFit <- function(x,...){
+  fo <- "~ "
+  if(length(x$covs)>0){
+    for(i in 1:length(covs))fo <- paste0(fo,ifelse(i==1,""," + "),covs[i])
+  } else {
+    fo <- paste0(fo,"1")
+  }
+  if(x$region)message("The returned formula does not include the grid level formula for the region model")
+  message("The returned formula does not include random effects")
+  return(as.formula(fo))
+}
+
+#' Extract the Variance-Covariance matrix for a `rtsFit` object
+#' 
+#' Returns the calculated variance-covariance matrix for a `rtsFit` object that was fit using maximum likelihood methods. 
+#' Bayesian models will return an error.
+#' @param object A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return A variance-covariance matrix.
+#' @method vcov rtsFit
+#' @export
+vcov.rtsFit <- function(object,...){
+  if(object$method%in%c("mcmc","vb"))stop("vcov only available currently for maximum likelihood model fits")
+  M <- object$vcov
+  rownames(M) <- colnames(M)  <- object$coefficients$par[1:object$P]
+  return(object$vcov)
+}
+
+#' Predict from a `rtsFit` object
+#' 
+#' Predictions cannot be generated directly from an `rtsFit` object, rather new predictions should be
+#' generated using the original `grid` object. A message is printed to the user.
+#' @param object A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return Nothing. Called for effects.
+#' @method predict rtsFit
+#' @export
+predict.rtsFit <- function(object,...){
+  message("Predictions cannot be generated directly from a fitted rtsFit object. Predictions are generated by the grid object, see grid$predict().")
+}
+
+#' Fitted values from a `rtsFit` object
+#' 
+#' Fitted values should not be generated directly from an `rtsFit` object, rather fitted values should be
+#' generated using the original `grid` object. A message is printed to the user. 
+#' @param object A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return Nothing, called for effects.
+#' @method fitted rtsFit
+#' @export
+fitted.rtsFit <- function(object,...){
+  message("Fitted values cannot be generated directly from a fitted rtsFit object. See grid$predict() to generate relevant values.")
+}
+
+#' Fixed effect confidence intervals for a `rtsFit` object
+#' 
+#' Returns the computed confidence intervals for a `rtsFit` object.  
+#' @param object A `rtsFit` object.
+#' @param ... Further arguments passed from other methods
+#' @return A matrix (or vector) with columns giving lower and upper confidence limits for each parameter. 
+#' @method confint rtsFit
+#' @export
+confint.rtsFit <- function(object, ...){
+  out <- object$coefficients[1:object$P,c("lower","upper")]
+  out <- as.matrix(out)
+  colnames(out) <- c("2.5%","97.5%")
+  return(out)
+}
+
+#' Residuals method for a `rtsFit` object
+#' 
+#' Conditional raw or standardised residuals for `rstFit` objects. The residuals are limited to conditional raw or standardised 
+#' residuals currently to avoid copying the often large amount of model data stored in the associated grid object. 
+#' @param object A `rtsFit` object.
+#' @param type Either "standardized" or "raw"
+#' @param ... Further arguments passed from other methods
+#' @return A matrix with number of columns corresponding to the number of MCMC samples.
+#' @method residuals rtsFit
+#' @export
+residuals.mcml <- function(object, type, ...){
+  if(!type%in%c("raw","standardized"))stop("type must be either raw or standardized")
+  resids <- matrix(NA,nrow = length(object$y), ncol = ncol(object$y_predicted))
+  for(i in 1:ncol(object$y_predicted)) {
+    resids[,i] <- object$y - object$y_predicted
+    if(type == "standardized") resids[,i] <- resids[,i]/sd(resids[,i])
+  }
+  return(resids)
+}
+
+#' Summarizes a `grid` object
+#' 
+#' Summarizes `grid` object. 
+#' @param object A `grid` object.
+#' @param ... Further arguments passed from other methods
+#' @return Nothing. Called for effects.
+#' @method summary grid
+#' @export
+summary.grid <- function(object, ...){
+  is_setup <- FALSE
+  cat("\nAn rts2 grid object\n")
+  if(is.null(object$region_data)){
+    cat("\n \U2BC8 Boundary\n\n")
+    print(head(object$boundary))
+  }
+  cat("\n \U2BC8 Computational grid\n     \U2BA1 ",nrow(object$grid_data)," cells")
+  if(is.null(object$region_data)){
+    nT <- sum(grepl("\\bt[0-9]",colnames(object$grid_data)))
+    if(nT == 0) {
+      nT <- 1
+      if("y"%in%colnames(object$grid_data)){
+        cat("\n     \U2BA1 Spatial-only case data")
+        is_setup <- TRUE
+      } else {
+        cat("\n     \U2BA1 No case data currently mapped to grid: use points_to_grid() function or manually add a column y or t1, t2, t3, ... containing counts.") 
+      }
+    } else {
+      cat("\n     \U2BA1 Case data for ",nT," time periods")
+      is_setup <- TRUE
+    }
+    cat("\n\n")
+    print(head(object$grid_data))
+  } else {
+    cat("\n \U2BC8 Spatially aggregated count data:\n     \U2BA1 ",nrow(object$region_data)," regions")
+    nT <- sum(grepl("\\bt[0-9]",colnames(object$region_data)))
+    if(nT == 0){
+      nT <- 1
+      if("y"%in%colnames(object$region_data)){
+        cat("\n     \U2BA1 Spatial-only case data")
+        is_setup <- TRUE
+      } else {
+        cat("\n     \U2BA1 No case data currently in region data: manually add a column y or t1, t2, t3, ... containing counts.") 
+      }
+    } else {
+      cat("\n     \U2BA1 Case data for ",nT," time periods")
+      is_setup <- TRUE
+    }
+    cat("\n     \U2BA1 ",nrow(private$intersection_data)," region-grid intersection areas\n")
+    print(head(object$region_data))
+  }
+  cat("\n \U2BC8 Last model fit \n")
+  if(!is.null(private$last_model_fit)){
+    print(private$last_model_fit)
+  } else {
+    cat("     \U2BA1 No model has been fit to these data: see lgcp_ml() and lgcp_bayes()")
+  }
+  cat("\n")
+}
+
+#' Extract predictions from a `grid` object
+#'
+#' Extract incidence and relative risk predictions. The predictions will be extracted from the last model fit in the `grid` object. 
+#' If no previous model fit then use either `grid$lgcp_ml()` or `grid$lgcp_bayes()`, or see `grid$model_fit()` to update the stored model fit.
+#'
+#' @param object A `grid` object.
+#' @param type Vector of character strings. Any combination of "pred", "rr", and "irr", which are,
+#' posterior mean incidence (overall and population standardised), relative risk,
+#' and incidence rate ratio, respectively.
+#' @param irr.lag integer. If "irr" is requested as `type` then the number of time
+#' periods lag previous the ratio is in comparison to
+#' @param t.lag integer. Extract predictions for previous time periods.
+#' @param popdens character string. Name of the column in `grid_data` with the
+#' population density data
+#' @param verbose Logical indicating whether to print messages to the console
+#' @param ... Further arguments passed from other methods
+#' @return An `sf` object in which the predictions are stored.
+#' @details 
+#' Three outputs can be extracted from the model fit:
+#'
+#' Predicted incidence: If type includes `pred` then `pred_mean_total` and
+#' `pred_mean_total_sd` provide the
+#' predicted mean total incidence and its standard deviation, respectively.
+#' `pred_mean_pp` and `pred_mean_pp_sd` provide the predicted population
+#' standardised incidence and its standard deviation. These are added to the grid data or to the 
+#' regional data for spatially-aggregated data.
+#'
+#' Relative risk: if type includes `rr` then the relative risk is reported in
+#' the columns `rr` and `rr_sd`. The relative risk here is the exponential
+#' of the latent field, which describes the relative difference between
+#' expected mean and predicted mean incidence. These are added to the grid data.
+#'
+#' Incidence risk ratio: if type includes `irr` then the incidence rate ratio (IRR)
+#' is reported in the columns `irr` and `irr_sd`. This is the ratio of the predicted
+#' incidence in the last period (minus `t_lag`) to the predicted incidence in the
+#' last period minus `irr_lag` (minus `t_lag`). For example, if the time period
+#' is in days then setting `irr_lag` to 7 and leaving `t_lag=0` then the IRR
+#' is the relative change in incidence in the present period compared to a week
+#' prior. These are added to the grid data or to the 
+#' regional data for spatially-aggregated data.
+#' @examples
+#' # See examples for grid$lgcp_bayes() and grid$lgcp_ml()
+#' @importFrom stats sd
+#' @method predict grid
+predict.grid <- function(object, 
+                         type=c("pred","rr","irr"),
+                         irr.lag=NULL,
+                         t.lag=0,
+                         popdens=NULL,
+                         verbose = TRUE,
+                         ...){
+  object$extract_preds(type,irr.lag,t.lag,popdens,verbose)
+  if(type %in% c("pred") & !is.null(object$region_data)){
+    return(invisible(object$region_data))
+  } else {
+    return(invisible(object$grid_data))
+  }
+}
+
+#' Residuals method for a `grid` object
+#' 
+#' Conditional raw or standardised residuals are returned for a stored `rtsFit` objects. If no prior model fit is stored,
+#' then an error is returned. 
+#' @param object A `grid` object.
+#' @param type Either "standardized" or "raw"
+#' @param ... Further arguments passed from other methods
+#' @return A matrix with number of columns corresponding to the number of MCMC samples.
+#' @method residuals grid
+#' @export
+residuals.grid <- function(object, type, ...){
+  return(residuals(object$model_fit(),type))
+}
+
+#' Calculate Variance-Covariance matrix for a maximum likelihood object stored in `grid`
+#' 
+#' Returns the variance-covariance matrix for a LGCP object fit using maximum likelihood. If no relevant 
+#' model is stored then the function returns an error
+#' @param object A `grid` object.
+#' @param ... Further arguments passed from other methods
+#' @return A variance-covariance matrix.
+#' @method vcov grid
+#' @export
+vcov.grid <- function(object,...){
+  return(vcov(object$model_fit()))
+}
+
+#' Extracts the family from a `grid` object. 
+#' 
+#' Extracts the \link[stats]{family} from a `grid` object.
+#' @param object A `grid` object.
+#' @param ... Further arguments passed from other methods
+#' @return A \link[stats]{family} object.
+#' @method family rtsFit
+#' @export
+family.grid <- function(object,...){
+  return(stats::poisson())
+}
+
+#' Extracts the formula from a `grid` object. 
+#' 
+#' Extracts the \link[stats]{formula} from a `rtsFit` object stored in a grid object. Only returns the top level formula. For region models 
+#' this is the formula at the region level, otherwise the grid-level formula is returned. No random effects 
+#' specifications are included in the returned formula.
+#' @param x A `grid` object.
+#' @param ... Further arguments passed from other methods
+#' @return A \link[stats]{formula} object.
+#' @method formula grid
+#' @export
+formula.grid <- function(x,...){
+  return(formula(x$model_fit()))
+}

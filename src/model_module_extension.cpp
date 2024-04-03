@@ -89,16 +89,16 @@ SEXP rtsModel__ll_diff_variance(SEXP xp, bool beta, bool theta, int covtype_, in
   return wrap(std::get<double>(S));
 }
 
-// [[Rcpp::export]]
-SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){
-  TypeSelector model(xp,covtype_,lptype_);
-  auto functor = overloaded {
-    [](int) {return returns(0);}, 
-    [](auto mptr){return returns(mptr->matrix.hess_and_grad());}
-  };
-  auto S = std::visit(functor,model.ptr);
-  return wrap(std::get<MatrixMatrix>(S));
-}
+// // [[Rcpp::export]]
+// SEXP rtsModel__hess_and_grad(SEXP xp, int covtype_, int lptype_){
+//   TypeSelector model(xp,covtype_,lptype_);
+//   auto functor = overloaded {
+//     [](int) {return returns(0);}, 
+//     [](auto mptr){return returns(mptr->matrix.hess_and_grad());}
+//   };
+//   auto S = std::visit(functor,model.ptr);
+//   return wrap(std::get<MatrixMatrix>(S));
+// }
 
 // [[Rcpp::export]]
 void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_,

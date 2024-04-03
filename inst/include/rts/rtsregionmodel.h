@@ -85,9 +85,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }
@@ -156,9 +156,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }
@@ -227,9 +227,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }
@@ -298,9 +298,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }
@@ -370,9 +370,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }
@@ -442,9 +442,9 @@ public:
         if(u_.cols()!=re.u_.cols()){
           re.u_.resize(NoChange,newcolsize);
           re.zu_.resize(NoChange,newcolsize);
-          re.u_ = u_;
-          if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
         }
+        re.u_ = u_;
+        if(newcolsize != optim.ll_current.rows()) optim.ll_current.resize(newcolsize,NoChange);
       }
       re.zu_ = model.covariance.ZLu(re.u_);
     }

@@ -1,7 +1,7 @@
 Package: rts2
 Title: Real-Time Disease Surveillance
-Version: 0.7.2
-Date: 2024-03-07
+Version: 0.7.4
+Date: 2024-04-03
 Authors@R: 
     person(given = "Sam",
            family = "Watson",

@@ -15,6 +15,10 @@ template<typename modeltype>
 class rtsRegionModelOptim : public ModelOptim<modeltype> {
 public:
   rts::RegionData&  region;
+  // this is stupid - it has to be re-added here because of the way CRAN forces an update
+  // will be removed once both packages are updated
+  std::pair<double,double>          rts_current_ll_var = {0.0,0.0};
+  std::pair<double,double>          rts_previous_ll_var = {0.0,0.0};
   
   rtsRegionModelOptim(modeltype& model_, 
                 glmmr::ModelMatrix<modeltype>& matrix_,
@@ -32,6 +36,8 @@ public:
   void        ml_theta();
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_rho();
+  // remove this function when CRAN is updated as base class has it defined...
+  double      ll_diff_variance(bool beta = true, bool theta = true);
   double      log_likelihood_theta(const dblvec &theta);
   double      log_likelihood_rho(const dblvec &rho);
   double      log_likelihood_rho_with_gradient(const VectorXd &rho, VectorXd& g);
@@ -52,9 +58,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_beta()
   dblvec start = this->get_start_values(true,false,false);
 
   this->previous_ll_values.first = this->current_ll_values.first;
-  if(this->ll_previous.rows() != this->ll_current.rows()) this->ll_previous.resize(this->ll_current.rows(),NoChange);
-  double old_ll = this->log_likelihood_beta(start);
-  this->ll_previous.col(0) = this->ll_current.col(0);
+  rts_previous_ll_var.first = rts_current_ll_var.first;
 
   if constexpr (std::is_same_v<algo,LBFGS>)
   {
@@ -89,6 +93,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_beta()
 
   int eval_size = this->control.saem ? this->re.mcmc_block_size : this->ll_current.rows();
   this->current_ll_values.first = this->ll_current.col(0).tail(eval_size).mean();
+  rts_current_ll_var.first = (this->ll_current.col(0).tail(eval_size) - this->ll_current.col(0).tail(eval_size).mean()).square().sum() / (eval_size - 1);
 }
 
 template<typename modeltype>
@@ -101,10 +106,8 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
    if(this->re.scaled_u_.cols() != this->re.u_.cols())this->re.scaled_u_.resize(NoChange,this->re.u_.cols());
   this->re.scaled_u_ = this->model.covariance.Lu(this->re.u_);  
 
-  if(this->ll_previous.rows() != this->ll_current.rows()) this->ll_previous.resize(this->ll_current.rows(),NoChange);
   this->previous_ll_values.second = this->current_ll_values.second;
-  double old_ll = this->log_likelihood_theta(start);
-  this->ll_previous.col(1) = this->ll_current.col(1);
+  rts_previous_ll_var.second = rts_current_ll_var.second;
 
   if constexpr (std::is_same_v<algo,LBFGS>){
     VectorXd start_vec = Map<VectorXd>(start.data(),start.size());
@@ -156,6 +159,7 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
   {
     int eval_size = this->control.saem ? this->re.mcmc_block_size : this->ll_current.rows();
     this->current_ll_values.second = this->ll_current.col(1).tail(eval_size).mean();
+    rts_current_ll_var.second = (this->ll_current.col(1).tail(eval_size) - this->ll_current.col(1).tail(eval_size).mean()).square().sum() / (eval_size - 1);
   }  
 }
 
@@ -217,13 +221,15 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_rho()
 
   int eval_size = this->control.saem ? this->re.mcmc_block_size : this->ll_current.rows();
   this->current_ll_values.second = this->ll_current.col(1).tail(eval_size).mean();
+  rts_current_ll_var.second = (this->ll_current.col(1).tail(eval_size) - this->ll_current.col(1).tail(eval_size).mean()).square().sum() / (eval_size - 1);
+  
 }
 
 template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_theta(const dblvec& theta)
 {
   this->model.covariance.update_parameters(theta);
-  this->fn_counter.second += this->Q() * this->re.scaled_u_.cols();
+  this->fn_counter.second += this->re.scaled_u_.cols();
 #pragma omp parallel
   for(int i = 0; i < this->re.scaled_u_.cols(); i++)
   {
@@ -270,7 +276,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dbl
   this->model.covariance.update_parameters(theta);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
   double ll = this->log_likelihood(false);
-  this->fn_counter.first += this->model.n() * this->re.scaled_u_.cols();
+  this->fn_counter.first += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -283,15 +289,15 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dbl
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }
@@ -311,7 +317,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(con
   this->model.covariance.update_parameters(theta);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
   double ll = this->log_likelihood(false);
-  this->fn_counter.first += this->model.n() * this->re.scaled_u_.cols();
+  this->fn_counter.first += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -324,15 +330,15 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(con
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }
@@ -350,7 +356,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(con
 template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_rho(const dblvec& rho){
   this->model.covariance.update_rho(rho[0]);
-  this->fn_counter.second += this->Q() * this->re.scaled_u_.cols();
+  this->fn_counter.second += this->re.scaled_u_.cols();
 #pragma omp parallel
   for(int i = 0; i < this->re.scaled_u_.cols(); i++)
   {
@@ -397,7 +403,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho(const dblve
   this->model.covariance.update_rho(rho[0]);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
   double ll = this->log_likelihood(false);
-  this->fn_counter.first += this->model.n() * this->re.scaled_u_.cols();
+  this->fn_counter.second += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -410,15 +416,15 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho(const dblve
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }
@@ -438,7 +444,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho(const
   this->model.covariance.update_rho(rho[0]);
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
   double ll = log_likelihood(false);
-  this->fn_counter.first += this->model.n() * this->re.scaled_u_.cols();
+  this->fn_counter.second += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -451,15 +457,15 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho(const
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }
@@ -499,7 +505,7 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_beta(const dbl
 {
   this->model.linear_predictor.update_parameters(beta);
   double ll = this->log_likelihood(true);
-  this->fn_counter.first += this->model.n() * this->re.scaled_u_.cols();
+  this->fn_counter.first += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -564,9 +570,9 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_u(const MatrixXd& u_, bo
     if(u_.cols()!=this->re.u_.cols()){
       this->re.u_.resize(NoChange,newcolsize);
       this->re.zu_.resize(NoChange,newcolsize);
-      this->re.u_ = u_;
-      if(newcolsize != this->ll_current.rows()) this->ll_current.resize(newcolsize,NoChange);
     }
+    this->re.u_ = u_;
+    if(newcolsize != this->ll_current.rows()) this->ll_current.resize(newcolsize,NoChange);
   }
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
 }

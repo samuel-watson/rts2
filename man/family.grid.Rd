@@ -4,7 +4,7 @@
 \alias{family.grid}
 \title{Extracts the family from a \code{grid} object.}
 \usage{
-\method{family}{rtsFit}(object, ...)
+\method{family}{grid}(object, ...)
 }
 \arguments{
 \item{object}{A \code{grid} object.}

@@ -267,7 +267,7 @@ family.rtsFit <- function(object,...){
 formula.rtsFit <- function(x,...){
   fo <- "~ "
   if(length(x$covs)>0){
-    for(i in 1:length(covs))fo <- paste0(fo,ifelse(i==1,""," + "),covs[i])
+    for(i in 1:length(x$covs))fo <- paste0(fo,ifelse(i==1,""," + "),x$covs[i])
   } else {
     fo <- paste0(fo,"1")
   }
@@ -400,12 +400,12 @@ summary.grid <- function(object, ...){
       cat("\n     \U2BA1 Case data for ",nT," time periods")
       is_setup <- TRUE
     }
-    cat("\n     \U2BA1 ",nrow(private$intersection_data)," region-grid intersection areas\n")
+    cat("\n     \U2BA1 ",nrow(object$.__enclos_env__$private$intersection_data)," region-grid intersection areas\n")
     print(head(object$region_data))
   }
   cat("\n \U2BC8 Last model fit \n")
-  if(!is.null(private$last_model_fit)){
-    print(private$last_model_fit)
+  if(!is.null(object$.__enclos_env__$private$last_model_fit)){
+    print(object$.__enclos_env__$private$last_model_fit)
   } else {
     cat("     \U2BA1 No model has been fit to these data: see lgcp_ml() and lgcp_bayes()")
   }
@@ -504,7 +504,7 @@ vcov.grid <- function(object,...){
 #' @param object A `grid` object.
 #' @param ... Further arguments passed from other methods
 #' @return A \link[stats]{family} object.
-#' @method family rtsFit
+#' @method family grid
 #' @export
 family.grid <- function(object,...){
   return(stats::poisson())

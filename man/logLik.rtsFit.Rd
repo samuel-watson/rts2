@@ -2,24 +2,19 @@
 % Please edit documentation in R/print_mcmlrts.R
 \name{logLik.rtsFit}
 \alias{logLik.rtsFit}
-\title{Extracts the log-likelihood from an mcml object}
+\title{Extracts the log-likelihood from an rtsFit object}
 \usage{
-\method{logLik}{rtsFit}(object, fixed = TRUE, covariance = TRUE, ...)
+\method{logLik}{rtsFit}(object, ...)
 }
 \arguments{
-\item{object}{An \code{mcml} model fit.}
-
-\item{fixed}{Logical whether to include the log-likelihood value from the fixed effects.}
-
-\item{covariance}{Logical whether to include the log-likelihood value from the covariance parameters.}
+\item{object}{An \code{rtsFit} model fit.}
 
 \item{...}{Further arguments passed from other methods}
 }
 \value{
-A numeric value. If both \code{fixed} and \code{covariance} are FALSE then it returns NA.
+An object of class \code{logLik} for maximum likelihood model fits, otherwise it returns an error.
 }
 \description{
-Extracts the final log-likelihood value from an mcml object returned from call of \code{MCML} or \code{LA} in the \link[glmmrBase]{Model} class. The fitting algorithm estimates
-the fixed effects, random effects, and covariance parameters all separately. The log-likelihood is separable in the fixed and covariance parameters, so one can return
-the log-likelihood for either component, or the overall log-likelihood.
+Extracts the final log-likelihood value from an rtsFit object. Only returns a value for maximum likelihood
+model fits, otherwise it produces an error.
 }

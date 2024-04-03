@@ -343,7 +343,7 @@ confint.rtsFit <- function(object, ...){
 #' @return A matrix with number of columns corresponding to the number of MCMC samples.
 #' @method residuals rtsFit
 #' @export
-residuals.mcml <- function(object, type, ...){
+residuals.rtsFit <- function(object, type, ...){
   if(!type%in%c("raw","standardized"))stop("type must be either raw or standardized")
   resids <- matrix(NA,nrow = length(object$y), ncol = ncol(object$y_predicted))
   for(i in 1:ncol(object$y_predicted)) {

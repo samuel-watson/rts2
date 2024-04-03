@@ -549,6 +549,15 @@ inline void rts::rtsRegionModelOptim<modeltype>::update_theta(const dblvec &thet
 }
 
 template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::ll_diff_variance(bool beta, bool theta)
+{
+  double var = 0;
+  if(beta) var += rts_current_ll_var.first + rts_previous_ll_var.first;
+  if(theta) var += rts_current_ll_var.second + rts_previous_ll_var.second;
+  return var ; 
+}
+
+template<typename modeltype>
 inline void rts::rtsRegionModelOptim<modeltype>::update_rho(double rho)
 {
   this->model.covariance.update_rho(rho);

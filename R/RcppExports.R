@@ -97,36 +97,8 @@ rtsModel__get_W <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_W`, xp, covtype_, lptype_)
 }
 
-rtsModel__ml_theta <- function(xp, algo, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__ml_theta`, xp, algo, covtype_, lptype_))
-}
-
-rtsModel__ml_beta <- function(xp, algo, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__ml_beta`, xp, algo, covtype_, lptype_))
-}
-
-rtsModel__ml_rho <- function(xp, algo, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__ml_rho`, xp, algo, covtype_, lptype_))
-}
-
-rtsModel__nr_beta <- function(xp, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__nr_beta`, xp, covtype_, lptype_))
-}
-
-rtsModel__laplace_nr_beta_u <- function(xp, covtype_, lptype_) {
-    invisible(.Call(`_rts2_rtsModel__laplace_nr_beta_u`, xp, covtype_, lptype_))
-}
-
 rtsModel__Sigma <- function(xp, inverse, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__Sigma`, xp, inverse, covtype_, lptype_)
-}
-
-rtsModel__information_matrix <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__information_matrix`, xp, covtype_, lptype_)
-}
-
-rtsModel__information_matrix_region <- function(xp, covtype, lptype) {
-    .Call(`_rts2_rtsModel__information_matrix_region`, xp, covtype, lptype)
 }
 
 rtsModel__u <- function(xp, covtype_, lptype_) {
@@ -153,10 +125,6 @@ rtsModel__get_rho <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_rho`, xp, covtype_, lptype_)
 }
 
-rtsModel__log_likelihood <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__log_likelihood`, xp, covtype_, lptype_)
-}
-
 rtsModel__get_theta <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_theta`, xp, covtype_, lptype_)
 }
@@ -177,6 +145,34 @@ rtsModel__xb <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__xb`, xp, covtype_, lptype_)
 }
 
+rtsModel__ml_theta <- function(xp, algo, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__ml_theta`, xp, algo, covtype_, lptype_))
+}
+
+rtsModel__ml_beta <- function(xp, algo, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__ml_beta`, xp, algo, covtype_, lptype_))
+}
+
+rtsModel__ml_rho <- function(xp, algo, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__ml_rho`, xp, algo, covtype_, lptype_))
+}
+
+rtsModel__nr_beta <- function(xp, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__nr_beta`, xp, covtype_, lptype_))
+}
+
+rtsModel__information_matrix <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__information_matrix`, xp, covtype_, lptype_)
+}
+
+rtsModel__log_likelihood <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__log_likelihood`, xp, covtype_, lptype_)
+}
+
+rtsModel__information_matrix_region <- function(xp, covtype, lptype) {
+    .Call(`_rts2_rtsModel__information_matrix_region`, xp, covtype, lptype)
+}
+
 rtsModel__get_log_likelihood_values <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__get_log_likelihood_values`, xp, covtype_, lptype_)
 }
@@ -191,10 +187,6 @@ rtsModel__saem <- function(xp, saem_, block_size, alpha, pr_average, covtype_, l
 
 rtsModel__ll_diff_variance <- function(xp, beta, theta, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__ll_diff_variance`, xp, beta, theta, covtype_, lptype_)
-}
-
-rtsModel__hess_and_grad <- function(xp, covtype_, lptype_) {
-    .Call(`_rts2_rtsModel__hess_and_grad`, xp, covtype_, lptype_)
 }
 
 rtsModel__set_bobyqa_control <- function(xp, covtype_, lptype_, npt_, rhobeg_, rhoend_) {

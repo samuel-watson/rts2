@@ -2,18 +2,18 @@
 % Please edit documentation in R/print_mcmlrts.R
 \name{coef.rtsFit}
 \alias{coef.rtsFit}
-\title{Extracts coefficients from a mcml object}
+\title{Extracts fixed effect coefficients from a rtsFit object}
 \usage{
 \method{coef}{rtsFit}(object, ...)
 }
 \arguments{
-\item{object}{An \code{mcml} model fit.}
+\item{object}{An \code{rtsFit} model fit.}
 
 \item{...}{Further arguments passed from other methods}
 }
 \value{
-A data frame summarising the parameters including the random effects.
+A named vector.
 }
 \description{
-Extracts the coefficients from an \code{mcml} object returned from a call of \code{MCML} or \code{LA} in the \link[glmmrBase]{Model} class.
+Extracts the fitted fixed effect coefficients from an \code{rtsFit} object returned from a call of \code{rtsFit} or \code{LA} in the \link[glmmrBase]{Model} class.
 }

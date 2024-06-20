@@ -329,13 +329,9 @@ inline double rts::rtsModelOptim<modeltype>::log_likelihood_theta(const dblvec& 
 template<>
 inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& theta){
   this->model.covariance.update_parameters(theta);
-  this->fn_counter.second += this->re.scaled_u_.cols();
-#pragma omp parallel
-  for(int i = 0; i < this->re.scaled_u_.cols(); i++)
-  {
-    this->ll_current(i,1) = this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
-  }
-  double ll = 0;
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  double ll = this->log_likelihood(false);
+  this->fn_counter.first += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
@@ -366,9 +362,50 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& t
       ll = ll_t;
     }
   } else {
-    ll = this->ll_current.col(1).mean();
+    ll = this->log_likelihood(false);
   }
   return -1*ll;
+  
+//   this->fn_counter.second += this->re.scaled_u_.cols();
+// #pragma omp parallel
+//   for(int i = 0; i < this->re.scaled_u_.cols(); i++)
+//   {
+//     this->ll_current(i,1) = this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
+//   }
+//   double ll = 0;
+//   if(this->control.saem)
+//   {
+//     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
+//     double  gamma = pow(1.0/iteration,this->control.alpha);
+//     double  ll_t = 0;
+//     double  ll_pr = 0;
+//     for(int i = 0; i < iteration; i++){
+//       int lower_range = i * this->re.mcmc_block_size;
+//       int upper_range = (i + 1) * this->re.mcmc_block_size;
+//       if(i == (iteration - 1) && iteration > 1){
+//         double ll_t_c = ll_t;
+//         double ll_pr_c = ll_pr;
+//         ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+//         if(this->control.pr_average) ll_pr += ll_t;
+//         for(int j = lower_range; j < upper_range; j++)
+//         {
+//           this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+//           if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
+//         }
+//       } else {
+//         ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+//         if(this->control.pr_average) ll_pr += ll_t;
+//       }
+//     }
+//     if(this->control.pr_average){
+//       ll = ll_pr / (double)iteration;
+//     } else {
+//       ll = ll_t;
+//     }
+//   } else {
+//     ll = this->ll_current.col(1).mean();
+//   }
+//   return -1*ll;
 }
 
 template<typename modeltype>
@@ -436,15 +473,15 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_rho(const dblvec& rho
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }

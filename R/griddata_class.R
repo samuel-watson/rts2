@@ -533,7 +533,8 @@ grid <- R6::R6Class("grid",
                            #'
                            #' (2) Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
                            #' Practical Hilbert space approximate Bayesian Gaussian processes for
-                           #' probabilistic programming. 2020. http://arxiv.org/abs/2004.11408.
+                           #' probabilistic programming. Stat Comput. 2023;33:17.
+                           #' doi:10.1007/s11222-022-10167-2.
                            #' @param popdens character string. Name of the population density column
                            #' @param covs vector of character string. Base names of the covariates to
                            #' include. For temporally-varying covariates only the stem is required and not

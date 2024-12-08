@@ -600,7 +600,11 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(bool beta)
 #pragma omp parallel for
       for(int i = 0; i<xb.rows(); i++)
       {
+#if defined(GLMMR10)
+        this->ll_current(j,llcol) += this->model.data.weights(i)*glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family);
+#else
         this->ll_current(j,llcol) += this->model.data.weights(i)*glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
+#endif
       }
     }
     this->ll_current.col(llcol) *= this->model.data.weights.sum()/this->model.n();
@@ -610,7 +614,11 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood(bool beta)
   {
     for(int i = 0; i< xb.rows(); i++)
     {
+#if defined(GLMMR10)
+      this->ll_current(j,llcol) += glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family);
+#else
       this->ll_current(j,llcol) += glmmr::maths::log_likelihood(this->model.data.y(i),xb(i,j),this->model.data.variance(i),this->model.family.family,this->model.family.link);
+#endif
     }
   }
 }

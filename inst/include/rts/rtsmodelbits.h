@@ -43,7 +43,6 @@ public:
   
   virtual int       n(){ return 0; };
   virtual ArrayXd   xb(){return ArrayXd::Zero(1);};
-  virtual void      setup_calculator(){};
   ~rtsModelBitsBase() = default;
 };
 
@@ -55,7 +54,6 @@ class rtsModelBits : public rtsModelBitsBase {
   ~rtsModelBits() = default;
   int           n() override;
   ArrayXd       xb() override;
-  void          setup_calculator() override;
 };
 
 template<>
@@ -69,7 +67,7 @@ public:
                const strvec& colnames_) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,data_,colnames_, 1),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -78,30 +76,14 @@ public:
                const ArrayXXd& grid_data_) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,grid_data_,std::vector<std::string>({"X","Y"}), T),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, LinearPredictor>& bits) :
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
-    covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
   int       n(){return linear_predictor.n();};
   ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
-  void      setup_calculator(){
-    dblvec yvec(n(),0.0);
-    calc = linear_predictor.calc;
-    glmmr::linear_predictor_to_link(calc,family.link);
-    glmmr::link_to_likelihood(calc,family.family);
-    calc.y = yvec;
-    calc.variance.conservativeResize(yvec.size());
-    calc.variance = data.variance;
-    vcalc = linear_predictor.calc;
-    glmmr::re_linear_predictor(vcalc,covariance.Q());
-    glmmr::linear_predictor_to_link(vcalc,family.link);
-    glmmr::link_to_likelihood(vcalc,family.family);
-    vcalc.y = yvec;
-    vcalc.variance.conservativeResize(yvec.size());
-    vcalc.variance = data.variance;
-  }
   
 };
 
@@ -118,7 +100,7 @@ public:
                const rts::griddata& grid_) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,data_,colnames_, 1, m, grid_),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -128,30 +110,14 @@ public:
                const ArrayXXd& grid_data_) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,grid_data_,std::vector<std::string>({"X","Y"}), T, m, grid_),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, LinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
-    covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
   int       n(){return linear_predictor.n();};
   ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
-  void      setup_calculator(){
-    dblvec yvec(n(),0.0);
-    calc = linear_predictor.calc;
-    glmmr::linear_predictor_to_link(calc,family.link);
-    glmmr::link_to_likelihood(calc,family.family);
-    calc.y = yvec;
-    calc.variance.conservativeResize(yvec.size());
-    calc.variance = data.variance;
-    vcalc = linear_predictor.calc;
-    glmmr::re_linear_predictor(vcalc,covariance.Q());
-    glmmr::linear_predictor_to_link(vcalc,family.link);
-    glmmr::link_to_likelihood(vcalc,family.family);
-    vcalc.y = yvec;
-    vcalc.variance.conservativeResize(yvec.size());
-    vcalc.variance = data.variance;
-  }
 };
 
 template<>
@@ -167,7 +133,7 @@ public:
                const Array2d& L) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,data_,colnames_, 1, m, L),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const std::string& formula_,
                const ArrayXXd& data_,
@@ -178,30 +144,14 @@ public:
                const ArrayXXd& grid_data_) : 
     rtsModelBitsBase(formula_,data_),
     covariance(formula_,grid_data_,std::vector<std::string>({"X","Y"}), T, m, L),
-    linear_predictor(formula,data_,colnames_) { setup_calculator(); };
+    linear_predictor(formula,data_,colnames_) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::hsgpCovariance, LinearPredictor>& bits) :
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
-    covariance(bits.covariance), linear_predictor(bits.linear_predictor) { setup_calculator(); };
+    covariance(bits.covariance), linear_predictor(bits.linear_predictor) {};
   
   int       n(){return linear_predictor.n();};
   ArrayXd   xb(){return linear_predictor.xb() + data.offset;};
-  void      setup_calculator(){
-    dblvec yvec(n(),0.0);
-    calc = linear_predictor.calc;
-    glmmr::linear_predictor_to_link(calc,family.link);
-    glmmr::link_to_likelihood(calc,family.family);
-    calc.y = yvec;
-    calc.variance.conservativeResize(yvec.size());
-    calc.variance = data.variance;
-    vcalc = linear_predictor.calc;
-    glmmr::re_linear_predictor(vcalc,covariance.Q());
-    glmmr::linear_predictor_to_link(vcalc,family.link);
-    glmmr::link_to_likelihood(vcalc,family.family);
-    vcalc.y = yvec;
-    vcalc.variance.conservativeResize(yvec.size());
-    vcalc.variance = data.variance;
-  }
   
 };
 

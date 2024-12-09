@@ -328,7 +328,13 @@ SEXP rtsModel__infomat_theta(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
     [](int) { return returns(0);}, 
-    [](auto mptr){return returns(mptr->matrix.information_matrix_theta());}
+    [](auto mptr){
+#ifdef GLMMR11
+      return returns(mptr->matrix.template information_matrix_theta<glmmr::IM::EIM>());
+#else
+      return returns(mptr->matrix.information_matrix_theta());
+#endif
+    }
   };
   auto S = std::visit(functor,model.ptr);
   return wrap(std::get<Eigen::MatrixXd>(S));

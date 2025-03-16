@@ -81,7 +81,7 @@ data {
   int<lower=1> M; // number of nearest neighbours
   int<lower=1> Nsample; //number of observations per time period
   int nT; //number of time periods
-  int NN[M,Nsample];
+  array[M,Nsample] int NN;
   int n_region; // number of regions
   int n_Q; // number of intersections
   array[n_region+1] int<lower=1> n_cell; //number of cells intersecting region  

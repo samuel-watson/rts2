@@ -42,7 +42,7 @@ data {
   int<lower=1> D; //number of dimensions
   int<lower=1> Q; //number of covariates
   int<lower=0> Q_g; //number of covariates
-  real L[D]; // boundary condition
+  array[D] real L; // boundary condition
   int<lower=1> M; // number of basis functions (per dimension)
   int<lower=1> M_nD; //total basis functions m1*m2*...*mD
   int<lower=1> Nsample; //number of observations per time period

@@ -275,9 +275,9 @@ grid <- R6::R6Class("grid",
                            #' 
                            #' *Spatially-varying data only* 
                            #' 
-                           #' `cov_data` is an sf object describing covariate
-                           #' values for a set of polygons over the area of interest. The values are mapped
-                           #' onto `grid_data`. For each grid cell in `grid_data` a weighted
+                           #' `cov_data` is an object describing covariate over the area of interest. 
+                           #' sf, RasterLayer and SpatRaster objects are supported, with rasters converted internally to sf. 
+                           #' The values are mapped onto `grid_data`. For each grid cell in `grid_data` a weighted
                            #' average of each covariate listed in `zcols` is generated with weights either
                            #' equal to the area of intersection of the grid cell and the polygons in
                            #' `cov_data` (`weight_type="area"`), or this area multiplied by the population
@@ -307,7 +307,7 @@ grid <- R6::R6Class("grid",
                            #' sf object then they should be named as described above and then can be added
                            #' as for spatially-varying covariates, e.g. `zcols=c("covariateA1","covariateA2")`.
                            #'
-                           #' @param cov_data sf object or data.frame. See details.
+                           #' @param cov_data sf, RasterLayer, SpatRaster object or a data.frame. See details.
                            #' @param zcols vector of character strings with the names of the columns of `cov_data`
                            #' to include
                            #' @param weight_type character string. Either "area" for area-weighted average or "pop"
@@ -352,8 +352,27 @@ grid <- R6::R6Class("grid",
                              if(weight_type=="pop"&!is.null(popdens)){
                                if(!popdens%in%colnames(cov_data))stop("Pop. dens. variable not found.")
                              }
-                             if(any(!zcols%in%colnames(cov_data)))stop("variable names not in cov_data")
-                             if(!is(cov_data,"sf"))if(!"t"%in%colnames(cov_data))stop("not column named t in cov_data")
+                             
+                             if(is(cov_data,"RasterLayer")){
+                               if(any(!zcols%in%names(cov_data)))stop("variable names not in cov_data")
+                               cnames <- names(cov_data)
+                               fname <- tempfile(fileext = ".tif")
+                               raster::writeRaster(cov_data,fname)
+                               x <- stars::read_stars(fname)
+                               cov_data <- sf::st_as_sf(x)
+                               colnames(cov_data)[1:(ncol(cov_data)-1)] <- cnames
+                             } else if(is(cov_data,"SpatRaster")){
+                               if(any(!zcols%in%names(cov_data)))stop("variable names not in cov_data")
+                               cnames <- names(cov_data)
+                               fname <- tempfile(fileext = ".tif")
+                               raster::writeRaster(raster::raster(cov_data),fname)
+                               x <- stars::read_stars(fname)
+                               cov_data <- sf::st_as_sf(x)
+                               colnames(cov_data)[1:(ncol(cov_data)-1)] <- cnames
+                             } else if(is(cov_data,"sf")){
+                               if(any(!zcols%in%colnames(cov_data)))stop("variable names not in cov_data")
+                             }
+                             
                              if(is(cov_data,"sf")){
                                sf::st_agr(cov_data) = "constant"
                                sf::st_agr(self$grid_data) = "constant"
@@ -391,7 +410,8 @@ grid <- R6::R6Class("grid",
                                    colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0(zcols[j],t_label)
                                  }
                                }
-                             } else {
+                             } else if(is(cov_data,"data.frame")){
+                               if(!"t"%in%colnames(cov_data))stop("not column named t in cov_data")
                                nT <- max(cov_data$t)
                                for(j in zcols){
                                  for(t in 1:nT){
@@ -399,6 +419,8 @@ grid <- R6::R6Class("grid",
                                    colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0(j,t)
                                  }
                                }
+                             } else {
+                               stop("Cov_data type not supported")
                              }
                              if(verbose)message(paste0("\n added covariates ",zcols))
                            },
@@ -610,7 +632,7 @@ grid <- R6::R6Class("grid",
                            #' g2$plot("rr")
                            #' g2$hotspots(rr.threshold = 2)
                            #' }
-                           lgcp_bayes = function(popdens,
+                           lgcp_bayes = function(popdens=NULL,
                                                covs=NULL,
                                                covs_grid = NULL,
                                                approx = "nngp",
@@ -630,6 +652,10 @@ grid <- R6::R6Class("grid",
                              if(!approx%in%c('nngp','hsgp','none'))stop("approx must be one of nngp, hsgp, or none")
                              if(m<=1 & approx %in% c('nngp','hsgp'))stop("m must be greater than one")
                              if(!is.null(self$region_data)&verbose)message("Using regional data model.")
+                             if(is.null(popdens)){
+                               self$grid_data$intercept <- 1
+                               popdens <- "intercept"
+                             }
                              #prepare data for model fit
                              datlist <- private$prepare_data(m,model,approx,popdens,covs,covs_grid,verbose,TRUE,L)
                              if(!is.null(known_theta)){
@@ -643,36 +669,10 @@ grid <- R6::R6Class("grid",
                                datlist$phi_data <- c(1)
                              }
 
-                             if(approx == "hsgp"){
-                               if(!is.null(self$region_data)){
-                                 filen <- "rtsapproxlgcp_region_cmd.stan"
-                                 fname <- "rtsapproxlgcp_region"
-                               } else {
-                                 filen <- "rtsapproxlgcp_cmd.stan"
-                                 fname <- "rtsapproxlgcp"
-                               }
-                             } else if(approx == "nngp"){
-                               if(!is.null(self$region_data)){
-                                 filen <- "rtsapproxlgcp_nngp_region_cmd.stan"
-                                 fname <- "rtsapproxlgcp_nngp_region"
-                               } else {
-                                 filen <- "rtsapproxlgcp_nngp_cmd.stan"
-                                 fname <- "rtsapproxlgcp_nngp"
-                               }
-                             } else {
-                               if(!is.null(self$region_data)){
-                                 filen <- "rtslgcp_region_cmd.stan"
-                                 fname <- "rtslgcp_region"
-                               } else {
-                                 filen <- "rtslgcp_cmd.stan"
-                                 fname <- "rtslgcp"
-                               }
-                             }
-
                              if(use_cmdstanr){
                                if(!requireNamespace("cmdstanr"))stop("cmdstanr not available.")
-                               model_file <- system.file("cmdstan",
-                                                         filen,
+                               model_file <- system.file("stan",
+                                                         "rtsbayes.stan",
                                                          package = "rts2",
                                                          mustWork = TRUE)
                                #used for debugging without installing package
@@ -708,7 +708,7 @@ grid <- R6::R6Class("grid",
                              } else {
                                if(!verbose){
                                  if(!vb){
-                                   capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[fname]],
+                                   capture.output(suppressWarnings( res <- rstan::sampling(stanmodels$rtsbayes,
                                                                                            data=datlist,
                                                                                            chains=chains,
                                                                                            iter = iter_warmup+iter_sampling,
@@ -716,20 +716,20 @@ grid <- R6::R6Class("grid",
                                                                                            cores = parallel_chains,
                                                                                            refresh = 0)), file=tempfile())
                                  } else {
-                                   capture.output(suppressWarnings( res <- rstan::vb(stanmodels[[fname]],
+                                   capture.output(suppressWarnings( res <- rstan::vb(stanmodels$rtsbayes,
                                                                                            data=datlist)), file=tempfile())
                                  }
                                  
                                } else {
                                  if(!vb){
-                                   res <- rstan::sampling(stanmodels[[fname]],
+                                   res <- rstan::sampling(stanmodels$rtsbayes,
                                                           data=datlist,
                                                           chains=chains,
                                                           iter = iter_warmup+iter_sampling,
                                                           warmup = iter_warmup,
                                                           cores = parallel_chains)
                                  } else {
-                                   res <- rstan::vb(stanmodels[[fname]],
+                                   res <- rstan::vb(stanmodels$rtsbayes,
                                                     data=datlist)
                                  }
                                  ypred <- rstan::extract(res,"y_grid_predict")$y_grid_predict
@@ -902,7 +902,7 @@ grid <- R6::R6Class("grid",
                            #'  g2$hotspots(rr.threshold = 2) 
                            #' }
                            #' 
-                           lgcp_ml = function(popdens,
+                           lgcp_ml = function(popdens=NULL,
                                               covs=NULL,
                                               covs_grid = NULL,
                                               approx = "nngp",
@@ -932,6 +932,10 @@ grid <- R6::R6Class("grid",
                              if(! algo %in% 1:8)stop("Algo must be in 1 - 5")
                              if(! conv_criterion %in% c(1,2,3))stop("conv_criterion must be 1, 2, or 3")
                              if(algo %in% c(4,5) & (alpha < 0.5 | alpha >= 1))stop("alpha must be in [0,1) for SAEM")
+                             if(is.null(popdens)){
+                               self$grid_data$intercept <- 1
+                               popdens <- "intercept"
+                             }
                              append_u <- FALSE
                              adaptive <- algo %in% 6:8
                              # set up main data and initialise the pointer to the C++ class
@@ -1306,7 +1310,7 @@ grid <- R6::R6Class("grid",
                                                     popdens=NULL,
                                                     verbose = TRUE){
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
-                             if("pred"%in%type&is.null(popdens))stop("set popdens for pred")
+                             if("pred"%in%type&is.null(popdens))popdens <- "intercept"
                              nCells <- nrow(self$grid_data)
                              nRegion <- ifelse(is.null(self$region_data),0,nrow(self$region_data))
                              nT <- nrow(private$last_model_fit$re.samps)/nCells
@@ -2175,97 +2179,63 @@ grid <- R6::R6Class("grid",
                           }
                         }
                         if(verbose)message(paste0(nCell," grid cells ",nT," time periods, and ",Q," covariates. Starting sampling..."))
+                        
+                        datlist <- list(
+                          D = 2,
+                          Q = Q,
+                          Nsample = nCell,
+                          nT= nT,
+                          y = y,
+                          x_grid = x_grid[,1:2],
+                          popdens = popd,
+                          X= X,
+                          mod = mod,
+                          approx = 0,
+                          is_region = 0,
+                          n_region = 1,
+                          n_Q = 1,
+                          n_cell = as.array(1),
+                          cell_id = as.array(1),
+                          q_weights = as.array(1),
+                          Q_g = 0,
+                          X_g = matrix(1,1,1),
+                          M = m,
+                          M_nD = m^2,
+                          indices = matrix(1,1,1),
+                          L = c(0,0),
+                          NN = matrix(1,1,1)
+                        )
+                        
                         if(approx == "hsgp"){
-                          datlist <- list(
-                            D = 2,
-                            Q = Q,
-                            L = L_boundary,
-                            M = m,
-                            M_nD = m^2,
-                            nT= nT,
-                            Nsample = nCell,
-                            y = y,
-                            x_grid = x_grid[,1:2],
-                            indices = ind,
-                            popdens = popd,
-                            X= X,
-                            mod = mod
-                          )
-                          if(!is.null(self$region_data)){
-                            ncell <- unname(table(private$intersection_data$region_id))
-                            ncell <- c(1, cumsum(ncell)+1)
-                            datlist <- append(datlist,list(
-                              Q_g = nG,
-                              X_g = X_g,
-                              n_region = nrow(self$region_data),
-                              n_Q = nrow(private$intersection_data),
-                              n_cell = ncell,
-                              cell_id = private$intersection_data$grid_id,
-                              q_weights = private$intersection_data$w
-                            ))
-                            if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
-                          } 
+                          datlist$approx <- 1
+                          datlist$L <- L_boundary
+                          datlist$indices <- ind
+                          
                         } else if(approx == "nngp"){
+                          datlist$approx <- 2
                           if(is.null(private$grid_ptr)){
                             private$grid_ptr <- GridData__new(as.matrix(x_grid[,1:2]),nT)
                           }
                           GridData__gen_NN(private$grid_ptr,m)
                           NN <- GridData__NN(private$grid_ptr)
                           NN <- NN+1
-                          datlist <- list(
-                            D = 2,
-                            Q = Q,
-                            M = m,
-                            Nsample = nCell,
-                            nT = nT,
-                            NN = NN,
-                            y = y,
-                            x_grid = x_grid[,1:2],
-                            popdens = popd,
-                            X = X,
-                            mod = mod
-                          )
-                          if(!is.null(self$region_data)){
-                            ncell <- unname(table(private$intersection_data$region_id))
-                            ncell <- c(1,cumsum(ncell)+1)
-                            datlist <- append(datlist,list(
-                              Q_g = nG,
-                              X_g = X_g,
-                              n_region = nrow(self$region_data),
-                              n_Q = nrow(private$intersection_data),
-                              n_cell = ncell,
-                              cell_id = private$intersection_data$grid_id,
-                              q_weights = private$intersection_data$w
-                            ))
-                            if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
-                          } 
-                        } else {
-                          datlist <- list(
-                            D = 2,
-                            Q = Q,
-                            Nsample = nCell,
-                            nT = nT,
-                            y = y,
-                            x_grid = x_grid[,1:2],
-                            popdens = popd,
-                            X = X,
-                            mod = mod
-                          )
-                          if(!is.null(self$region_data)){
-                            ncell <- unname(table(private$intersection_data$region_id))
-                            ncell <- c(1,cumsum(ncell)+1)
-                            datlist <- append(datlist,list(
-                              Q_g = nG,
-                              X_g = X_g,
-                              n_region = nrow(self$region_data),
-                              n_Q = nrow(private$intersection_data),
-                              n_cell = ncell,
-                              cell_id = private$intersection_data$grid_id,
-                              q_weights = private$intersection_data$w
-                            ))
-                            if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
-                          } 
-                        }
+                          datlist$NN <- NN
+                        } 
+                        
+                        if(!is.null(self$region_data)){
+                          ncell <- unname(table(private$intersection_data$region_id))
+                          ncell <- c(1, cumsum(ncell)+1)
+                          datlist$is_region <- 1
+                          datlist$Q_g <- nG
+                          datlist$X_g <- X_g
+                          datlist$n_region <- nrow(self$region_data)
+                          datlist$n_Q <- nrow(private$intersection_data)
+                          datlist$n_cell <- ncell
+                          datlist$cell_id <- private$intersection_data$grid_id
+                          datlist$q_weights <- private$intersection_data$w
+                          if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
+                        } 
+                        
                         if(bayes){
                           datlist <- append(datlist,list(prior_lscale=self$priors$prior_lscale,
                                                          prior_var=self$priors$prior_var,

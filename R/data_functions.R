@@ -80,3 +80,4 @@ progress_bar <- function(i,n,len=30){
 #' Counts of burglaries for the months of 2022 for the city of Birmingham, UK at the 
 #' Middle-Layer Super Output Area.
 "birmingham_crime"
+

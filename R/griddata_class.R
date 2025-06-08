@@ -1225,14 +1225,28 @@ grid <- R6::R6Class("grid",
                              condR2 <- (var(Matrix::drop(xb)) + var(Matrix::drop(zd)))/total_var
                              margR2 <- var(Matrix::drop(xb))/total_var
                              # now get predictions
-                             if(private$lp_type == 1){
-                               ypred <- u
-                               for(i in 1:ncol(ypred)){
-                                 ypred[,i] <- exp(ypred[,i] + xb)
-                               }
+                             ## TO DO: allow for variance in beta
+                             X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)
+                             betaz <- matrix(rnorm(length(beta_new)*ncol(u)),nrow=length(beta_new),ncol = ncol(u))
+                             Lm <- chol(M)
+                             betavals <- Lm%*%betaz
+                             for(i in 1:ncol(betavals))betavals[,i] <- betavals[,i] + beta_new
+                             if(private$lp_type > 1){
+                               u2 <- rtsModel__grid_to_region(private$ptr,u)
+                               Xbu <- X %*% betavals + u2
                              } else {
-                               ypred <- rtsModel__y_pred(private$ptr,private$cov_type,private$lp_type)
+                               Xbu <- X %*% betavals + u
                              }
+                             ypred <- exp(Xbu)
+                             
+                             # if(private$lp_type == 1){
+                             #   ypred <- u
+                             #   for(i in 1:ncol(ypred)){
+                             #     ypred[,i] <- exp(ypred[,i] + xb)
+                             #   }
+                             # } else {
+                             #   ypred <- rtsModel__y_pred(private$ptr,private$cov_type,private$lp_type)
+                             # }
                              t_end <- Sys.time()
                              t_diff <- t_end - t_start
                              if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))

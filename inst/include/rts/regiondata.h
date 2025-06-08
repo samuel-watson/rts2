@@ -19,7 +19,7 @@ public:
   RegionData(const ArrayXi &n_cell_,const ArrayXi &cell_id_,const ArrayXd &q_weights_,int N_, int T_);
   RegionData(const rts::RegionData& region);
 
-  MatrixXd  grid_to_region(const MatrixXd& u);
+  MatrixXd  grid_to_region(const MatrixXd& u, const bool expf = true);
   sparse    region_design_matrix();
   sparse    grid_design_matrix();
   sparse    grid_to_region_matrix();
@@ -110,16 +110,29 @@ inline sparse rts::RegionData::grid_to_region_matrix(){
   return grid_region;
 }
 
-inline MatrixXd rts::RegionData::grid_to_region(const MatrixXd& u){
+inline MatrixXd rts::RegionData::grid_to_region(const MatrixXd& u, const bool expf){
   MatrixXd regionu = MatrixXd::Zero(nRegion*gridT, u.cols());
+  if(u.rows() != gridN * gridT)throw std::runtime_error("grid to region conversion, u not grid dimension");
   int nInter, r, t, l, j, idx1;
   if(n_cell(0)!=0)Rcpp::stop("Indexing does not start from zero");
   
-  for(r = 0; r < nRegion; r++){
-    for(t = 0; t < gridT; t++){
-      for(l = n_cell(r); l < n_cell(r+1); l++){
-        for(j = 0; j < u.cols(); j++){
-          regionu(r + nRegion*t, j) += q_weights(l)*exp(u(cell_id(l) + t*gridN,j));
+  if(expf){
+    for(r = 0; r < nRegion; r++){
+      for(t = 0; t < gridT; t++){
+        for(l = n_cell(r); l < n_cell(r+1); l++){
+          for(j = 0; j < u.cols(); j++){
+            regionu(r + nRegion*t, j) += q_weights(l)*exp(u(cell_id(l) + t*gridN,j));
+          }
+        }
+      }
+    }
+  } else {
+    for(r = 0; r < nRegion; r++){
+      for(t = 0; t < gridT; t++){
+        for(l = n_cell(r); l < n_cell(r+1); l++){
+          for(j = 0; j < u.cols(); j++){
+            regionu(r + nRegion*t, j) += q_weights(l)*u(cell_id(l) + t*gridN,j);
+          }
         }
       }
     }

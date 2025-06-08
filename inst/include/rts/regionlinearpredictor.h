@@ -123,24 +123,26 @@ inline ArrayXXd rts::regionLinearPredictor::xb_region(const MatrixXd& u){
 inline MatrixXd rts::regionLinearPredictor::X()
 {
   MatrixXd Xg = grid_predictor.X();
-  MatrixXd xbg = MatrixXd::Zero(grid_predictor.n(),1);
-  if(u != nullptr){
-    xbg.conservativeResize(NoChange,u->cols());
-    xbg = *u;
-  } 
-  xbg.colwise() += grid_predictor.xb();
-  ArrayXXd gmu = xbg.array().exp().rowwise().mean();
-  MatrixXd rmu = region.grid_to_region(gmu.matrix());
-  for(int i = 0; i < Xg.rows(); i++){
-    Xg.row(i) *= gmu(i,0);
-  }
   MatrixXd Xrg = region.grid_to_region(Xg);
-  for(int i = 0; i < Xrg.rows(); i++){
-    Xg.row(i) *= 1/rmu(i,0);
-  }
+  
+  // MatrixXd xbg = MatrixXd::Zero(grid_predictor.n(),1);
+  // if(u != nullptr){
+  //   xbg.conservativeResize(NoChange,u->cols());
+  //   xbg = *u;
+  // } 
+  // xbg.colwise() += grid_predictor.xb();
+  // ArrayXXd gmu = xbg.array().exp().rowwise().mean();
+  // MatrixXd rmu = region.grid_to_region(gmu.matrix());
+  // for(int i = 0; i < Xg.rows(); i++){
+  //   Xg.row(i) *= gmu(i,0);
+  // }
+  // MatrixXd Xrg = region.grid_to_region(Xg);
+  // for(int i = 0; i < Xrg.rows(); i++){
+  //   Xg.row(i) *= 1/rmu(i,0);
+  // }
   MatrixXd Xr(region_predictor.n(),region_predictor.P() + Xg.cols());
   Xr.block(0,0,region_predictor.n(),region_predictor.P()) = region_predictor.X();
-  Xr.block(0,region_predictor.P(),region_predictor.n(), Xg.cols()) = Xg;
+  Xr.block(0,region_predictor.P(),region_predictor.n(), Xg.cols()) = Xrg;
   return Xr;
 }
 

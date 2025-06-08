@@ -633,6 +633,7 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::y_predicted(bool uselog)
   {
     xb = region_intensity(true);
   } else if constexpr (std::is_same_v<modeltype, BitsARRegion > || std::is_same_v<modeltype, BitsNNGPRegion > || std::is_same_v<modeltype, BitsHSGPRegion >){
+    //TO DO: allow for uncertainty in beta estimates
     xb = this->model.linear_predictor.xb_region(this->re.zu_);
   }
   xb.matrix().colwise() += this->model.data.offset;
@@ -645,6 +646,7 @@ inline ArrayXXd rts::rtsRegionModelOptim<modeltype>::region_intensity(bool uselo
 {
   MatrixXd regionu = region.grid_to_region(this->re.zu_);
   ArrayXXd intens = ArrayXXd::Zero(region.nRegion * region.gridT,this->re.u_.cols());
+  // TO DO: sample from distribution of beta and add them in
   ArrayXd expxb = this->model.linear_predictor.xb().array().exp();
   for(int j=0; j<intens.cols(); j++) intens.col(j) = expxb * regionu.col(j).array();
   if(uselog){

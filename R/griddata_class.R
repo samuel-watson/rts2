@@ -1233,9 +1233,9 @@ grid <- R6::R6Class("grid",
                              for(i in 1:ncol(betavals))betavals[,i] <- betavals[,i] + beta_new
                              if(private$lp_type > 1){
                                u2 <- rtsModel__grid_to_region(private$ptr,u)
-                               Xbu <- X %*% betavals + u2
+                               Xbu <- X %*% betavals + u2 + log(self$region_data[,popdens])
                              } else {
-                               Xbu <- X %*% betavals + u
+                               Xbu <- X %*% betavals + u + log(self$grid_data[,popdens])
                              }
                              ypred <- exp(Xbu)
                              

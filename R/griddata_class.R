@@ -2087,7 +2087,7 @@ grid <- R6::R6Class("grid",
                         } else {
                           nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
                         }
-                        
+                        nT <- ifelse(nT==0,1,nT)
                         if(is.null(self$region_data)){
                           #population density
                           nColP <- sum(grepl(var,colnames(self$grid_data)))

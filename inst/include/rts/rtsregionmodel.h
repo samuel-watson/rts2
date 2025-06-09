@@ -463,14 +463,19 @@ inline MatrixXd rts::rtsRegionModel<BitsAR>::intersection_infomat(){
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  MatrixXd D = model.covariance.D(false,false);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  newcov.update_parameters(model.covariance.parameters_);
+  MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
   MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
   MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
   Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma.rows(),Sigma.cols()));
-  if(X.rows() != Sigma2.cols())throw std::runtime_error("X rows != Sigma cols ");
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
+  }
   MatrixXd M = X.transpose() * Sigma2 * X;
   return M;
 }
@@ -480,14 +485,19 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGP>::intersection_infomat(){
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  MatrixXd D = model.covariance.D(false,false);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  newcov.update_parameters(model.covariance.parameters_);
+  MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
   MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
   MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
   Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma.rows(),Sigma.cols()));
-  if(X.rows() != Sigma2.cols())throw std::runtime_error("X rows != Sigma cols ");
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
+  }
   MatrixXd M = X.transpose() * Sigma2 * X;
   return M;
 }
@@ -563,14 +573,19 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  MatrixXd D = model.covariance.D(false,false);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  newcov.update_parameters(model.covariance.parameters_);
+  MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
   MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
   MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
   Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma.rows(),Sigma.cols()));
-  if(X.rows() != Sigma2.cols())throw std::runtime_error("X rows != Sigma cols ");
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
+  }
   MatrixXd M = X.transpose() * Sigma2 * X;
   
   // sparse A = region.region_design_matrix();
@@ -630,14 +645,19 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  MatrixXd D = model.covariance.D(false,false);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  newcov.update_parameters(model.covariance.parameters_);
+  MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
   MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
   MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
   Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma.rows(),Sigma.cols()));
-  if(X.rows() != Sigma2.cols())throw std::runtime_error("X rows != Sigma cols ");
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
+  }
   MatrixXd M = X.transpose() * Sigma2 * X;
   return M;
 }
@@ -655,10 +675,12 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
   MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
   Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma.rows(),Sigma.cols()));
-  if(X.rows() != Sigma2.cols())throw std::runtime_error("X rows != Sigma cols ");
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
+  }
   MatrixXd M = X.transpose() * Sigma2 * X;
-  
   return M;
 }
 

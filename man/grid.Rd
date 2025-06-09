@@ -62,9 +62,9 @@ is the most recent period.
 
 \emph{Spatially-varying data only}
 
-\code{cov_data} is an sf object describing covariate
-values for a set of polygons over the area of interest. The values are mapped
-onto \code{grid_data}. For each grid cell in \code{grid_data} a weighted
+\code{cov_data} is an object describing covariate over the area of interest.
+sf, RasterLayer and SpatRaster objects are supported, with rasters converted internally to sf.
+The values are mapped onto \code{grid_data}. For each grid cell in \code{grid_data} a weighted
 average of each covariate listed in \code{zcols} is generated with weights either
 equal to the area of intersection of the grid cell and the polygons in
 \code{cov_data} (\code{weight_type="area"}), or this area multiplied by the population
@@ -402,7 +402,8 @@ doi:10.1007/s11222-019-09886-w.
 
 (2) Riutort-Mayol G, Bürkner P-C, Andersen MR, Solin A, Vehtari A.
 Practical Hilbert space approximate Bayesian Gaussian processes for
-probabilistic programming. 2020. http://arxiv.org/abs/2004.11408.
+probabilistic programming. Stat Comput. 2023;33:17.
+doi:10.1007/s11222-022-10167-2.
 }
 \seealso{
 \link[rts2]{create_points}
@@ -615,7 +616,7 @@ Maps spatial, temporal, or spatio-temporal covariate data onto the grid.
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{cov_data}}{sf object or data.frame. See details.}
+\item{\code{cov_data}}{sf, RasterLayer, SpatRaster object or a data.frame. See details.}
 
 \item{\code{zcols}}{vector of character strings with the names of the columns of \code{cov_data}
 to include}
@@ -720,7 +721,7 @@ Nothing. Called for effects.
 Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_bayes(
-  popdens,
+  popdens = NULL,
   covs = NULL,
   covs_grid = NULL,
   approx = "nngp",
@@ -853,7 +854,7 @@ g2$hotspots(rr.threshold = 2)
 Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_ml(
-  popdens,
+  popdens = NULL,
   covs = NULL,
   covs_grid = NULL,
   approx = "nngp",

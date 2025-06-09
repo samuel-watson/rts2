@@ -732,7 +732,12 @@ grid <- R6::R6Class("grid",
                                    res <- rstan::vb(stanmodels$rtsbayes,
                                                     data=datlist)
                                  }
-                                 ypred <- rstan::extract(res,"y_grid_predict")$y_grid_predict
+                                 if(!is.null(self$region_data)){
+                                   ypred <- rstan::extract(res,"region_predict")$region_predict
+                                 } else {
+                                   ypred <- rstan::extract(res,"y_grid_predict")$y_grid_predict
+                                 }
+                                 
                                  f <- rstan::extract(res,"f")$f
                                  gamma <- rstan::extract(res,"gamma")$gamma
                                  if(is.null(known_theta)){
@@ -791,6 +796,7 @@ grid <- R6::R6Class("grid",
                                          covs = covs,
                                          y=datlist$y,
                                          y_predicted  = t(ypred),
+                                         se_pred = NULL,
                                          nT = datlist$nT,
                                          conv_criterion = NA)
                              class(out) <- "rtsFit"
@@ -1224,29 +1230,41 @@ grid <- R6::R6Class("grid",
                              total_var <- var(Matrix::drop(xb)) + var(Matrix::drop(zd)) + mean(wdiag)
                              condR2 <- (var(Matrix::drop(xb)) + var(Matrix::drop(zd)))/total_var
                              margR2 <- var(Matrix::drop(xb))/total_var
+                             
                              # now get predictions
                              ## TO DO: allow for variance in beta
                              X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)
-                             betaz <- matrix(rnorm(length(beta_new)*ncol(u)),nrow=length(beta_new),ncol = ncol(u))
-                             Lm <- chol(M)
-                             betavals <- Lm%*%betaz
-                             for(i in 1:ncol(betavals))betavals[,i] <- betavals[,i] + beta_new
+                             popd <- private$stack_variable(popdens)
+                             Gpp <- matrix(0,nrow = nrow(X),ncol=ncol(X))
+                             Gtot <- matrix(0,nrow = nrow(X),ncol=ncol(X))
+                             SEpp <- rep(0,nrow(X))
+                             SEtot <- rep(0,nrow(X))
                              if(private$lp_type > 1){
-                               u2 <- rtsModel__grid_to_region(private$ptr,u)
-                               Xbu <- X %*% betavals + u2 + log(self$region_data[,popdens])
+                               C <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
+                               Cm <- as.matrix(Matrix::sparseMatrix(i = C$Ai+1,p = C$Ap, x = C$Ax))
+                               u2 <- t(Cm)%*%u
+                               Xbu <- X %*% beta_new + rowMeans(u2)
+                               mupp <- exp(Xbu)
+                               mutot <- exp(Xbu + log(popd))
+                               for(i in 1:nrow(X)){
+                                 Gpp[i,] <- t(X[i,,drop=F])%*%mupp[i]
+                                 Gtot[i,] <- t(X[i,,drop=F])%*%mutot[i]
+                                 SEpp[i] <- drop(Gpp[i,]%*%M%*%t(Gpp[i,,drop=FALSE])) + var(u2[i,])
+                                 SEtot[i] <- drop(Gtot[i,]%*%M%*%t(Gtot[i,,drop=FALSE])) + var(u2[i,])
+                               }
                              } else {
-                               Xbu <- X %*% betavals + u + log(self$grid_data[,popdens])
+                               Xbu <- X %*% beta_new + rowMeans(u)
+                               mupp <- exp(Xbu)
+                               mutot <- exp(Xbu + log(popd))
+                               for(i in 1:nrow(X)){
+                                 Gpp[i,] <- t(X[i,,drop=F])%*%mupp[i]
+                                 Gtot[i,] <- t(X[i,,drop=F])%*%mutot[i]
+                                 SEpp[i] <- drop(Gpp[i,]%*%M%*%t(Gpp[i,,drop=FALSE])) + var(u[i,])
+                                 SEtot[i] <- drop(Gtot[i,]%*%M%*%t(Gtot[i,,drop=FALSE])) + var(u[i,])
+                               }
                              }
-                             ypred <- exp(Xbu)
+                             ypred <- mutot
                              
-                             # if(private$lp_type == 1){
-                             #   ypred <- u
-                             #   for(i in 1:ncol(ypred)){
-                             #     ypred[,i] <- exp(ypred[,i] + xb)
-                             #   }
-                             # } else {
-                             #   ypred <- rtsModel__y_pred(private$ptr,private$cov_type,private$lp_type)
-                             # }
                              t_end <- Sys.time()
                              t_diff <- t_end - t_start
                              if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
@@ -1269,7 +1287,8 @@ grid <- R6::R6Class("grid",
                                          P = length(beta_names),
                                          var_par_family = FALSE,
                                          y=datlist$y,
-                                         y_predicted  = ypred[,(ncol(ypred) - 2*iter_sampling + 1):ncol(ypred)],
+                                         y_predicted  = ypred,
+                                         se_pred = list(pp = sqrt(SEpp), tot = sqrt(SEtot)),
                                          nT = datlist$nT,
                                          conv_criterion = conv_criterion)
                              class(out) <- "rtsFit"
@@ -1332,19 +1351,33 @@ grid <- R6::R6Class("grid",
                                if("pred"%in%type){
                                  if(is.null(self$region_data)){
                                    popd <- as.data.frame(self$grid_data)[,popdens]
-                                   fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/popd
-                                   self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/popd
+                                     self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   } else {
+                                     self$grid_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
+                                     self$grid_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
+                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/popd
+                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
+                                   }
                                  } else {
                                    if(verbose)message("Predicted rates are added to region_data, rr and irr are added to grid_data")
                                    popd <- as.data.frame(self$region_data)[,popdens]
-                                   fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/popd
-                                   self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,mean)
-                                   self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,sd)
-                                   self$region_data$pred_mean_pp <- apply(fmu,1,mean)
-                                   self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/popd
+                                     self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,1,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   } else {
+                                     self$region_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]
+                                     self$region_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]
+                                     self$region_data$pred_mean_pp <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]/popd
+                                     self$region_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]
+                                   }
                                  }
                                }
                                if("rr"%in%type){
@@ -1353,32 +1386,62 @@ grid <- R6::R6Class("grid",
                                }
                                if("irr"%in%type){
                                  if(is.null(self$region_data)){
-                                   self$grid_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
-                                                                 private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,mean)
-                                   self$grid_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
-                                                                    private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     self$grid_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
+                                                                   private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,mean)
+                                     self$grid_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
+                                                                      private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,sd)
+                                   } else {
+                                     self$grid_data$irr <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
+                                                                   drop(private$last_model_fit$y_predicted)[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)]
+                                     self$grid_data$log_irr_se <- sqrt(private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]^2 + 
+                                                                      private$last_model_fit$se_pred$pp[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)]^2)
+                                   }
+                                   
                                  } else {
-                                   self$region_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
-                                                                   private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,mean)
-                                   self$region_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
-                                                                      private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     self$region_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
+                                                                     private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,mean)
+                                     self$region_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
+                                                                        private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,sd)
+                                   } else {
+                                     self$region_data$irr <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]/
+                                       drop(private$last_model_fit$y_predicted)[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion)]
+                                     self$region_data$log_irr_se <- sqrt(private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]^2 + 
+                                       private$last_model_fit$se_pred$pp[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion)]^2)
+                                   }
                                  }
                                }
                              } else {
                                if("irr"%in%type)stop("cannot estimate irr as only one time period")
                                if("pred"%in%type){
                                  if(is.null(self$region_data)){
-                                   fmu <- private$last_model_fit$y_predicted/as.data.frame(self$grid_data)[,popdens]
-                                   self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
-                                   self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
-                                   self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
-                                   self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     fmu <- private$last_model_fit$y_predicted/as.data.frame(self$grid_data)[,popdens]
+                                     self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
+                                     self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
+                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   } else {
+                                     self$grid_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
+                                     self$grid_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
+                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$y_predicted)/as.data.frame(self$grid_data)[,popdens]
+                                     self$grid_data$pred_mean_pp_sd <- private$last_model_fit$se_pred$pp
+                                   }
+                                   
                                  } else {
-                                   fmu <- private$last_model_fit$y_predicted/as.data.frame(self$region_data)[,popdens]
-                                   self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
-                                   self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
-                                   self$region_data$pred_mean_pp <- apply(fmu,1,mean)
-                                   self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
+                                     fmu <- private$last_model_fit$y_predicted/as.data.frame(self$region_data)[,popdens]
+                                     self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
+                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
+                                     self$region_data$pred_mean_pp <- apply(fmu,1,mean)
+                                     self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   } else {
+                                     self$region_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
+                                     self$region_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
+                                     self$region_data$pred_mean_pp <- drop(private$last_model_fit$y_predicted)/as.data.frame(self$grid_data)[,popdens]
+                                     self$region_data$pred_mean_pp_sd <- private$last_model_fit$se_pred$pp
+                                   }
                                  }
                                }
                                if("rr"%in%type){
@@ -2018,6 +2081,44 @@ grid <- R6::R6Class("grid",
                           return(data)
                         }
                       },
+                      stack_variable = function(var){
+                        if(is.null(self$region_data)){
+                          nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                        } else {
+                          nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
+                        }
+                        
+                        if(is.null(self$region_data)){
+                          #population density
+                          nColP <- sum(grepl(var,colnames(self$grid_data)))
+                          if(nColP==1){
+                            popd <- rep(as.data.frame(self$grid_data)[,var],nT)
+                          } else if(nColP==0){
+                            stop("variable not found in grid data")
+                          } else {
+                            if(nT>1){
+                              popd <- stack(as.data.frame(self$grid_data)[,paste0(var,1:nT)])[,1]
+                            } else {
+                              popd <- as.data.frame(self$grid_data)[,var]
+                            }
+                          }
+                        } else {
+                          #population density
+                          nColP <- sum(grepl(var,colnames(self$region_data)))
+                          if(nColP==1){
+                            popd <- rep(as.data.frame(self$region_data)[,var],nT)
+                          } else if(nColP==0){
+                            stop("variable not found in region data")
+                          } else {
+                            if(nT>1){
+                              popd <- stack(as.data.frame(self$region_data)[,paste0(var,1:nT)])[,1]
+                            } else {
+                              popd <- as.data.frame(self$region_data)[,var]
+                            }
+                          }
+                        }
+                        return(popd)
+                      },
                       prepare_data = function(m,
                                               model,
                                               approx,
@@ -2073,19 +2174,7 @@ grid <- R6::R6Class("grid",
                           } else {
                             y <- as.data.frame(self$grid_data)[,"y"]
                           }
-                          #population density
-                          nColP <- sum(grepl(popdens,colnames(self$grid_data)))
-                          if(nColP==1){
-                            popd <- rep(as.data.frame(self$grid_data)[,popdens],nT)
-                          } else if(nColP==0){
-                            stop("popdens variable not found in grid data")
-                          } else {
-                            if(nT>1){
-                              popd <- stack(as.data.frame(self$grid_data)[,paste0(popdens,1:nT)])[,1]
-                            } else {
-                              popd <- as.data.frame(self$grid_data)[,popdens]
-                            }
-                          }
+                          popd <- private$stack_variable(popdens)
                           #add covariates
                           if(!is.null(covs)){
                             nQ <- length(covs)
@@ -2118,18 +2207,7 @@ grid <- R6::R6Class("grid",
                             y <- as.data.frame(self$region_data)[,"y"]
                           }
                           #population density
-                          nColP <- sum(grepl(popdens,colnames(self$region_data)))
-                          if(nColP==1){
-                            popd <- rep(as.data.frame(self$region_data)[,popdens],nT)
-                          } else if(nColP==0){
-                            stop("popdens variable not found in region data")
-                          } else {
-                            if(nT>1){
-                              popd <- stack(as.data.frame(self$region_data)[,paste0(popdens,1:nT)])[,1]
-                            } else {
-                              popd <- as.data.frame(self$region_data)[,popdens]
-                            }
-                          }
+                          popd <- private$stack_variable(popdens)
                           #add covariates
                           if(!is.null(covs)){
                             nQ <- length(covs)

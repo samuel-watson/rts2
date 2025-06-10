@@ -210,6 +210,8 @@ grid <- R6::R6Class("grid",
                            #' length of the time windows in which to count cases
                            #' @param laglength integer The number of time periods to include counting back from the most
                            #' recent time period
+                           #' @param date_format String describing the format of the date in the data as a combination of "d" days, "m" months, 
+                           #' and "y" years, either "dmy", "myd", "ymd", "ydm", "dym" "mdy" as used by the lubridate package.
                            #' @param verbose Logical indicating whether to report detailed output
                            #' @return NULL
                            #' @seealso \link[rts2]{create_points}
@@ -223,6 +225,7 @@ grid <- R6::R6Class("grid",
                            points_to_grid = function(point_data,
                                                      t_win = c("day"),
                                                      laglength = 14,
+                                                     date_format = "ymd",
                                                      verbose = TRUE){
 
                              if(!is(point_data,"sf"))stop("points not sf")
@@ -230,38 +233,47 @@ grid <- R6::R6Class("grid",
                                warning("CRS not equal. Setting st_crs(point_data)==st_crs(self$grid_data)")
                                sf::st_crs(point_data) <- sf::st_crs(self$grid_data)
                              }
+                             if("y"%in%colnames(self$grid_data))self$grid_data <- self$grid_data[,-which(colnames(self$grid_data)=="y")]
+                             nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                             if(nT > 0){
+                               tidx <- which(grepl("\\bt[0-9]",colnames(self$grid_data)))
+                               self$grid_data <- self$grid_data[,-tidx]
+                               tidx <- which(grepl("\\bdate[0-9]",colnames(self$grid_data)))
+                               self$grid_data <- self$grid_data[,-tidx]
+                             }
+                             
                              if("t"%in%colnames(point_data)){
-                               if(!t_win%in%c("day","week","month"))stop("t_win not day, week, or month")
-                               #get unique time values to summarise over
-                               tvals <- c(as.Date(min(point_data$t)),as.Date(max(point_data$t)))
-                               yvals <- lubridate::year(tvals[1]):lubridate::year(tvals[2])
-                               tuniq <- tvals[1]:tvals[2]
-                               tuniq <- as.Date(tuniq,origin=as.Date("1970-01-01"))
+                               if(!t_win%in%c("day","week","month","year"))stop("t_win not day, week, month, or year")
+                               if(!date_format%in%c("dmy","myd","ymd","ydm","dym","mdy"))stop("date format not recognised")
+                               
+                               tvals <- do.call(eval(parse(text = paste0("lubridate::",date_format))),list(point_data$t))
+                               tuniq <- sort(unique(tvals))
 
                                if(t_win=="day"){
-                                 tdat <- paste0(lubridate::yday(point_data$t),".",lubridate::year(point_data$t))
-                                 tuniq <- paste0(lubridate::yday(tuniq),".",lubridate::year(tuniq))
-                               }
-                               if(t_win=="week"){
+                                 tdat <- tvals
+                               } else if(t_win=="week"){
                                  tdat <- paste0(lubridate::week(point_data$t),".",lubridate::year(point_data$t))
-                                 tuniq <- paste0(lubridate::week(tuniq),".",lubridate::year(tuniq))
-                               }
-                               if(t_win=="month"){
+                                 tuniq <- unique(paste0(lubridate::week(tuniq),".",lubridate::year(tuniq)))
+                               } else if(t_win=="month"){
                                  tdat <- paste0(lubridate::month(point_data$t),".",lubridate::year(point_data$t))
-                                 tuniq <- paste0(lubridate::month(tuniq),".",lubridate::year(tuniq))
+                                 tuniq <- unique(paste0(lubridate::month(tuniq),".",lubridate::year(tuniq)))
+                               } else if(t_win=="year"){
+                                 tdat <- lubridate::year(point_data$t)
+                                 tuniq <- unique(lubridate::year(tuniq))
                                }
+                               if(verbose)message(paste("There are "),length(tuniq)," unique time periods in the data")
+                               if(laglength > length(tuniq))stop("laglength exceeds unique time periods")
                                tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
+                               
                                for(i in 1:length(tuniq))
                                {
-                                 self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,
-                                                                           point_data[tdat==tuniq[i],]))
+                                 self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data, point_data[tdat==tuniq[i],]))
                                  if(length(tuniq)>1)colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("t",i)
                                  self$grid_data$d <- min(point_data[tdat==tuniq[i],]$t)
                                  colnames(self$grid_data)[length(colnames(self$grid_data))] <- paste0("date",i)
                                }
                              } else {
-                               self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,
-                                                                         point_data))
+                               self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,point_data))
                              }
                              if(verbose)message("added points data to grid data")
                            },

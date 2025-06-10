@@ -7,7 +7,7 @@
 create_points(
   data,
   pos_vars = c("lat", "long"),
-  t_var,
+  t_var = NULL,
   format = "\%Y-\%m-\%d",
   verbose = TRUE
 )

@@ -558,6 +558,7 @@ Counts the number of cases in each time period in each grid cell
   point_data,
   t_win = c("day"),
   laglength = 14,
+  date_format = "ymd",
   verbose = TRUE
 )}\if{html}{\out{</div>}}
 }
@@ -573,6 +574,9 @@ length of the time windows in which to count cases}
 
 \item{\code{laglength}}{integer The number of time periods to include counting back from the most
 recent time period}
+
+\item{\code{date_format}}{String describing the format of the date in the data as a combination of "d" days, "m" months,
+and "y" years, either "dmy", "myd", "ymd", "ydm", "dym" "mdy" as used by the lubridate package.}
 
 \item{\code{verbose}}{Logical indicating whether to report detailed output}
 }

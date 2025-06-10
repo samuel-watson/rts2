@@ -20,7 +20,7 @@
 #' @export
 create_points <- function(data,
                           pos_vars = c('lat','long'),
-                          t_var,
+                          t_var = NULL,
                           format="%Y-%m-%d",
                           verbose=TRUE){
 
@@ -35,13 +35,16 @@ create_points <- function(data,
       stop(paste0(t_var," does not contain date in ",format," format"))
   }
 
-
-
   out <- lapply(1:nrow(data),function(i)sf::st_point(c(data[i,pos_vars[2]],data[i,pos_vars[1]])))
   dp <- sf::st_sfc(out)
-  dp <- sf::st_sf(dp, data.frame(t=data[,t_var]))
 
-  if(!is.null(t_var)) dp$t <- as.Date(dp$t, format=format)
+  if(!is.null(t_var)){
+    dp <- sf::st_sf(dp, data.frame(t=data[,t_var]))
+    dp$t <- as.Date(dp$t, format=format)
+  } else {
+    dp <- sf::st_sf(dp)
+  }
+  
   return(dp)
 }
 

@@ -247,22 +247,15 @@ grid <- R6::R6Class("grid",
                                if(!date_format%in%c("dmy","myd","ymd","ydm","dym","mdy"))stop("date format not recognised")
                                
                                tvals <- do.call(eval(parse(text = paste0("lubridate::",date_format))),list(point_data$t))
-                               tuniq <- sort(unique(tvals))
-
-                               if(t_win=="day"){
-                                 tdat <- tvals
-                               } else if(t_win=="week"){
-                                 tdat <- paste0(lubridate::week(point_data$t),".",lubridate::year(point_data$t))
-                                 tuniq <- unique(paste0(lubridate::week(tuniq),".",lubridate::year(tuniq)))
-                               } else if(t_win=="month"){
-                                 tdat <- paste0(lubridate::month(point_data$t),".",lubridate::year(point_data$t))
-                                 tuniq <- unique(paste0(lubridate::month(tuniq),".",lubridate::year(tuniq)))
-                               } else if(t_win=="year"){
-                                 tdat <- lubridate::year(point_data$t)
-                                 tuniq <- unique(lubridate::year(tuniq))
-                               }
+                               tuniq <- sort(tvals)
+                               tdat <- lubridate::floor_date(tvals, t_win, week_start = 1)
+                               tuniq <- lubridate::floor_date(tuniq, t_win, week_start = 1)
+                               tuniq <- unique(tuniq)
+                               difft <- c()
+                               for(i in 1:(length(tuniq)-1))difft <- c(difft, lubridate::interval(tuniq[i+1],tuniq[i])%/% months(1))
                                if(verbose)message(paste("There are "),length(tuniq)," unique time periods in the data")
                                if(laglength > length(tuniq))stop("laglength exceeds unique time periods")
+                               if(length(unique(difft))>1)message("Note that the data includes non-consecutive or differing length periods. The data will be extracted for the specified number of time periods, however the model will assume equal time differences.")
                                tuniq <- tuniq[(length(tuniq)-laglength+1):length(tuniq)]
                                
                                for(i in 1:length(tuniq))

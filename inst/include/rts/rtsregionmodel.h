@@ -258,7 +258,8 @@ public:
                  int T,
                  rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,T,region), 
                     re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
-                    optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
+                    optim(model,matrix,re,region)  {
+    model.linear_predictor.u = &re.zu_; };
   
   rtsRegionModel(const rts::rtsRegionModel<BitsARRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
@@ -330,7 +331,8 @@ public:
                  const rts::griddata& grid_,
                  int T, int m) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,region,grid_,T,m), 
                     re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
-                    optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
+                    optim(model,matrix,re,region)  {
+    model.linear_predictor.u = &re.zu_; };
   
   rtsRegionModel(const rts::rtsRegionModel<BitsNNGPRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   
@@ -401,8 +403,9 @@ public:
                  int T, int m,
                  const ArrayXd& L,
                  rts::RegionData& region_) : region(region_), model(form_region,form_grid,data_region,data_grid,colnames_region,colnames_grid,T,m, L,region), 
-                 re(model,model.covariance.Q(),model.covariance.Q()), matrix(model,re), 
-                 optim(model,matrix,re,region)  {model.linear_predictor.u = &re.u_; };
+                 re(model,data_grid.rows()*T,model.covariance.Q()), matrix(model,re), 
+                 optim(model,matrix,re,region)  {
+    model.linear_predictor.u = &re.zu_; };
   
   rtsRegionModel(const rts::rtsRegionModel<BitsHSGPRegion>& mod) : region(mod.region), model(mod.model), re(mod.re), matrix(mod.matrix), optim(mod.optim) {};
   

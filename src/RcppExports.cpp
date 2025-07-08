@@ -308,6 +308,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel__P
+SEXP rtsModel__P(SEXP xp, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__P(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel__P(xp, covtype_, lptype_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // rtsModel__ml_theta
 void rtsModel__ml_theta(SEXP xp, int algo, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__ml_theta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -891,6 +904,66 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// Model_region_lp__new
+SEXP Model_region_lp__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP rptr_);
+RcppExport SEXP _rts2_Model_region_lp__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP rptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_region_lp__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_region_lp__P
+SEXP Model_region_lp__P(SEXP ptr_);
+RcppExport SEXP _rts2_Model_region_lp__P(SEXP ptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_region_lp__P(ptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_hsgp_region_grid_bits__new
+SEXP Model_hsgp_region_grid_bits__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP rptr_, int T, int m, SEXP L_);
+RcppExport SEXP _rts2_Model_hsgp_region_grid_bits__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP rptr_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
+    Rcpp::traits::input_parameter< int >::type T(TSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region_grid_bits__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_, T, m, L_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// Model_region_lp__xb
+SEXP Model_region_lp__xb(SEXP ptr_, bool grid);
+RcppExport SEXP _rts2_Model_region_lp__xb(SEXP ptr_SEXP, SEXP gridSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< bool >::type grid(gridSEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_region_lp__xb(ptr_, grid));
+    return rcpp_result_gen;
+END_RCPP
+}
 // Model_ar_region__new
 SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, SEXP rptr_);
 RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP rptr_SEXP) {
@@ -1004,6 +1077,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__L", (DL_FUNC) &_rts2_rtsModel__L, 3},
     {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
     {"_rts2_rtsModel__xb", (DL_FUNC) &_rts2_rtsModel__xb, 3},
+    {"_rts2_rtsModel__P", (DL_FUNC) &_rts2_rtsModel__P, 3},
     {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 4},
     {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 4},
     {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 4},
@@ -1045,6 +1119,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_Model_ar_region_grid__new", (DL_FUNC) &_rts2_Model_ar_region_grid__new, 10},
     {"_rts2_Model_nngp_region_grid__new", (DL_FUNC) &_rts2_Model_nngp_region_grid__new, 12},
     {"_rts2_Model_hsgp_region_grid__new", (DL_FUNC) &_rts2_Model_hsgp_region_grid__new, 12},
+    {"_rts2_Model_region_lp__new", (DL_FUNC) &_rts2_Model_region_lp__new, 7},
+    {"_rts2_Model_region_lp__P", (DL_FUNC) &_rts2_Model_region_lp__P, 1},
+    {"_rts2_Model_hsgp_region_grid_bits__new", (DL_FUNC) &_rts2_Model_hsgp_region_grid_bits__new, 10},
+    {"_rts2_Model_region_lp__xb", (DL_FUNC) &_rts2_Model_region_lp__xb, 2},
     {"_rts2_Model_ar_region__new", (DL_FUNC) &_rts2_Model_ar_region__new, 8},
     {"_rts2_Model_nngp_region__new", (DL_FUNC) &_rts2_Model_nngp_region__new, 10},
     {"_rts2_Model_hsgp_region__new", (DL_FUNC) &_rts2_Model_hsgp_region__new, 10},

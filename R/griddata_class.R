@@ -1895,7 +1895,9 @@ grid <- R6::R6Class("grid",
                                             L = 1.5,
                                             update = TRUE,
                                             formula_1 = NULL,
-                                            formula_2 = NULL){
+                                            formula_2 = NULL,
+                                            lower_bound = NULL,
+                                            upper_bound = NULL){
 
                         data <- private$prepare_data(m,
                                                      model,
@@ -1935,13 +1937,15 @@ grid <- R6::R6Class("grid",
                           if(length(covs_grid)>0 || !is.null(formula_2)){
                             if(!is.null(formula_2)){
                               if(!is(formula_2,"formula"))stop("Not a formula")
-                              f2 <- as.character(formula_2[[2]])
+                              f2 <- as.character(formula_2)[2]
                               f2 <- gsub(" ","",f2)
+                              if(!grepl("-1",f2))f2 <- paste0(f2,"-1")
                             } else {
-                              f2 <- "1"
-                              for(i in 1:length(covs)){
-                                f2 <- paste0(f2,"+",covs_grid[[i]])
+                              f2 <- ""
+                              for(i in 1:length(covs_grid)){
+                                f2 <- paste0(f2,ifelse(i==1,"","+"),covs_grid[i],"*b_",covs_grid[i])
                               }
+                              f2 <- paste0(f2,"-1")
                             }
                           } else {
                             f2 <- "1"
@@ -1950,10 +1954,10 @@ grid <- R6::R6Class("grid",
                           # add random effects structure
                           if(model=="exp"){
                             f1 <- paste0(f1,"+(1|fexp(X,Y))")
-                            if(length(covs_grid)>0)f2 <- paste0(f2,"+(1|fexp(X,Y))")
+                            if(length(covs_grid)>0|| !is.null(formula_2))f2 <- paste0(f2,"+(1|fexp(X,Y))")
                           } else if(model=="sqexp"){
                             f1 <- paste0(f1,"+(1|sqexp(X,Y))")
-                            if(length(covs_grid)>0)f2 <- paste0(f2,"+(1|sqexp(X,Y))")
+                            if(length(covs_grid)>0|| !is.null(formula_2))f2 <- paste0(f2,"+(1|sqexp(X,Y))")
                           } else {
                             stop("Only exp and spexp for now.")
                           }
@@ -1966,8 +1970,16 @@ grid <- R6::R6Class("grid",
                             private$cov_type <- 3
                           }
                           if(!is.null(self$region_data)){
-                            if(length(covs_grid) > 0){
+                            if(length(covs_grid) > 0 || !is.null(formula_2)){
                               private$lp_type <- 3
+                              if(length(covs_grid) > 0){
+                                griddat <- as.matrix(cbind(data$x_grid,as.data.frame(data$X_g)))
+                                griddatnames <- c(colnames(data$x_grid),colnames(data$X_g))
+                              } else {
+                                gridX <- as.data.frame(self$grid_data)[,-c(1:2)]
+                                griddat <- as.matrix(cbind(data$x_grid,gridX))
+                                griddatnames <- c(colnames(data$x_grid),colnames(self$grid_data)[-c(1:2)])
+                              }
                             } else {
                               private$lp_type <- 2
                             }
@@ -1977,8 +1989,21 @@ grid <- R6::R6Class("grid",
                           
                           # use random starting values with sensible intercept
                           P <- length(covs) + length(covs_grid)
+                          
                           beta <- c(mean(log(mean(data$y)) - log(data$popdens)))
-                          if(P>0)beta <- c(beta, rnorm(P,0,0.1))
+                          if(P>0 | !is.null(formula_2)){
+                            if(!is.null(lower_bound) | !is.null(upper_bound)){
+                              if(length(lower_bound) != length(upper_bound))stop("bounds not same length")
+                              beta_add <- rnorm(P,0,0.1)
+                              while(any(beta_add < lower_bound | beta_add > upper_bound)){
+                                idx_out <- which(beta_add < lower_bound | beta_add > upper_bound)
+                                beta_add[idx_out] <- rnorm(length(idx_out),0,0.1)
+                              }
+                            } else {
+                              beta <- c(beta, rnorm(P,0,0.1))
+                            }
+                          }
+                          
                           # set sensible starting value for theta 1
                           theta1 <- abs((log(max(data$y)) - beta[1])/2)/2
                           theta <- c(theta1,runif(1,0.1,0.5))
@@ -2067,12 +2092,26 @@ grid <- R6::R6Class("grid",
                                                               data$nT,
                                                               m)
                           } else if(private$cov_type == 3 & private$lp_type == 3){
+                            
+                            # out <<- list(f1,
+                            #              f2,
+                            #              as.matrix(data$X),
+                            #              griddat,
+                            #              c("intercept",covs),
+                            #              griddatnames,
+                            #              beta,
+                            #              theta,
+                            #              private$region_ptr,
+                            #              data$nT,
+                            #              m,
+                            #              data$L)
+                            
                             private$ptr <- Model_hsgp_region_grid__new(f1,
                                                                        f2,
                                                                        as.matrix(data$X),
-                                                                       as.matrix(data$x_grid),
+                                                                       griddat,
                                                                        c("intercept",covs),
-                                                                       colnames(data$x_grid),
+                                                                       griddatnames,
                                                                        beta,
                                                                        theta,
                                                                        private$region_ptr,
@@ -2243,7 +2282,7 @@ grid <- R6::R6Class("grid",
                             for(i in 1:nG){
                               nColV <- sum(grepl(covs_grid[i],colnames(self$grid_data)))
                               if(nColV==1){
-                                X_g[,i] <- rep(as.data.frame(self$grid_data)[,covs[i]],nT)
+                                X_g[,i] <- rep(as.data.frame(self$grid_data)[,covs_grid[i]],nT)
                               } else if(nColV==0){
                                 stop(paste0(covs_grid[i]," not found in grid data"))
                               } else {
@@ -2254,6 +2293,7 @@ grid <- R6::R6Class("grid",
                                 }
                               }
                             }
+                            colnames(X_g) <- covs_grid
                           } else {
                             nG <- 0
                             X_g <- matrix(0,nrow=nrow(self$grid_data)*nT,ncol=1)
@@ -2330,7 +2370,7 @@ grid <- R6::R6Class("grid",
                           datlist$n_cell <- ncell
                           datlist$cell_id <- private$intersection_data$grid_id
                           datlist$q_weights <- private$intersection_data$w
-                          if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
+                          #if(length(covs_grid)>0)datlist$x_grid <- cbind(datlist$x_grid,as.data.frame(self$grid_data)[,covs_grid])
                         } 
                         
                         if(bayes){

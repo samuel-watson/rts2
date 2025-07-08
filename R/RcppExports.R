@@ -93,6 +93,10 @@ rtsModel__xb <- function(xp, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__xb`, xp, covtype_, lptype_)
 }
 
+rtsModel__P <- function(xp, covtype_, lptype_) {
+    .Call(`_rts2_rtsModel__P`, xp, covtype_, lptype_)
+}
+
 rtsModel__ml_theta <- function(xp, algo, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_theta`, xp, algo, covtype_, lptype_))
 }
@@ -255,6 +259,22 @@ Model_nngp_region_grid__new <- function(formula_region_, formula_grid_, data_reg
 
 Model_hsgp_region_grid__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T, m, L_) {
     .Call(`_rts2_Model_hsgp_region_grid__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T, m, L_)
+}
+
+Model_region_lp__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_) {
+    .Call(`_rts2_Model_region_lp__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_)
+}
+
+Model_region_lp__P <- function(ptr_) {
+    .Call(`_rts2_Model_region_lp__P`, ptr_)
+}
+
+Model_hsgp_region_grid_bits__new <- function(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_, T, m, L_) {
+    .Call(`_rts2_Model_hsgp_region_grid_bits__new`, formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_, T, m, L_)
+}
+
+Model_region_lp__xb <- function(ptr_, grid) {
+    .Call(`_rts2_Model_region_lp__xb`, ptr_, grid)
 }
 
 Model_ar_region__new <- function(formula_, data_, grid_data_, colnames_, beta_, theta_, T, rptr_) {

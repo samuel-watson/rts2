@@ -285,6 +285,17 @@ SEXP rtsModel__xb(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel__P(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {return returns(0);},
+    [](auto mptr){return returns(mptr->model.linear_predictor.P());}
+  };
+  auto p = std::visit(functor,model.ptr);
+  return wrap(std::get<int>(p));
+}
+
+// [[Rcpp::export]]
 void rtsModel__ml_theta(SEXP xp, int algo, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
@@ -853,7 +864,7 @@ SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_){
     XPtr<ModelNNGPRegionG> ptr(xp);
     Eigen::VectorXd intens = ptr->model.linear_predictor.grid_predictor.xb();
     return wrap(intens);
-  } else if(covtype == 2){
+  } else if(covtype == 3){
     XPtr<ModelHSGPRegionG> ptr(xp);
     Eigen::VectorXd intens = ptr->model.linear_predictor.grid_predictor.xb();
     return wrap(intens);
@@ -1047,7 +1058,8 @@ SEXP Model_nngp_region_grid__new(SEXP formula_region_,
                                  SEXP colnames_region_, 
                                  SEXP colnames_grid_,
                                  SEXP beta_,
-                                 SEXP theta_, SEXP rptr_,
+                                 SEXP theta_, 
+                                 SEXP rptr_,
                                  SEXP gptr_,
                                  int T,
                                  int m){
@@ -1075,7 +1087,8 @@ SEXP Model_hsgp_region_grid__new(SEXP formula_region_,
                                  SEXP colnames_region_, 
                                  SEXP colnames_grid_,
                                  SEXP beta_,
-                                 SEXP theta_, SEXP rptr_,
+                                 SEXP theta_, 
+                                 SEXP rptr_,
                                  int T,
                                  int m,
                                  SEXP L_){
@@ -1093,6 +1106,75 @@ SEXP Model_hsgp_region_grid__new(SEXP formula_region_,
   ptr->model.linear_predictor.update_parameters(beta);
   ptr->model.covariance.update_parameters(theta);
   return ptr;
+}
+
+// [[Rcpp::export]]
+SEXP Model_region_lp__new(SEXP formula_region_, 
+                                 SEXP formula_grid_,
+                                 SEXP data_region_, 
+                                 SEXP data_grid_, 
+                                 SEXP colnames_region_, 
+                                 SEXP colnames_grid_,
+                                 SEXP rptr_){
+  std::string formula_region = as<std::string>(formula_region_);
+  std::string formula_grid = as<std::string>(formula_grid_);
+  Eigen::ArrayXXd data_region = as<Eigen::ArrayXXd>(data_region_);
+  Eigen::ArrayXXd data_grid = as<Eigen::ArrayXXd>(data_grid_);
+  std::vector<std::string> colnames_region = as<std::vector<std::string> >(colnames_region_);
+  std::vector<std::string> colnames_grid = as<std::vector<std::string> >(colnames_grid_);
+  XPtr<rts::RegionData> rptr(rptr_);
+  glmmr::Formula form_r(formula_region);
+  glmmr::Formula form_g(formula_grid);
+  
+  XPtr<rts::regionLinearPredictor> ptr(new rts::regionLinearPredictor(form_r,form_g,data_region,data_grid,colnames_region,colnames_grid,*rptr),true);
+  return ptr;
+}
+
+// [[Rcpp::export]]
+SEXP Model_region_lp__P(SEXP ptr_){
+  XPtr<rts::regionLinearPredictor> ptr(ptr_);
+  Rcpp::Rcout << "\nR P: " << ptr->region_predictor.P() << " G P: " << ptr->grid_predictor.P();
+  return wrap(ptr->P());
+}
+
+// [[Rcpp::export]]
+SEXP Model_hsgp_region_grid_bits__new(SEXP formula_region_, 
+                                 SEXP formula_grid_,
+                                 SEXP data_region_, 
+                                 SEXP data_grid_, 
+                                 SEXP colnames_region_, 
+                                 SEXP colnames_grid_,
+                                 SEXP rptr_,
+                                 int T,
+                                 int m,
+                                 SEXP L_){
+  std::string formula_region = as<std::string>(formula_region_);
+  std::string formula_grid = as<std::string>(formula_grid_);
+  Eigen::ArrayXXd data_region = as<Eigen::ArrayXXd>(data_region_);
+  Eigen::ArrayXXd data_grid = as<Eigen::ArrayXXd>(data_grid_);
+  std::vector<std::string> colnames_region = as<std::vector<std::string> >(colnames_region_);
+  std::vector<std::string> colnames_grid = as<std::vector<std::string> >(colnames_grid_);
+  Eigen::ArrayXd L = as<Eigen::ArrayXd>(L_);
+  XPtr<rts::RegionData> rptr(rptr_);
+  XPtr<BitsHSGPRegion> ptr(new BitsHSGPRegion(formula_region,formula_grid,data_region,data_grid,colnames_region,colnames_grid,T,m,L,*rptr),true);
+  glmmr::RandomEffects<BitsHSGPRegion> re(*ptr,data_grid.rows()*T,ptr->covariance.Q());
+  ArrayXd xb = ptr->linear_predictor.xb();//ptr->xb();
+  Rcpp::Rcout << "\nXb: " << xb.head(10).transpose() << "\nsize: " << xb.size();
+  Rcpp::Rcout << "\nOffset size: " << ptr->data.offset.size();
+  //glmmr::ModelMatrix<BitsHSGPRegion> matrix(*ptr,re);
+  return ptr;
+}
+
+// [[Rcpp::export]]
+SEXP Model_region_lp__xb(SEXP ptr_, bool grid){
+  XPtr<rts::regionLinearPredictor> ptr(ptr_);
+  if(grid){
+    Eigen::ArrayXd xbg = ptr->grid_predictor.xb();
+    return wrap(xbg);
+  } else {
+    Eigen::ArrayXd xbg = ptr->region_predictor.xb();
+    return wrap(xbg);
+  }
 }
 
 // [[Rcpp::export]]

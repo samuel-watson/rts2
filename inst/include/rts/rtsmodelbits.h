@@ -176,7 +176,7 @@ public:
     rtsModelBitsBase(form_region,data_region),
     formula_grid(form_grid),
     covariance(form_grid,data_grid,colnames_grid, T),
-    linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+    linear_predictor(formula,formula_grid,data_region,data_grid,colnames_region,colnames_grid,region) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::ar1Covariance, rts::regionLinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
@@ -206,7 +206,7 @@ public:
   rtsModelBitsBase(form_region,data_region),
   formula_grid(form_grid),
   covariance(form_grid,data_grid,colnames_grid, T, m, grid_),
-  linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+  linear_predictor(formula,formula_grid,data_region,data_grid,colnames_region,colnames_grid,region) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::nngpCovariance, rts::regionLinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),
@@ -237,7 +237,7 @@ public:
     rtsModelBitsBase(form_region,data_region),
     formula_grid(form_grid),
     covariance(form_grid,data_grid,colnames_grid, T, m, L),
-    linear_predictor(formula_grid,formula,data_region,data_grid,colnames_region,colnames_grid,region) {};
+    linear_predictor(formula,formula_grid,data_region,data_grid,colnames_region,colnames_grid,region) {};
   
   rtsModelBits(const rts::rtsModelBits<rts::hsgpCovariance, rts::regionLinearPredictor>& bits) : 
     rtsModelBitsBase(bits.formula,bits.data,bits.family),

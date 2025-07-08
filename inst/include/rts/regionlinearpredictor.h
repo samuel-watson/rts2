@@ -74,13 +74,27 @@ inline void rts::regionLinearPredictor::update_u(MatrixXd* u_)
 
 inline void rts::regionLinearPredictor::update_parameters(const dblvec& parameters_)
 {
+  int dblP = region_predictor.P() + grid_predictor.P();
+  dblvec par(dblP);
+  if(dblP != parameters_.size()){
+    Rcpp::warning("Supplied parameter vector not equal to number of parameters, generating random values\n");
+    std::random_device rd{};
+    std::mt19937 gen{ rd() };
+    std::normal_distribution d{ 0.0, 0.5 };
+    auto random_norm = [&d, &gen] { return d(gen); };
+    for (int j = 0; j < par.size(); j++) par[j] = random_norm();
+    for(const auto &i: par)Rcpp::Rcout << " " << i;
+  } else {
+    par = parameters_;
+  }
+  
   dblvec r_beta(region_predictor.P());
   dblvec g_beta(grid_predictor.P());
-  for(int i = 0; i < region_predictor.P(); i++) r_beta[i] = parameters_[i];
-  for(int i = 0; i < grid_predictor.P(); i++) g_beta[i] = parameters_[i+region_predictor.P()];
+  for(int i = 0; i < region_predictor.P(); i++) r_beta[i] = par[i];
+  for(int i = 0; i < grid_predictor.P(); i++) g_beta[i] = par[i+region_predictor.P()];
   region_predictor.update_parameters(r_beta);
   grid_predictor.update_parameters(g_beta);
-  parameters = parameters_;
+  parameters = par;
 }
 
 inline void rts::regionLinearPredictor::update_parameters(const Eigen::ArrayXd& parameters_)
@@ -106,9 +120,16 @@ inline strvec rts::regionLinearPredictor::colnames()
 }
 
 inline VectorXd rts::regionLinearPredictor::xb(){
-  ArrayXXd xbarr = rts::regionLinearPredictor::xb_region(*u).array().exp();
-  VectorXd xbvec = xbarr.rowwise().mean().log().matrix();
-  return xbvec;
+  if(u!=nullptr){
+    ArrayXXd xbarr = rts::regionLinearPredictor::xb_region(*u).array().exp();
+    VectorXd xbvec = xbarr.rowwise().mean().log().matrix();
+    return xbvec;
+  } else {
+    MatrixXd uzero = MatrixXd::Zero(grid_predictor.n(),1);
+    ArrayXXd xbarr = rts::regionLinearPredictor::xb_region(uzero).array().exp();
+    VectorXd xbvec = xbarr.rowwise().mean().log().matrix();
+    return xbvec;
+  }
 }
 
 inline ArrayXXd rts::regionLinearPredictor::xb_region(const MatrixXd& u){

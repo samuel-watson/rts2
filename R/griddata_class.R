@@ -940,7 +940,7 @@ grid <- R6::R6Class("grid",
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & trace >= 1)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
-                             if(! algo %in% 1:8)stop("Algo must be in 1 - 5")
+                             if(! algo %in% 1:8)stop("Algo must be in 1 - 8")
                              if(! conv_criterion %in% c(1,2,3))stop("conv_criterion must be 1, 2, or 3")
                              if(algo %in% c(4,5) & (alpha < 0.5 | alpha >= 1))stop("alpha must be in [0,1) for SAEM")
                              if(is.null(popdens)){
@@ -965,7 +965,7 @@ grid <- R6::R6Class("grid",
                              }
                              rtsModel__set_trace(private$ptr,trace,private$cov_type,private$lp_type)
                              n_mcmc_sampling <- ifelse(adaptive, 20, iter_sampling)
-                             rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
+                             
                              ## deal with starting values and initialise parameters
                              if(!is.null(starting_values)){
                                if("gamma"%in%names(starting_values)){
@@ -1000,6 +1000,7 @@ grid <- R6::R6Class("grid",
                              rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx=="hsgp", m * m, datlist$Nsample),ncol=1),FALSE,private$cov_type,private$lp_type)
                              if(trace >= 1)cat("\nIter: 0\n")
                              rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
+                             rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
                              # initialise the parameters and data on the R side
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)

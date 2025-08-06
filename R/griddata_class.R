@@ -1157,7 +1157,7 @@ grid <- R6::R6Class("grid",
                                }
                                llvals <- rtsModel__get_log_likelihood_values(private$ptr,private$cov_type,private$lp_type)
                                if(conv_criterion == 3){
-                                 converged <- !(beta_diff > tol & theta_diff > tol)
+                                 converged <- (max(abs(beta - beta_new)) <= tol & max(abs(theta - theta_new)) <= tol)
                                } 
                                if(iter > 1){
                                  udiagnostic <- rtsModel__u_diagnostic(private$ptr,private$cov_type,private$lp_type)
@@ -1237,7 +1237,6 @@ grid <- R6::R6Class("grid",
                              margR2 <- var(Matrix::drop(xb))/total_var
                              
                              # now get predictions
-                             ## TO DO: allow for variance in beta
                              X <- rtsModel__X(private$ptr,private$cov_type,private$lp_type)
                              popd <- private$stack_variable(popdens)
                              Gpp <- matrix(0,nrow = nrow(X),ncol=ncol(X))
@@ -1296,6 +1295,11 @@ grid <- R6::R6Class("grid",
                                          se_pred = list(pp = sqrt(SEpp), tot = sqrt(SEtot)),
                                          nT = datlist$nT,
                                          conv_criterion = conv_criterion)
+                             if(algo %in% 4:5){
+                               out <- append(out, list(re.samps = u[,(ncol(u) - 2*iter_sampling + 1):ncol(u)]))
+                             } else {
+                               out <- append(out, list(re.samps = u))
+                             }
                              class(out) <- "rtsFit"
                              private$last_model_fit <- out
                              return(invisible(out))

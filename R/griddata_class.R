@@ -2232,6 +2232,8 @@ grid <- R6::R6Class("grid",
                             } else {
                               stop("case counts not defined in data")
                             }
+                          } else {
+                            if("y"%in%colnames(self$grid_data))stop("both t and y case count variables found")
                           }
                         } else {
                           nT <- sum(grepl("\\bt[0-9]",colnames(self$region_data)))
@@ -2241,6 +2243,8 @@ grid <- R6::R6Class("grid",
                             } else {
                               stop("case counts not defined in data")
                             }
+                          }  else {
+                            if("y"%in%colnames(self$grid_data))stop("both t and y case count variables found")
                           }
                         }
                         nCell <- nrow(self$grid_data)

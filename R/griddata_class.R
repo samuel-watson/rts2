@@ -2304,6 +2304,7 @@ grid <- R6::R6Class("grid",
                             X_g <- matrix(0,nrow=nrow(self$grid_data)*nT,ncol=1)
                           }
                         }
+                        
                         if(bayes){
                           if(!is.null(self$priors)){
                             if(length(self$priors$prior_linpred_mean)!=Q|length(self$priors$prior_linpred_sd)!=Q)

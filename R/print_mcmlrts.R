@@ -202,8 +202,8 @@ print.rtsFitSummary <- function(x,...){
   for(t in 1:nT){
     cat("\n\U2BC8 Time period ",t,"\n     \U2BA1 Relative risk\n")
     print(summary(exp(rowMeans(x$preds[[t]]$rr))))
-    cat("     \U2BA1 Predicted incidence\n")
-    print(summary(rowMeans(x$preds[[t]]$y)))
+    cat("     \U2BA1 Predicted incidences\n")
+    print(summary(x$preds[[t]]$y))
   }
   cat("\n")
 }

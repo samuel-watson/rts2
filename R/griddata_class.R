@@ -1563,7 +1563,7 @@ grid <- R6::R6Class("grid",
                            #' @param zcols vector of character strings. Names of the variables in `grid_data` to
                            #' map to the new geography
                            #' @param weight_type character string, either "area" or "pop" for area-weighted
-                           #' or population weighted averaging, respectively
+                           #' or population weighted averaging, respectively, or "sum" to take the weighted sum.
                            #' @param popdens character string. If `weight_type` is equal to "pop" then the
                            #' name of the column in `grid_data` with population density data
                            #' @param verbose logical. Whether to provide progress bar.
@@ -1599,41 +1599,79 @@ grid <- R6::R6Class("grid",
                                                        weight_type="area",
                                                        popdens=NULL,
                                                        verbose=TRUE){
-
+                             if(!weight_type %in% c("area","pop","sum"))stop("weight_type must be area, pop, or sum")
                              if(sf::st_crs(self$grid_data)!=sf::st_crs(new_geom)){
                                sf::st_crs(self$grid_data) <- sf::st_crs(new_geom)
                                warning("st_crs(self$grid_data)!=st_crs(new_geom) setting equal")
                              }
-
-                             tmp <- sf::st_intersection(self$grid_data[,zcols],new_geom)
-                             tmp_len <- lengths(sf::st_intersects(new_geom,self$grid_data))
-                             tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
-                             vals <- matrix(nrow=nrow(new_geom),
-                                            ncol=length(zcols))
-
+                             
+                             
+                             # tmp <- sf::st_intersection(new_geom,self$grid_data[,zcols])
+                             # tmp_len <- lengths(sf::st_intersects(new_geom,self$grid_data))
+                             # tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
+                             vals <- matrix(nrow=nrow(new_geom),ncol=length(zcols))
                              if(verbose)cat("Overlaying geographies\n")
-
+                             grid_area <- as.numeric(sf::st_area(self$grid_data[1,]))
+                             
                              for(i in 1:nrow(new_geom)){
-                               if(i < nrow(new_geom)){
-                                 idx_range <- tmp_len[i]:(tmp_len[i+1]-1)
-                               } else {
-                                 idx_range <- tmp_len[i]:nrow(tmp)
-                               }
-
-                               tmp_range <- tmp[idx_range,]
-                               w <- as.numeric(sf::st_area(tmp_range))
-
-                               if(weight_type=="pop"){
-                                 w <- w*as.data.frame(tmp_range)[,popdens]
-                               }
-
+                               tmp <- sf::st_intersection(new_geom[i,],self$grid_data[,c(popdens,zcols)])
+                               
+                               w <- as.numeric(sf::st_area(tmp))/grid_area
                                for(j in 1:length(zcols)){
-                                 vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],
-                                                            w=w)
+                                 if(weight_type == "sum"){
+                                   vals[i,j] <- sum(as.data.frame(tmp)[,zcols[j]]*w)
+                                 } else if(weight_type == "area"){
+                                   vals[i,j] <- weighted.mean(as.data.frame(tmp)[,zcols[j]],w =w)
+                                 } else {
+                                   w <- w*as.data.frame(tmp)[,popdens]
+                                   vals[i,j] <- weighted.mean(as.data.frame(tmp)[,zcols[j]],w =w)
+                                 }
+                                 
                                }
-
                                if(verbose)cat("\r",progress_bar(i,nrow(new_geom)))
                              }
+                             
+                             
+                             # if(weight_type == "sum"){
+                             #   
+                             # } else {
+                             # 
+                             # }
+                            
+                             # tmp <- sf::st_intersection(self$grid_data[,zcols],new_geom)
+                             # tmp_len <- lengths(sf::st_intersects(new_geom,self$grid_data))
+                             # tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
+                             # vals <- matrix(nrow=nrow(new_geom),ncol=length(zcols))
+                             # grid_area <- as.numeric(sf::st_area(self$grid_data[1,]))
+                             # 
+                             # if(verbose)cat("Overlaying geographies\n")
+                             # 
+                             # for(i in 1:nrow(new_geom)){
+                             #   if(i < nrow(new_geom)){
+                             #     idx_range <- tmp_len[i]:(tmp_len[i+1]-1)
+                             #   } else {
+                             #     idx_range <- tmp_len[i]:nrow(tmp)
+                             #   }
+                             #   
+                             #   tmp_range <- tmp[idx_range,]
+                             #   w <- as.numeric(sf::st_area(tmp_range))
+                             #   
+                             #   if(weight_type=="pop"){
+                             #     w <- w*as.data.frame(tmp_range)[,popdens]
+                             #   }
+                             #   print(w/grid_area)
+                             #   for(j in 1:length(zcols)){
+                             #     if(weight_type == "sum"){
+                             #       vals[i,j] <- sum(as.data.frame(tmp_range)[,zcols[j]]*w)/grid_area
+                             #     } else {
+                             #       vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],
+                             #                                  w=w)
+                             #     }
+                             #     
+                             #   }
+                             #   
+                             #   if(verbose)cat("\r",progress_bar(i,nrow(new_geom)))
+                             # }
 
                              for(j in 1:length(zcols)){
                                new_geom$x <- vals[,j]
@@ -1993,7 +2031,7 @@ grid <- R6::R6Class("grid",
                           }
                           
                           # use random starting values with sensible intercept
-                          P <- length(covs) + length(covs_grid)
+                          P <- length(covs) + length(covs_grid) #+ ifelse(length(covs_grid) > 0, 1, 0)
                           
                           beta <- c(mean(log(mean(data$y)) - log(data$popdens)))
                           if(P>0 | !is.null(formula_2)){

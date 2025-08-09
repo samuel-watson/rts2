@@ -212,7 +212,7 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
         av = vmat(i,t) - (A.col(i).segment(0,idxlim).transpose() * vsec)(0);
         qf += au*av/Dvec(i);
       }
-      ll1 -= 0.5*qf; 
+      ll1 += 0.5*qf; 
     }
   } else {
     double qf = u(0)*u(0)/Dvec(0);
@@ -227,10 +227,10 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
       au = u(i) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
       qf += au*au/Dvec(i);
     }
-    ll1 -= 0.5*qf; 
+    ll1 += 0.5*qf; 
   }
-  ll1 -= 0.5*logdet  + 0.5*grid.N*grid.T*log(2*M_PI);
-  return ll1;
+  ll1 += 0.5*logdet + 0.5*grid.N*grid.T*log(2*M_PI);
+  return -1*ll1;
 }
 
 

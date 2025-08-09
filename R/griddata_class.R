@@ -1192,7 +1192,7 @@ grid <- R6::R6Class("grid",
                                    if(adaptive)cat("\nMCMC sample size (adaptive): ",n_mcmc_sampling)
                                    cat("\nLog-lik diff values: ", round(udiagnostic$first,5),", ", round(udiagnostic$second,5)," overall: ", round(Reduce(sum,udiagnostic), 5))
                                    cat("\nLog-lik variance: ", round(llvar,5))
-                                   if(conv_criterion %in% 1:2)cat(" convergence criterion:", round(conv.criterion.value,5))
+                                   if(conv_criterion %in% 1:2)cat(" convergence criterion (converges @ <0):", round(conv.criterion.value,5))
                                  }
                                  cat("\n",Reduce(paste0,rep("-",40)))
                                }

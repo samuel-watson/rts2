@@ -161,8 +161,8 @@ inline double rts::ar1Covariance::log_likelihood(const VectorXd &u)
     vquad = glmmr::algo::forward_sub(L,vmat.col(t),grid.N);
     ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
   }
-  ll += 0.5*logdet;
-  return -1.0*ll;
+  ll += -0.5*logdet;
+  return ll;
 }
 
 // this needs to be updated to the version in glmmrBase which is faster

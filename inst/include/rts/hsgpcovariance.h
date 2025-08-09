@@ -274,8 +274,8 @@ inline double rts::hsgpCovariance::log_likelihood(const VectorXd &u)
     vquad = vmat.col(t) * L;
     ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
   }
-  ll += 0.5*logdet;
-  return -1.0*ll;
+  ll += -0.5*logdet;
+  return ll;
 }
 
 inline double rts::hsgpCovariance::log_determinant()

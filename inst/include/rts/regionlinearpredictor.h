@@ -30,12 +30,16 @@ class regionLinearPredictor {
     VectorXd    xb();
     ArrayXXd    xb_region(const MatrixXd& u);
     MatrixXd    X();
+    MatrixXd    Z();
     strvec      parameter_names();
     VectorXd    parameter_vector();
     bool        any_nonlinear();
     void        update_u(MatrixXd* u_);
     VectorXd    predict_xb(const ArrayXXd& newdata_,
                         const ArrayXd& newoffset_);
+    
+private:
+  MatrixXd      Zmat;
     
 };
 
@@ -54,7 +58,7 @@ inline rts::regionLinearPredictor::regionLinearPredictor(
     ) : region(region_), region_predictor(form_region,data_region,colnames_region),
         grid_predictor(form_grid,data_grid,colnames_grid), 
         parameters(region_predictor.P() + grid_predictor.P(), 0.0),
-        calc(region_predictor.calc) {
+        calc(region_predictor.calc), Zmat(1,1) {
   if(calc.any_nonlinear)throw std::runtime_error("Nonlinear functional forms not yet compatible with aggregated data models");
 };
     
@@ -62,7 +66,7 @@ inline rts::regionLinearPredictor::regionLinearPredictor(const rts::regionLinear
       region_predictor(linpred.region_predictor),
       grid_predictor(linpred.grid_predictor), 
       parameters(linpred.parameters),
-      calc(region_predictor.calc) {
+      calc(region_predictor.calc), Zmat(1,1) {
   if(calc.any_nonlinear)throw std::runtime_error("Nonlinear functional forms not yet compatible with aggregated data models");
 };
     
@@ -144,27 +148,32 @@ inline ArrayXXd rts::regionLinearPredictor::xb_region(const MatrixXd& u){
 inline MatrixXd rts::regionLinearPredictor::X()
 {
   MatrixXd Xg = grid_predictor.X();
-  MatrixXd Xrg = region.grid_to_region(Xg);
-  
-  // MatrixXd xbg = MatrixXd::Zero(grid_predictor.n(),1);
-  // if(u != nullptr){
-  //   xbg.conservativeResize(NoChange,u->cols());
-  //   xbg = *u;
-  // } 
-  // xbg.colwise() += grid_predictor.xb();
-  // ArrayXXd gmu = xbg.array().exp().rowwise().mean();
-  // MatrixXd rmu = region.grid_to_region(gmu.matrix());
-  // for(int i = 0; i < Xg.rows(); i++){
-  //   Xg.row(i) *= gmu(i,0);
-  // }
+  VectorXd xbg = grid_predictor.xb();
+  if(u!=nullptr){
+    VectorXd xbvec = (*u).rowwise().mean();
+    xbg += xbvec;
+  } 
+  MatrixXd Xrg = region.jacobian(xbg, Xg, true);
   // MatrixXd Xrg = region.grid_to_region(Xg);
-  // for(int i = 0; i < Xrg.rows(); i++){
-  //   Xg.row(i) *= 1/rmu(i,0);
-  // }
+  
   MatrixXd Xr(region_predictor.n(),region_predictor.P() + Xg.cols());
   Xr.block(0,0,region_predictor.n(),region_predictor.P()) = region_predictor.X();
   Xr.block(0,region_predictor.P(),region_predictor.n(), Xg.cols()) = Xrg;
   return Xr;
+}
+
+inline MatrixXd rts::regionLinearPredictor::Z(){
+  if(Zmat.rows() != region_predictor.n()){
+    Zmat.resize(region_predictor.n(),grid_predictor.n());
+  }
+  VectorXd xbg = grid_predictor.xb();
+  if(u!=nullptr){
+    VectorXd xbvec = (*u).rowwise().mean();
+    xbg += xbvec;
+  } 
+  MatrixXd tmp = MatrixXd::Zero(1,1);
+  Zmat = region.jacobian(xbg, tmp, false);
+  return Zmat;
 }
 
 inline strvec rts::regionLinearPredictor::parameter_names(){

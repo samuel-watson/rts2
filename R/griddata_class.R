@@ -105,6 +105,7 @@ grid <- R6::R6Class("grid",
                                rID <- poly$region_id
                                tmp$area <- as.numeric(sf::st_area(tmp))
                                a1 <-rep(aggregate(tmp$area,list(tmp$region_id),sum)$x,unname(table(tmp$region_id)))
+                               #cellsize <- sf::st_area(self$grid_data[1,])
                                tmp$w <- tmp$area/a1
                                self$region_data <- poly
                                private$intersection_data <- tmp
@@ -2095,13 +2096,12 @@ grid <- R6::R6Class("grid",
                                                                   private$region_ptr,
                                                                   data$L)
                           } else if(private$cov_type == 1 & private$lp_type == 3){
-
                             private$ptr <- Model_ar_region_grid__new(f1,
                                                                 f2,
                                                                 as.matrix(data$X),
-                                                                as.matrix(data$x_grid),
+                                                                griddat,
                                                                 c("intercept",covs),
-                                                                colnames(data$x_grid),
+                                                                griddatnames,
                                                                 beta,
                                                                 theta,
                                                                 private$region_ptr,
@@ -2110,9 +2110,9 @@ grid <- R6::R6Class("grid",
                             private$ptr <- Model_nngp_region_grid__new(f1,
                                                               f2,
                                                               as.matrix(data$X),
-                                                              as.matrix(data$x_grid),
+                                                              griddat,
                                                               c("intercept",covs),
-                                                              colnames(data$x_grid),
+                                                              griddatnames,
                                                               beta,
                                                               theta,
                                                               private$region_ptr,
@@ -2120,20 +2120,6 @@ grid <- R6::R6Class("grid",
                                                               data$nT,
                                                               m)
                           } else if(private$cov_type == 3 & private$lp_type == 3){
-                            
-                            # out <<- list(f1,
-                            #              f2,
-                            #              as.matrix(data$X),
-                            #              griddat,
-                            #              c("intercept",covs),
-                            #              griddatnames,
-                            #              beta,
-                            #              theta,
-                            #              private$region_ptr,
-                            #              data$nT,
-                            #              m,
-                            #              data$L)
-                            
                             private$ptr <- Model_hsgp_region_grid__new(f1,
                                                                        f2,
                                                                        as.matrix(data$X),

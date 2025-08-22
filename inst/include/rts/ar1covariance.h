@@ -32,6 +32,9 @@ public:
   void      update_parameters_extern(const dblvec& parameters) override;
   MatrixXd  ar_matrix(bool chol = false);
   VectorXd  log_gradient(const MatrixXd& u, double& logl) override;
+#ifdef GLMMR12
+  MatrixXd  log_gradient(const MatrixXd& u, VectorXd& logl) override;
+#endif
   VectorXd  log_gradient_rho(const MatrixXd& u);
   
 protected:
@@ -40,6 +43,8 @@ protected:
   MatrixXd ar_factor_chol;
   MatrixXd ar_factor_deriv;  
   MatrixXd ar_factor_inverse;  
+  VectorXd uquad;
+  VectorXd vquad;
 };
 
 }
@@ -49,13 +54,15 @@ inline rts::ar1Covariance::ar1Covariance(const str& formula,
                 const ArrayXXd &data,
                 const strvec& colnames, int T) : Covariance(formula, data, colnames), 
                   grid(data, T), L(data.rows(),data.rows()),
-                  ar_factor(T,T), ar_factor_chol(T,T), ar_factor_deriv(T,T), ar_factor_inverse(T,T) { 
+                  ar_factor(T,T), ar_factor_chol(T,T), ar_factor_deriv(T,T), ar_factor_inverse(T,T),
+                  uquad(grid.N), vquad(grid.N){ 
       isSparse = false;
       update_rho(0.1);
     };
   
   inline rts::ar1Covariance::ar1Covariance(const rts::ar1Covariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid), 
-    L(cov.L), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol), ar_factor_deriv(cov.ar_factor_deriv), ar_factor_inverse(cov.ar_factor_inverse) {
+    L(cov.L), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol), ar_factor_deriv(cov.ar_factor_deriv), ar_factor_inverse(cov.ar_factor_inverse),
+    uquad(cov.uquad), vquad(cov.vquad){
       isSparse = false; 
       update_rho(cov.rho);
   };
@@ -143,6 +150,7 @@ inline int rts::ar1Covariance::Q() const
 
 inline double rts::ar1Covariance::log_likelihood(const VectorXd &u)
 {
+  static const double LOG_2PI = log(2*M_PI);
   // need to collapse u to v
   double ll = 0;
   MatrixXd ar_factor_inverse = ar_factor.llt().solve(MatrixXd::Identity(grid.T,grid.T));
@@ -153,15 +161,13 @@ inline double rts::ar1Covariance::log_likelihood(const VectorXd &u)
   }
   MatrixXd vmat = umat * ar_factor_inverse;
   double logdet = log_determinant();
-  VectorXd uquad(grid.N);
-  VectorXd vquad(grid.N);
   for(int t = 0; t< grid.T; t++)
   {
-    uquad = glmmr::algo::forward_sub(L,umat.col(t),grid.N);
-    vquad = glmmr::algo::forward_sub(L,vmat.col(t),grid.N);
-    ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
+    uquad.noalias() = glmmr::algo::forward_sub(L,umat.col(t),grid.N);
+    vquad.noalias() = glmmr::algo::forward_sub(L,vmat.col(t),grid.N);
+    ll += -0.5*(grid.N * LOG_2PI + uquad.dot(vquad));
   }
-  ll += 0.5*logdet;
+  ll += -0.5*logdet;
   return -1.0*ll;
 }
 
@@ -207,6 +213,16 @@ inline VectorXd rts::ar1Covariance::log_gradient(const MatrixXd& u, double& logl
   }
   return grad;
 }
+
+#ifdef GLMMR12
+// this needs to be updated to the version in glmmrBase which is faster
+inline MatrixXd rts::ar1Covariance::log_gradient(const MatrixXd& u, VectorXd& logl)
+{
+  MatrixXd grad(1,1);
+  throw std::runtime_error("LBFGS is currently disabled in rts2 for covariance parameters");
+  return grad;
+}
+#endif
 
 inline VectorXd rts::ar1Covariance::log_gradient_rho(const MatrixXd& u)
 {

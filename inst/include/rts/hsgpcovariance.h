@@ -52,6 +52,10 @@ protected:
   ArrayXXi    indices;
   MatrixXd    Phi;
   MatrixXd    PhiT;
+  VectorXd    uquad;
+  VectorXd    vquad;
+  
+  // functions
   bool        sq_exp = false;
   void        gen_indices();
   void        gen_phi_prod();
@@ -70,7 +74,8 @@ inline rts::hsgpCovariance::hsgpCovariance(const str& formula,
                 grid(data, T), m(m_), L_boundary(L_boundary_),
                 L(grid.N,m*m), Lambda(m*m),
                 ar_factor(T,T), ar_factor_chol(T,T),ar_factor_inverse(T,T),ar_factor_deriv(T,T),
-                indices(m*m,2), Phi(grid.N,m*m), PhiT(m*m,m*m) {
+                indices(m*m,2), Phi(grid.N,m*m), PhiT(m*m,m*m),
+                uquad(grid.N), vquad(grid.N) {
     gen_indices();
     gen_phi_prod();
     isSparse = false;
@@ -79,7 +84,8 @@ inline rts::hsgpCovariance::hsgpCovariance(const str& formula,
 
 inline rts::hsgpCovariance::hsgpCovariance(const rts::hsgpCovariance& cov) : Covariance(cov.form_, cov.data_, cov.colnames_), grid(cov.grid),
   L_boundary(cov.L_boundary), L(cov.L), Lambda(cov.Lambda), ar_factor(cov.ar_factor), ar_factor_chol(cov.ar_factor_chol),
-  ar_factor_inverse(cov.ar_factor_inverse), ar_factor_deriv(cov.ar_factor_deriv), indices(cov.indices), Phi(cov.Phi), PhiT(cov.PhiT) {
+  ar_factor_inverse(cov.ar_factor_inverse), ar_factor_deriv(cov.ar_factor_deriv), indices(cov.indices), Phi(cov.Phi), PhiT(cov.PhiT),
+  uquad(cov.uquad), vquad(cov.vquad){
     isSparse = false;
     update_rho(cov.rho);
 };
@@ -260,21 +266,21 @@ inline int rts::hsgpCovariance::Q() const
 inline double rts::hsgpCovariance::log_likelihood(const VectorXd &u)
 {
   double ll = 0;
+  static const double LOG_2PI = log(2*M_PI);
   // need to collapse u to v
-  MatrixXd umat(grid.N,grid.T);
-  for(int t = 0; t< grid.T; t++){
-    umat.col(t) = u.segment(t*grid.N,grid.N);
-  }
+  // MatrixXd umat(grid.N,grid.T);
+  // for(int t = 0; t< grid.T; t++){
+  //   umat.col(t) = u.segment(t*grid.N,grid.N);
+  // }
+  Eigen::Map<const MatrixXd> umat(u.data(), grid.N, grid.T);
   MatrixXd vmat = umat * ar_factor_inverse;
   double logdet = log_determinant();
-  VectorXd uquad(grid.N);
-  VectorXd vquad(grid.N);
   for(int t = 0; t< grid.T; t++){
-    uquad = umat.col(t) * L;
-    vquad = vmat.col(t) * L;
-    ll += (-0.5*grid.N * log(2*M_PI) - 0.5*uquad.transpose()*vquad);
+    uquad.noalias() = umat.col(t) * L;
+    vquad.noalias() = vmat.col(t) * L;
+    ll += -0.5*(grid.N * LOG_2PI + uquad.dot(vquad));
   }
-  ll += 0.5*logdet;
+  ll += -0.5*logdet;
   return -1.0*ll;
 }
 

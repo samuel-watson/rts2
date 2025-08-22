@@ -44,6 +44,9 @@ public:
   // generates AD and the derivatives
   void            gen_AD_derivatives(VectorXd& D1, VectorXd& D2, MatrixXd& A1, MatrixXd& A2); 
   VectorXd        log_gradient(const MatrixXd& u, double& ll) override;
+#ifdef GLMMR12
+  MatrixXd        log_gradient(const MatrixXd& u, VectorXd& ll) override;
+#endif
   VectorXd        log_gradient_rho(const MatrixXd& u);
   
 protected:
@@ -184,52 +187,55 @@ inline int rts::nngpCovariance::Q() const
 inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
 {
   double ll1 = 0.0;
+  static const double LOG_2PI = log(2*M_PI);
   double logdet = log_determinant();
-  int idxlim;
+  // int idxlim;
   double au,av; 
+  VectorXd usec(m);
+  VectorXd vsec(m);
+  
   if(grid.T > 1)
   {
     // requires copying a lot of data, is there a better way of doing this? 
-    MatrixXd umat(grid.N,grid.T);
-    for(int t = 0; t< grid.T; t++){
-      umat.col(t) = u.segment(t*grid.N,grid.N);
-    }
+    // MatrixXd umat(grid.N,grid.T);
+    // for(int t = 0; t< grid.T; t++){
+    //   umat.col(t) = u.segment(t*grid.N,grid.N);
+    // }
+    Eigen::Map<const MatrixXd> umat(u.data(), grid.N, grid.T);
     MatrixXd vmat = umat * ar_factor_inverse;
     for(int t = 0; t < grid.T; t++)
     {
       double qf = umat(0,t)*vmat(0,t)/Dvec(0);
       for(int i = 1; i < grid.N; i++)
       {
-        idxlim = i <= m ? i : m;
-        VectorXd usec(idxlim);
-        VectorXd vsec(idxlim);
+        int idxlim = i <= m ? i : m;
         for(int j = 0; j < idxlim; j++) 
         {
-          usec(j) = umat(grid.NN(j,i),t);
-          vsec(j) = vmat(grid.NN(j,i),t);
+          int idx = grid.NN(j, i);
+          usec(j) = umat(idx,t);
+          vsec(j) = vmat(idx,t);
         }
-        au = umat(i,t) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
-        av = vmat(i,t) - (A.col(i).segment(0,idxlim).transpose() * vsec)(0);
+        au = umat(i,t) - A.col(i).segment(0,idxlim).dot(usec.head(idxlim));
+        av = vmat(i,t) - A.col(i).segment(0,idxlim).dot(vsec.head(idxlim));
         qf += au*av/Dvec(i);
       }
-      ll1 -= 0.5*qf; 
+      ll1 += -0.5*qf; 
     }
   } else {
     double qf = u(0)*u(0)/Dvec(0);
     for(int i = 1; i < grid.N; i++)
     {
-      idxlim = i <= m ? i : m;
-      VectorXd usec(idxlim);
+      int idxlim = i <= m ? i : m;
       for(int j = 0; j < idxlim; j++) 
       {
         usec(j) = u(grid.NN(j,i));
       }
-      au = u(i) - (A.col(i).segment(0,idxlim).transpose() * usec)(0);
+      au = u(i) - A.col(i).segment(0,idxlim).dot(usec.head(idxlim));
       qf += au*au/Dvec(i);
     }
-    ll1 -= 0.5*qf; 
+    ll1 += -0.5*qf; 
   }
-  ll1 -= 0.5*logdet  + 0.5*grid.N*grid.T*log(2*M_PI);
+  ll1 += -0.5*(logdet  + grid.N*grid.T*LOG_2PI);
   return ll1;
 }
 
@@ -480,6 +486,16 @@ inline VectorXd rts::nngpCovariance::log_gradient(const MatrixXd& umat, double& 
 
   return grad;
 }
+
+#ifdef GLMMR12
+inline MatrixXd rts::nngpCovariance::log_gradient(const MatrixXd& umat, VectorXd& ll)
+{
+  MatrixXd grad(1,1);
+  throw std::runtime_error("NNGP not compatible with LBFGS");
+  
+  return grad;
+}
+#endif
 
 inline VectorXd rts::nngpCovariance::log_gradient_rho(const MatrixXd& u)
 {

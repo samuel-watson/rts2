@@ -1647,7 +1647,7 @@ grid <- R6::R6Class("grid",
                                w <- as.numeric(sf::st_area(tmp_range))/grid_area
                                for(j in 1:length(zcols)){
                                  if(weight_type == "sum"){
-                                   vals[i,j] <- sum(as.data.frame(tmp_range)[,zcols[j]]*w)
+                                   vals[i,j] <- sum(as.data.frame(tmp_range)[,zcols[j]][w > 0.5])
                                  } else if(weight_type == "area"){
                                    vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],w =w)
                                  } else {

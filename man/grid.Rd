@@ -1138,7 +1138,7 @@ Aggregate \code{lgcp_fit} output to another geography
 map to the new geography}
 
 \item{\code{weight_type}}{character string, either "area" or "pop" for area-weighted
-or population weighted averaging, respectively}
+or population weighted averaging, respectively, or "sum" to take the weighted sum.}
 
 \item{\code{popdens}}{character string. If \code{weight_type} is equal to "pop" then the
 name of the column in \code{grid_data} with population density data}

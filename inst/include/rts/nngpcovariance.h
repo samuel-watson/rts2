@@ -189,18 +189,13 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
   double ll1 = 0.0;
   static const double LOG_2PI = log(2*M_PI);
   double logdet = log_determinant();
-  // int idxlim;
   double au,av; 
   VectorXd usec(m);
   VectorXd vsec(m);
+  int idxlim;
   
   if(grid.T > 1)
   {
-    // requires copying a lot of data, is there a better way of doing this? 
-    // MatrixXd umat(grid.N,grid.T);
-    // for(int t = 0; t< grid.T; t++){
-    //   umat.col(t) = u.segment(t*grid.N,grid.N);
-    // }
     Eigen::Map<const MatrixXd> umat(u.data(), grid.N, grid.T);
     MatrixXd vmat = umat * ar_factor_inverse;
     for(int t = 0; t < grid.T; t++)
@@ -208,15 +203,15 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
       double qf = umat(0,t)*vmat(0,t)/Dvec(0);
       for(int i = 1; i < grid.N; i++)
       {
-        int idxlim = i <= m ? i : m;
+        idxlim = i <= m ? i : m;
         for(int j = 0; j < idxlim; j++) 
         {
           int idx = grid.NN(j, i);
           usec(j) = umat(idx,t);
           vsec(j) = vmat(idx,t);
         }
-        au = umat(i,t) - A.col(i).segment(0,idxlim).dot(usec.head(idxlim));
-        av = vmat(i,t) - A.col(i).segment(0,idxlim).dot(vsec.head(idxlim));
+        au = umat(i,t) - (A.col(i).head(idxlim).transpose() * usec.head(idxlim))(0);
+        av = vmat(i,t) - (A.col(i).head(idxlim).transpose() * vsec.head(idxlim))(0);
         qf += au*av/Dvec(i);
       }
       ll1 += -0.5*qf; 
@@ -225,12 +220,12 @@ inline double rts::nngpCovariance::log_likelihood(const VectorXd &u)
     double qf = u(0)*u(0)/Dvec(0);
     for(int i = 1; i < grid.N; i++)
     {
-      int idxlim = i <= m ? i : m;
+      idxlim = i <= m ? i : m;
       for(int j = 0; j < idxlim; j++) 
       {
         usec(j) = u(grid.NN(j,i));
       }
-      au = u(i) - A.col(i).segment(0,idxlim).dot(usec.head(idxlim));
+      au = u(i) - (A.col(i).head(idxlim).transpose() * usec.head(idxlim))(0);
       qf += au*au/Dvec(i);
     }
     ll1 += -0.5*qf; 

@@ -1167,7 +1167,7 @@ grid <- R6::R6Class("grid",
                                  llvar <- rtsModel__ll_diff_variance(private$ptr, TRUE, conv_criterion==1, private$cov_type,private$lp_type)
                                  if(adaptive) n_mcmc_sampling <- max(n_mcmc_sampling, min(iter_sampling, ceiling(llvar * 6.182557)/uval^2)) # (qnorm(0.95) + qnorm(0.8))^2
                                  if(conv_criterion %in% c(1,2)){
-                                   conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/n_mcmc_sampling)
+                                   conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/(n_mcmc_sampling*(iter^alpha)))
                                    converged <- conv.criterion.value < 0
                                  } 
                                }

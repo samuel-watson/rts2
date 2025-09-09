@@ -168,7 +168,7 @@ inline double rts::ar1Covariance::log_likelihood(const VectorXd &u)
     ll += -0.5*(grid.N * LOG_2PI + uquad.dot(vquad));
   }
   ll += -0.5*logdet;
-  return -1.0*ll;
+  return ll;
 }
 
 // this needs to be updated to the version in glmmrBase which is faster

@@ -97,11 +97,11 @@ as for spatially-varying covariates, e.g. \code{zcols=c("covariateA1","covariate
 \strong{BAYESIAN MODEL FITTING}
 
 The grid data must contain columns \verb{t*}, giving the case
-count in each time period (see \code{points_to_grid}), as well as any covariates to include in the model
-(see \code{add_covariates}) and the population density. Otherwise, if the data are regional data, then the outcome
+count in each time period (see \code{points_to_grid}), or a column \code{y} in single time period cases, as well as any covariates to include in the model
+(see \code{add_covariates}). If the population density is not provided it is set to one. If the data are regional data, then the outcome
 counts must be in self$region_data
 
-Our statistical model is a Log Gaussian cox process,
+The statistical model is a Log Gaussian cox process,
 whose realisation is observed on the Cartesian area of interest
 A and time period T. The resulting data are relaisations of an inhomogeneous
 Poisson process with stochastic intensity function \eqn{\{\lambda{s,t}:s\in A, t \in T\}}.
@@ -143,25 +143,30 @@ then the linear prediction contains the term \eqn{X'\gamma}. Each parameter in \
 
 \strong{MAXIMUM LIKELIHOOD MODEL FITTING}
 
-The grid data must contain columns \verb{t*}, giving the case
-count in each time period (see \code{points_to_grid}), as well as any covariates to include in the model
-(see \code{add_covariates}) and the population density. Otherwise, if the data are regional data, then the outcome
-counts must be in self$region_data. See \code{lgcp_bayes()} for more details on the model.
+The grid or region data must contain columns \verb{t*}, giving the case
+count in each time period (see \code{points_to_grid}), or \code{y} if single time period, as well as any covariates to include in the model
+(see \code{add_covariates}). If a population density variable is not provided it is set to one. If the data are regional data then the outcome
+counts must be in self$region_data. See \code{lgcp_bayes()} for Bayesian approaches to model fitting and more details on the model.
 
 The argument \code{approx} specifies whether to use a full LGCP model (\code{approx='none'}) or whether
-to use either a nearest neighbour approximation (\code{approx='nngp'})
+to use either a nearest neighbour approximation (\code{approx='nngp'}, or \code{approx='hsgp'})
 
 Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
 \enumerate{
-\item Sample random effects using MCMC. Using cmdstanr is recommended as it is much faster. The arguments
-\code{mcmc_warmup} and \code{mcmc_sampling} specify the warmup and sampling iterations for this step.
+\item Sample random effects using MCMC. The arguments
+\code{mcmc_warmup} and \code{mcmc_sampling} specify the warmup and sampling iterations for this step. If the algorithm
+is SAEM (the default), then the samples contribute to all subsequent iterations but with decaying effect given
+by alpha. SAEM is often faster than MCEM but may have high Monte Carlo error.
 \item Fit fixed effect parameters using expectation maximisation.
-\item Fit covariance parameters using expectation maximisation. This third step is the slowest. The NNGP approximation
-provides some speed improvements. Otherwise this step can be skipped if the covaraince parameters are "known".
-The argument \code{algo} specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation
-expectation maximisation with or without Ruppert-Polyak averaging. MCMC-ML can be used with or without adaptive MCMC sample sizes
-and either a derivative free or quasi-Newton optimiser (depending on the underlying model).
+\item Fit covariance parameters using expectation maximisation. The NNGP and HSGP approximations
+provide significant speed improvements at the expense of some approximation error, which diminishes with larger values of \code{m}.
+This step can be skipped if the covaraince parameters are "known" and provided.
 }
+
+The argument \code{algo} specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation
+expectation maximisation. MCMC-ML can be used with or without adaptive MCMC sample sizes
+and either a derivative free or quasi-Newton optimiser (depending on the underlying model). The defaults are chosen
+based on average efficiency and reliability, but may not be the best choice in every case.
 
 \strong{EXTRACTING PREDICTIONS}
 

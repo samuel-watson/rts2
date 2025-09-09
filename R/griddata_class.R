@@ -512,11 +512,11 @@ grid <- R6::R6Class("grid",
                            #' **BAYESIAN MODEL FITTING**
                            #' 
                            #' The grid data must contain columns `t*`, giving the case
-                           #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
-                           #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
+                           #' count in each time period (see `points_to_grid`), or a column `y` in single time period cases, as well as any covariates to include in the model
+                           #' (see `add_covariates`). If the population density is not provided it is set to one. If the data are regional data, then the outcome
                            #' counts must be in self$region_data
                            #'
-                           #' Our statistical model is a Log Gaussian cox process,
+                           #' The statistical model is a Log Gaussian cox process,
                            #' whose realisation is observed on the Cartesian area of interest
                            #' A and time period T. The resulting data are relaisations of an inhomogeneous
                            #' Poisson process with stochastic intensity function \eqn{\{\lambda{s,t}:s\in A, t \in T\}}.
@@ -819,23 +819,28 @@ grid <- R6::R6Class("grid",
                            #' @details
                            #' **MAXIMUM LIKELIHOOD MODEL FITTING**
                            #' 
-                           #' The grid data must contain columns `t*`, giving the case
-                           #' count in each time period (see `points_to_grid`), as well as any covariates to include in the model
-                           #' (see `add_covariates`) and the population density. Otherwise, if the data are regional data, then the outcome
-                           #' counts must be in self$region_data. See `lgcp_bayes()` for more details on the model.
+                           #' The grid or region data must contain columns `t*`, giving the case
+                           #' count in each time period (see `points_to_grid`), or `y` if single time period, as well as any covariates to include in the model
+                           #' (see `add_covariates`). If a population density variable is not provided it is set to one. If the data are regional data then the outcome
+                           #' counts must be in self$region_data. See `lgcp_bayes()` for Bayesian approaches to model fitting and more details on the model.
                            #' 
                            #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
-                           #' to use either a nearest neighbour approximation (`approx='nngp'`) 
+                           #' to use either a nearest neighbour approximation (`approx='nngp'`, or `approx='hsgp'`) 
                            #' 
                            #' Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
-                           #'  1. Sample random effects using MCMC. Using cmdstanr is recommended as it is much faster. The arguments 
-                           #'    `mcmc_warmup` and `mcmc_sampling` specify the warmup and sampling iterations for this step.
+                           #'  1. Sample random effects using MCMC. The arguments 
+                           #'    `mcmc_warmup` and `mcmc_sampling` specify the warmup and sampling iterations for this step. If the algorithm 
+                           #'    is SAEM (the default), then the samples contribute to all subsequent iterations but with decaying effect given 
+                           #'    by alpha. SAEM is often faster than MCEM but may have high Monte Carlo error. 
                            #'  2. Fit fixed effect parameters using expectation maximisation.
-                           #'  3. Fit covariance parameters using expectation maximisation. This third step is the slowest. The NNGP approximation
-                           #'     provides some speed improvements. Otherwise this step can be skipped if the covaraince parameters are "known".   
+                           #'  3. Fit covariance parameters using expectation maximisation. The NNGP and HSGP approximations
+                           #'     provide significant speed improvements at the expense of some approximation error, which diminishes with larger values of `m`. 
+                           #'     This step can be skipped if the covaraince parameters are "known" and provided.   
+                           #'     
                            #'  The argument `algo` specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation 
-                           #'  expectation maximisation with or without Ruppert-Polyak averaging. MCMC-ML can be used with or without adaptive MCMC sample sizes
-                           #'  and either a derivative free or quasi-Newton optimiser (depending on the underlying model).
+                           #'  expectation maximisation. MCMC-ML can be used with or without adaptive MCMC sample sizes
+                           #'  and either a derivative free or quasi-Newton optimiser (depending on the underlying model). The defaults are chosen
+                           #'  based on average efficiency and reliability, but may not be the best choice in every case.
                            #' 
                            #' @param popdens character string. Name of the population density column
                            #' @param covs vector of strings. Base names of the covariates to

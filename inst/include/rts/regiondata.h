@@ -20,6 +20,7 @@ public:
   RegionData(const rts::RegionData& region);
 
   MatrixXd  grid_to_region(const MatrixXd& u, const bool expf = true);
+  MatrixXd  jacobian(const VectorXd& u, const MatrixXd& X, const bool x = true);
   sparse    region_design_matrix();
   sparse    grid_design_matrix();
   sparse    grid_to_region_matrix();
@@ -139,4 +140,31 @@ inline MatrixXd rts::RegionData::grid_to_region(const MatrixXd& u, const bool ex
   }
   
   return regionu;
+}
+
+inline MatrixXd rts::RegionData::jacobian(const VectorXd& u, const MatrixXd& X, const bool x){
+  if(x && X.rows() != gridN * gridT)throw std::runtime_error("Jacobian: grid to region conversion, X not grid dimension");
+  if(u.size() != gridN * gridT)throw std::runtime_error("Jacobian: grid to region conversion, u not grid dimension");
+  
+  MatrixXd J = MatrixXd::Zero(nRegion*gridT, x ? X.cols() : gridN*gridT );
+  int nInter, r, t, l, j, idx1;
+  double qsum;
+  if(n_cell(0)!=0)Rcpp::stop("Indexing does not start from zero");
+  
+  for(r = 0; r < nRegion; r++){
+    for(t = 0; t < gridT; t++){
+      qsum = 0;
+      for(l = n_cell(r); l < n_cell(r+1); l++){
+        if(x){
+          J.row(r + nRegion*t) += q_weights(l)*exp(u(cell_id(l) + t*gridN))*X.row(cell_id(l) + t*gridN);
+        } else {
+          J(r + nRegion*t, cell_id(l) + t*gridN) = q_weights(l)*exp(u(cell_id(l) + t*gridN));
+        }
+        qsum += q_weights(l)*exp(u(cell_id(l) + t*gridN));
+      }
+      J.array().row(r + nRegion*t) *= qsum;
+    }
+  }
+  
+  return J;
 }

@@ -573,16 +573,18 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
 
 inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   MatrixXd X = model.linear_predictor.X();
+  MatrixXd Z = model.linear_predictor.Z();
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.data_, model.covariance.colnames_, 1);
   newcov.update_parameters(model.covariance.parameters_);
   MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
-  MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
-  MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  // MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
+  // MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  MatrixXd Sigma2 = Z * ARD * Z.transpose();
   Sigma2 += xb.asDiagonal();
   Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
   if(X.rows() != Sigma2.cols()){
@@ -590,71 +592,23 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
     throw std::runtime_error("X rows != Sigma cols ");
   }
   MatrixXd M = X.transpose() * Sigma2 * X;
-  
-  // sparse A = region.region_design_matrix();
-  // sparse B = region.grid_design_matrix();
-  // int N = model.covariance.grid.N;
-  // int T = model.covariance.grid.T;
-  // int Q = region.q_weights.size();
-  // int R = region.nRegion;
-  // sparse Bt = B;
-  // Bt.transpose();
-  // MatrixXd Xr = model.linear_predictor.region_predictor.X();
-  // MatrixXd Xg = model.linear_predictor.grid_predictor.X();
-  // MatrixXd AX = sparse_matrix_t_mult(A,Xr,T); 
-  // MatrixXd BX = sparse_matrix_t_mult(B,Xg,T); 
-  // VectorXd mu = AX * model.linear_predictor.region_predictor.parameter_vector();
-  // mu += BX * model.linear_predictor.grid_predictor.parameter_vector();
-  // VectorXd meanzu = re.zu_.rowwise().mean();
-  // mu += sparse_vector_t_mult(B,meanzu,T);
-  // mu += sparse_vector_t_mult(A,model.data.offset,T);
-  // for(int t = 0; t < T; t++){
-  //   mu.segment(t*Q,Q) += region.q_weights.log().matrix();
-  // }
-  // mu = mu.array().exp().matrix();
-  // MatrixXd D = model.covariance.D(false,false);
-  // D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
-  // MatrixXd AR = model.covariance.ar_matrix();
-  // AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
-  // MatrixXd ARD = rts::kronecker(AR,D);
-  // VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
-  // ARD += WD.asDiagonal();
-  // ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
-  // MatrixXd S(AX.rows(),AX.rows());
-  // for(int t = 0; t < T; t++){
-  //   for(int s = t; s < T; s++){
-  //     if(t==s){
-  //       MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
-  //       MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
-  //       S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
-  //       S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
-  //     } else {
-  //       MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
-  //       MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
-  //       S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
-  //       S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
-  //     }
-  //   }
-  // }
-  // MatrixXd Xcombined(AX.rows(),AX.cols()+BX.cols());
-  // Xcombined.leftCols(AX.cols()) = AX;
-  // Xcombined.rightCols(BX.cols()) = BX;
-  // MatrixXd M = Xcombined.transpose() * S * Xcombined;
   return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   MatrixXd X = model.linear_predictor.X();
+  MatrixXd Z = model.linear_predictor.Z();
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.data_, model.covariance.colnames_, 1);
   newcov.update_parameters(model.covariance.parameters_);
   MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
-  MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
-  MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  // MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
+  // MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  MatrixXd Sigma2 = Z * ARD * Z.transpose();
   Sigma2 += xb.asDiagonal();
   Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
   if(X.rows() != Sigma2.cols()){
@@ -667,16 +621,16 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
 
 inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   MatrixXd X = model.linear_predictor.X();
+  MatrixXd Z = model.linear_predictor.Z();
   VectorXd xb = model.linear_predictor.xb();
   xb += model.data.offset;
   xb = xb.array().exp().inverse().matrix();
-  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.data_, model.covariance.colnames_, 1);
   newcov.update_parameters(model.covariance.parameters_);
   MatrixXd D = newcov.D(false,false);
   MatrixXd AR = model.covariance.ar_matrix();
   MatrixXd ARD = rts::kronecker(AR,D); // on grid
-  MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
-  MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  MatrixXd Sigma2 = Z * ARD * Z.transpose();
   Sigma2 += xb.asDiagonal();
   Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
   if(X.rows() != Sigma2.cols()){

@@ -883,6 +883,7 @@ Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
   max.iter = 30,
   iter_warmup = 100,
   iter_sampling = 250,
+  constr_zero = 0.001,
   trace = 1,
   use_cmdstanr = FALSE
 )}\if{html}{\out{</div>}}
@@ -950,6 +951,8 @@ terminates.}
 \item{\code{iter_warmup}}{integer. Number of warmup iterations}
 
 \item{\code{iter_sampling}}{integer. Number of sampling iterations}
+
+\item{\code{constr_zero}}{Scalar. In the MCMC sampling step, the mean of the random effects is constrained to have variance of this value.}
 
 \item{\code{trace}}{Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.}
 

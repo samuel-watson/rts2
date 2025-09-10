@@ -24,6 +24,7 @@ data {
   vector[nRegion*nT] Xb;
   real rho;
   matrix[nT,nT] ar_chol;
+  real constr_zero;
 }
 parameters {
    matrix[Q,nT] gamma;
@@ -33,6 +34,7 @@ transformed parameters {
 }
 model {
   array[nRegion*nT] real u = sparse_mult(Ai,Ap,Ax,exp(zu)); 
-  to_array_1d(gamma) ~ std_normal();
+  to_vector(gamma) ~ std_normal();
+  sum(gamma) ~ normal(0, 0.001*Q*nT);
   y ~ poisson(Xb .* to_vector(u));
 }

@@ -882,6 +882,7 @@ grid <- R6::R6Class("grid",
                            #' 2 = No improvement in the log-likelihood for beta with probability 0.95, 3 = Difference between model parameters is less than `tol` between iterations.
                            #' @param iter_warmup integer. Number of warmup iterations
                            #' @param iter_sampling integer. Number of sampling iterations
+                           #' @param constr_zero Scalar. In the MCMC sampling step, the mean of the random effects is constrained to have variance of this value.
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
                            #' @param use_cmdstanr logical. Defaults to false. If true then cmdstanr will be used
                            #' instead of rstan.
@@ -939,6 +940,7 @@ grid <- R6::R6Class("grid",
                                               max.iter = 30,
                                               iter_warmup=100,
                                               iter_sampling=250,
+                                              constr_zero = 0.001,
                                               trace = 1,
                                               use_cmdstanr = FALSE){
                              # some checks at the beginning
@@ -1030,7 +1032,8 @@ grid <- R6::R6Class("grid",
                                ZL = as.matrix(L),
                                y = datlist$y,
                                rho = rho,
-                               ar_chol = ar_chol
+                               ar_chol = ar_chol,
+                               constr_zero = constr_zero
                              )
                              ## set up the stan model
                              if(!is.null(self$region_data)){

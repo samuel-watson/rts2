@@ -6,6 +6,41 @@ namespace rts{
 
 using namespace Eigen;
 
+inline sparse sparse_times_diagonal_l(const sparse& A, const VectorXd& diag){
+  if(A.m != diag.size()) throw std::runtime_error("Sparse matrix A not equal to diagonal size");
+  sparse AD(A);
+  int nelem = AD.Ai.size();
+  for(int i = 0; i < nelem; i++){
+    AD.Ax[i] *= diag(AD.Ai[i]);
+  }
+  return AD;
+}
+
+inline double sparse_row_dot_col(const sparse& A, const VectorXd& vec, const int i){
+  if(A.m != vec.size()) throw std::runtime_error("Sparse matrix A not equal to vector size");
+  double total = 0;
+  for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+    total += A.Ax[j]*vec(A.Ai[j]);
+  }
+  return total;
+}
+
+inline VectorXd sparse_row_hademard_col(const sparse& A, const VectorXd& vec, const int i){
+  if(A.m != vec.size()) throw std::runtime_error("Sparse matrix A not equal to vector size");
+  VectorXd result(A.m);
+  result.setZero();
+  for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
+    result(A.Ai[j]) = A.Ax[j]*vec(A.Ai[j]);
+  }
+  return result;
+}
+
+inline sparse make_sparse_diagonal(const VectorXd& vec){
+  sparse mat(vec.size(), vec.size());
+  for(int i = 0; i < vec.size(); i++) mat.insert(i,i,vec(i));
+  return mat;
+}
+
 //kroenecker product
 inline MatrixXd kronecker(const MatrixXd& A, const MatrixXd& B){
   MatrixXd result = MatrixXd::Zero(A.rows()*B.rows(), A.cols()*B.cols());

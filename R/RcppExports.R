@@ -221,6 +221,10 @@ rtsModel__predict <- function(xp, newdata_, newoffset_, m, covtype_, lptype_) {
     .Call(`_rts2_rtsModel__predict`, xp, newdata_, newoffset_, m, covtype_, lptype_)
 }
 
+rtsModel_predictor <- function(xp) {
+    .Call(`_rts2_rtsModel_predictor`, xp)
+}
+
 nngpCovariance__new <- function(formula_, data_, colnames_, T_, m_, gptr_) {
     .Call(`_rts2_nngpCovariance__new`, formula_, data_, colnames_, T_, m_, gptr_)
 }

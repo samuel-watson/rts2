@@ -729,6 +729,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// rtsModel_predictor
+Rcpp::List rtsModel_predictor(SEXP xp);
+RcppExport SEXP _rts2_rtsModel_predictor(SEXP xpSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    rcpp_result_gen = Rcpp::wrap(rtsModel_predictor(xp));
+    return rcpp_result_gen;
+END_RCPP
+}
 // nngpCovariance__new
 SEXP nngpCovariance__new(SEXP formula_, SEXP data_, SEXP colnames_, SEXP T_, SEXP m_, SEXP gptr_);
 RcppExport SEXP _rts2_nngpCovariance__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP gptr_SEXP) {
@@ -1110,6 +1121,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__region_grid_xb", (DL_FUNC) &_rts2_rtsModel__region_grid_xb, 2},
     {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
     {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
+    {"_rts2_rtsModel_predictor", (DL_FUNC) &_rts2_rtsModel_predictor, 1},
     {"_rts2_nngpCovariance__new", (DL_FUNC) &_rts2_nngpCovariance__new, 6},
     {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
     {"_rts2_GridData_nn__new", (DL_FUNC) &_rts2_GridData_nn__new, 3},

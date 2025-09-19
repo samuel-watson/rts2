@@ -1,14 +1,6 @@
 #pragma once
 
-#include <glmmr/general.h>
 #include <glmmr/modelbits.hpp>
-#include <glmmr/randomeffects.hpp>
-#include <glmmr/modelmatrix.hpp>
-#include <glmmr/modelmcmc.hpp>
-#include <glmmr/family.hpp>
-#include <glmmr/modelextradata.hpp>
-#include <glmmr/calculator.hpp>
-#include <glmmr/formula.hpp>
 #include "rtsmodelbits.h"
 #include "rtsregionmodeloptim.h"
 
@@ -620,24 +612,60 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
-  MatrixXd X = model.linear_predictor.X();
-  MatrixXd Z = model.linear_predictor.Z();
-  VectorXd xb = model.linear_predictor.xb();
-  xb += model.data.offset;
-  xb = xb.array().exp().inverse().matrix();
-  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.data_, model.covariance.colnames_, 1);
-  newcov.update_parameters(model.covariance.parameters_);
-  MatrixXd D = newcov.D(false,false);
-  MatrixXd AR = model.covariance.ar_matrix();
-  MatrixXd ARD = rts::kronecker(AR,D); // on grid
-  MatrixXd Sigma2 = Z * ARD * Z.transpose();
-  Sigma2 += xb.asDiagonal();
-  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
-  if(X.rows() != Sigma2.cols()){
-    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
-    throw std::runtime_error("X rows != Sigma cols ");
+  VectorXd xbg = model.linear_predictor.grid_predictor.xb();
+  VectorXd xbr = model.linear_predictor.region_predictor.xb();
+  VectorXd Xg = model.linear_predictor.grid_predictor.X();
+  VectorXd Xr = model.linear_predictor.region_predictor.X();
+  xbg = xbg.array().exp().matrix();
+  xbr = xbr.array().exp().matrix();
+  xbr = (xbr.array() * model.data.offset.array()).matrix();
+  sparse A = model.linear_predictor.region.grid_to_region_matrix();
+  sparse A_mug = sparse_times_diagonal_l(A,xbg);
+  sparse A_mug_t(A_mug);
+  A_mug_t.transpose();
+  VectorXd A_mug_vec = A * xbg;
+  ArrayXd ydiva = model.data.y.array() * A_mug_vec.array().inverse();
+  sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
+  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
+  MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  VectorXd h(xbg.size());
+  h.setZero();
+  VectorXd htmp(h);
+  double doth = 0;
+  for(int i = 0; i < xbr.size(); i++){
+    htmp = sparse_row_hademard_col(A,xbg,i);
+    doth = sparse_row_dot_col(A,xbg,i);
+    h += htmp * (model.data.y(i)/doth - xbr(i));
   }
-  MatrixXd M = X.transpose() * Sigma2 * X;
+  // try it with the existing covariance matrix
+  sparse hdiag = make_sparse_diagonal(h);
+  A_mug_y *= A_mug;
+  //negate
+  for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
+  hdiag += A_mug_y;
+  
+  //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
+  MatrixXd D = model.covariance.D();
+  D.noalias() = D + sparse_to_dense(hdiag);
+  D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
+  VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
+  sparse mudiag = make_sparse_diagonal(mu);
+  sparse wrg = sparse_times_diagonal_l(A_mug_t,xbr);
+  wrg.transpose();
+  
+  MatrixXd WrgD = wrg * D;
+  MatrixXd WgD = hdiag * D;
+  
+  MatrixXd M(Xr.cols() + Xg.cols(), Xr.cols() + Xg.cols());
+  MatrixXd Wr = sparse_to_dense(mudiag);
+  MatrixXd Wg = sparse_to_dense(hdiag);
+  MatrixXd Wrg = sparse_to_dense(wrg);
+  wrg.transpose();
+  M.block(0,0,Xr.cols(),Xr.cols()) = Xr.transpose() * (Wr - WrgD*wrg) * Xr;
+  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()) = Xg.transpose() * (Wg - WgD*hdiag) * Xg;
+  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()) = Xr.transpose() * (Wrg - WrgD*hdiag) * Xg;
+  M.block(Xr.cols(),0,Xg.cols(),Xr.cols()) = M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).transpose();
+  
   return M;
 }
 

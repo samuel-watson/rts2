@@ -918,6 +918,18 @@ SEXP rtsModel__predict(SEXP xp, SEXP newdata_,
 }
 
 // [[Rcpp::export]]
+Rcpp::List rtsModel_predictor(SEXP xp){
+  XPtr<ModelHSGPRegionG> ptr(xp);
+  Eigen::VectorXd xg = ptr->model.linear_predictor.grid_predictor.xb();
+  Eigen::VectorXd xr = ptr->model.linear_predictor.region_predictor.xb();
+  Eigen::MatrixXd xmatg = ptr->model.linear_predictor.grid_predictor.X();
+  Eigen::MatrixXd xmatr = ptr->model.linear_predictor.region_predictor.X();
+  
+  return Rcpp::List::create(_["grid"] = wrap(xg), _["region"] = wrap(xr),
+                            _["xg"] = wrap(xmatg), _["xr"] = wrap(xmatr));
+}
+
+// [[Rcpp::export]]
 SEXP nngpCovariance__new(SEXP formula_, SEXP data_, SEXP colnames_,
                          SEXP T_,SEXP m_, SEXP gptr_){
   std::string formula = as<std::string>(formula_);

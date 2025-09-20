@@ -375,9 +375,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dbl
     } else {
       ll = ll_t;
     }
-  } else {
-    ll = this->log_likelihood(false);
-  }
+  } 
   return -1*ll;
 }
 
@@ -518,9 +516,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_theta(con
     } else {
       ll = ll_t;
     }
-  } else {
-    ll = this->log_likelihood(false);
-  }
+  } 
   return -1*ll;
 }
 
@@ -604,9 +600,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_rho(const dblve
     } else {
       ll = ll_t;
     }
-  } else {
-    ll = this->log_likelihood(false);
-  }
+  } 
   return -1*ll;
 }
 
@@ -645,9 +639,7 @@ inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_rho(const
     } else {
       ll = ll_t;
     }
-  } else {
-    ll = this->log_likelihood(false);
-  }
+  } 
   return -1*ll;
 }
 

@@ -516,50 +516,6 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
     throw std::runtime_error("X rows != Sigma cols ");
   }
   MatrixXd M = X.transpose() * Sigma2 * X;
-
-    // sparse A = region.region_design_matrix();
-  // sparse B = region.grid_design_matrix();
-  // int N = model.covariance.grid.N;
-  // int T = model.covariance.grid.T;
-  // int Q = region.q_weights.size();
-  // int R = region.nRegion;
-  // sparse Bt = B;
-  // Bt.transpose();
-  // MatrixXd X = model.linear_predictor.X();
-  // MatrixXd AX = sparse_matrix_t_mult(A,X,T); 
-  // VectorXd mu = AX * model.linear_predictor.parameter_vector();
-  // VectorXd meanzu = re.zu_.rowwise().mean();
-  // mu += sparse_vector_t_mult(B,meanzu,T);
-  // mu += sparse_vector_t_mult(A,model.data.offset,T);
-  // for(int t = 0; t < T; t++){
-  //   mu.segment(t*Q,Q) += region.q_weights.log().matrix();
-  // }
-  // mu = mu.array().exp().matrix();
-  // MatrixXd D = model.covariance.D(false,false);
-  // D = D.llt().solve(MatrixXd::Identity(D.rows(),D.cols()));
-  // MatrixXd AR = model.covariance.ar_matrix();
-  // AR = AR.llt().solve(MatrixXd::Identity(AR.rows(),AR.cols()));
-  // MatrixXd ARD = rts::kronecker(AR,D);
-  // VectorXd WD = sparse_vector_t_mult(Bt,mu,T);
-  // ARD += WD.asDiagonal();
-  // ARD = ARD.llt().solve(MatrixXd::Identity(ARD.rows(),ARD.cols()));
-  // MatrixXd S(AX.rows(),AX.rows());
-  // for(int t = 0; t < T; t++){
-  //   for(int s = t; s < T; s++){
-  //     if(t==s){
-  //       MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
-  //       MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub,true);
-  //       S.block(s*Q,t*Q,Q,Q) = mu.segment(t*Q,Q).asDiagonal();
-  //       S.block(s*Q,t*Q,Q,Q) -= mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
-  //     } else {
-  //       MatrixXd Ssub = sparse_matrix_mult(B,ARD.block(s*N,t*N,N,N));
-  //       MatrixXd Ssub2 = sparse_matrix_mult(B, Ssub, true);
-  //       S.block(s*Q,t*Q,Q,Q) = -1.0 * mu.segment(s*Q,Q).asDiagonal()*Ssub2*mu.segment(t*Q,Q).asDiagonal();
-  //       S.block(t*Q,s*Q,Q,Q) = S.block(s*Q,t*Q,Q,Q).transpose();
-  //     }
-  //   }
-  // }
-  // MatrixXd M = AX.transpose() * S * AX;
   return M;
 }
 
@@ -620,6 +576,7 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   xbr = xbr.array().exp().matrix();
   xbr = (xbr.array() * model.data.offset.array()).matrix();
   sparse A = model.linear_predictor.region.grid_to_region_matrix();
+  A.transpose();
   sparse A_mug = sparse_times_diagonal_l(A,xbg);
   sparse A_mug_t(A_mug);
   A_mug_t.transpose();
@@ -627,7 +584,7 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   ArrayXd ydiva = model.data.y.array() * A_mug_vec.array().inverse();
   sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
   sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
-  MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
   VectorXd h(xbg.size());
   h.setZero();
   VectorXd htmp(h);

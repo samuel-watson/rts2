@@ -175,6 +175,17 @@ SEXP rtsModel__u(SEXP xp, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
+SEXP rtsModel__uraw(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {  return returns(0);}, 
+    [](auto mptr){return returns(mptr->re.u_);}
+  };
+  auto S = std::visit(functor,model.ptr);
+  return wrap(std::get<Eigen::MatrixXd>(S));
+}
+
+// [[Rcpp::export]]
 SEXP rtsModel__X(SEXP xp, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {
@@ -380,15 +391,35 @@ void rtsModel__nr_beta(SEXP xp, int covtype_, int lptype_){
   std::visit(functor,model.ptr);
 }
 
-// // [[Rcpp::export]]
-// void rtsModel__laplace_nr_beta_u(SEXP xp, int covtype_, int lptype_){
-//   TypeSelector model(xp,covtype_,lptype_);
-//   auto functor = overloaded {
-//     [](int) {}, 
-//     [](auto mptr){mptr->optim.laplace_nr_beta_u();}
-//   };
-//   std::visit(functor,model.ptr);
-// }
+// [[Rcpp::export]]
+void rtsModel__laplace_nr_beta_u(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {},
+    [](auto mptr){mptr->optim.laplace_nr_beta_u();}
+  };
+  std::visit(functor,model.ptr);
+}
+
+// [[Rcpp::export]]
+void rtsModel__laplace_ml_theta(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {},
+    [](auto mptr){mptr->optim.template ml_laplace_theta<BOBYQA>();}
+  };
+  std::visit(functor,model.ptr);
+}
+
+// [[Rcpp::export]]
+void rtsModel__laplace_ml_rho(SEXP xp, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {},
+    [](auto mptr){mptr->optim.template ml_laplace_rho<BOBYQA>();}
+  };
+  std::visit(functor,model.ptr);
+}
 
 // [[Rcpp::export]]
 SEXP rtsModel__information_matrix(SEXP xp, int covtype_, int lptype_){

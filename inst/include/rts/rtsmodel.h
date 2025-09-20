@@ -193,6 +193,11 @@ public:
   void update_u(const MatrixXd &u_, bool append = false){
       int newcolsize = u_.cols();
       int currcolsize = re.u_.cols();
+      
+      if(model.covariance.Q() != re.u_.rows()){
+        re.u_.resize(model.covariance.Q(),1);
+        re.u_.setZero();
+      }
 
       if(append){
         re.u_.conservativeResize(NoChange,currcolsize + newcolsize);

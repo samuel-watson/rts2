@@ -23,12 +23,17 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     void            update_theta(const dblvec &theta) override;
     void            update_u(const MatrixXd& u, bool append) override;
     void            update_rho(const double rho_);
+    void            laplace_nr_beta_u() override;
     template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
     void            ml_beta();
     template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
     void            ml_theta();
     template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
     void            ml_rho();
+    template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+    void            ml_laplace_theta();
+    template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+    void            ml_laplace_rho();
     // remove this function when CRAN is updated as base class has it defined...
     double          ll_diff_variance(bool beta = true, bool theta = true);
     double          log_likelihood_rho(const dblvec &rho);
@@ -37,6 +42,8 @@ class rtsModelOptim : public ModelOptim<modeltype> {  public:
     double          log_likelihood_theta(const dblvec &theta);
     double          log_likelihood_beta_with_gradient(const VectorXd &beta, VectorXd& g);
     double          log_likelihood_theta_with_gradient(const VectorXd& theta, VectorXd& g);
+    double          log_likelihood_laplace_theta(const dblvec &par);
+    double          log_likelihood_laplace_rho(const dblvec &par);
 };
 
 }
@@ -222,6 +229,44 @@ inline void rts::rtsModelOptim<modeltype>::ml_theta()
 
 template<typename modeltype>
 template<class algo, typename>
+inline void rts::rtsModelOptim<modeltype>::ml_laplace_theta()
+{  
+  dblvec start = this->get_start_values(false,true,false);  
+  dblvec lower = this->get_lower_values(false,true,false);
+  dblvec upper = this->get_upper_values(false,true,false);
+  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    throw std::runtime_error("LBFGS not available with Laplace");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {      
+      dblvec upper2(lower.size());
+      std::fill(upper2.begin(),upper2.end(),1.0);
+      op.set_bounds(lower,upper2,false);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+      op.set_bounds(lower,upper);
+    }
+    if constexpr (std::is_same_v<modeltype,BitsAR>)
+    {
+      op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_laplace_theta, rts::rtsModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_laplace_theta, rts::rtsModelOptim<BitsNNGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_laplace_theta, rts::rtsModelOptim<BitsHSGP> >(this);
+    }
+    op.minimise();
+  }
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+
+template<typename modeltype>
+template<class algo, typename>
 inline void rts::rtsModelOptim<modeltype>::ml_rho()
 {  
   dblvec start;
@@ -271,6 +316,44 @@ inline void rts::rtsModelOptim<modeltype>::ml_rho()
   int eval_size = this->control.saem ? this->re.mcmc_block_size : this->ll_current.rows();
   this->current_ll_values.second = this->ll_current.col(1).tail(eval_size).mean();
   rts_current_ll_var.second = (this->ll_current.col(1).tail(eval_size) - this->ll_current.col(1).tail(eval_size).mean()).square().sum() / (eval_size - 1);
+}
+
+template<typename modeltype>
+template<class algo, typename>
+inline void rts::rtsModelOptim<modeltype>::ml_laplace_rho()
+{  
+  dblvec start;
+  start.push_back(this->model.covariance.rho);
+  dblvec lower;
+  lower.push_back(-1.0);
+  dblvec upper;
+  upper.push_back(1.0);
+  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    throw std::runtime_error("LBFGS not available with Laplace");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {      
+      op.set_bounds(lower,upper,false);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+      op.set_bounds(lower,upper);
+    }
+    if constexpr (std::is_same_v<modeltype,BitsAR>)
+    {
+      op.template fn<&rts::rtsModelOptim<BitsAR>::log_likelihood_laplace_rho, rts::rtsModelOptim<BitsAR> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsNNGP>) {
+      op.template fn<&rts::rtsModelOptim<BitsNNGP>::log_likelihood_laplace_rho, rts::rtsModelOptim<BitsNNGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGP>){
+      op.template fn<&rts::rtsModelOptim<BitsHSGP>::log_likelihood_laplace_rho, rts::rtsModelOptim<BitsHSGP> >(this);
+    }
+    op.minimise();
+  }
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
 }
 
 template<typename modeltype>
@@ -361,51 +444,34 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& t
     } else {
       ll = ll_t;
     }
-  } else {
-    ll = this->log_likelihood(false);
-  }
+  } 
   return -1*ll;
-  
-//   this->fn_counter.second += this->re.scaled_u_.cols();
-// #pragma omp parallel
-//   for(int i = 0; i < this->re.scaled_u_.cols(); i++)
-//   {
-//     this->ll_current(i,1) = this->model.covariance.log_likelihood(this->re.scaled_u_.col(i));
-//   }
-//   double ll = 0;
-//   if(this->control.saem)
-//   {
-//     int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
-//     double  gamma = pow(1.0/iteration,this->control.alpha);
-//     double  ll_t = 0;
-//     double  ll_pr = 0;
-//     for(int i = 0; i < iteration; i++){
-//       int lower_range = i * this->re.mcmc_block_size;
-//       int upper_range = (i + 1) * this->re.mcmc_block_size;
-//       if(i == (iteration - 1) && iteration > 1){
-//         double ll_t_c = ll_t;
-//         double ll_pr_c = ll_pr;
-//         ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
-//         if(this->control.pr_average) ll_pr += ll_t;
-//         for(int j = lower_range; j < upper_range; j++)
-//         {
-//           this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
-//           if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
-//         }
-//       } else {
-//         ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
-//         if(this->control.pr_average) ll_pr += ll_t;
-//       }
-//     }
-//     if(this->control.pr_average){
-//       ll = ll_pr / (double)iteration;
-//     } else {
-//       ll = ll_t;
-//     }
-//   } else {
-//     ll = this->ll_current.col(1).mean();
-//   }
-//   return -1*ll;
+}
+
+template<typename modeltype>
+inline double rts::rtsModelOptim<modeltype>::log_likelihood_laplace_theta(const dblvec &par)
+{  
+  this->model.covariance.update_parameters(par);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  double ll = this->log_likelihood(false);
+  this->matrix.W.update();
+  MatrixXd LZWZL = this->model.covariance.LZWZL(this->matrix.W.W());
+  double LZWdet = glmmr::maths::logdet(LZWZL);
+  ll += -0.5*LZWdet;
+  return -1.0*ll;
+}
+
+template<typename modeltype>
+inline double rts::rtsModelOptim<modeltype>::log_likelihood_laplace_rho(const dblvec &par)
+{  
+  this->model.covariance.update_rho(par[0]);
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  double ll = this->log_likelihood(false);
+  this->matrix.W.update();
+  MatrixXd LZWZL = this->model.covariance.LZWZL(this->matrix.W.W());
+  double LZWdet = glmmr::maths::logdet(LZWZL);
+  ll += -0.5*LZWdet;
+  return -1.0*ll;
 }
 
 template<typename modeltype>
@@ -515,6 +581,37 @@ inline double rts::rtsModelOptim<modeltype>::log_likelihood_rho_with_gradient(co
     g.array() *= -1.0;
     return -1.0*logl/niter;
   }  
+}
+
+template<typename modeltype>
+inline void rts::rtsModelOptim<modeltype>::laplace_nr_beta_u(){
+  MatrixXd infomat(this->P()+this->Q(),this->P()+this->Q());
+  MatrixXd X = this->model.linear_predictor.X();
+  VectorXd xb = this->model.linear_predictor.xb();
+  MatrixXd ZL = this->model.covariance.ZL();
+  MatrixXd zlu = ZL * this->re.u_;
+  VectorXd mu = (xb + zlu.col(0)).array().exp().matrix();
+  MatrixXd iden = MatrixXd::Identity(this->Q(),this->Q());
+
+  infomat.block(0,0,X.cols(),X.cols()).noalias() = X.transpose() * (mu.asDiagonal() * X);
+  infomat.block(0,X.cols(),X.cols(),this->Q()).noalias() = X.transpose() * (mu.asDiagonal() * ZL);
+  infomat.block(X.cols(),0,this->Q(),X.cols()).noalias() = infomat.block(0,X.cols(),X.cols(),this->Q()).transpose();
+  infomat.block(X.cols(),X.cols(),this->Q(),this->Q()).noalias() = ZL.transpose() * (mu.asDiagonal() * ZL);
+  infomat.block(X.cols(),X.cols(),this->Q(),this->Q()) += iden;
+
+  infomat = infomat.llt().solve(MatrixXd::Identity(this->P()+this->Q(),this->P()+this->Q()));
+
+  VectorXd resid = this->model.data.y - mu;
+  VectorXd params(this->P()+this->Q());
+  params.head(this->P()).noalias() = this->model.linear_predictor.parameter_vector();
+  params.tail(this->Q()).noalias() = this->re.u_.col(0);
+  VectorXd pderiv(this->P()+this->Q());
+  pderiv.head(this->P()).noalias() = (this->model.linear_predictor.X()).transpose() * resid;
+  pderiv.tail(this->Q()).noalias() = ((ZL.transpose() * resid) - this->re.u_.col(0));
+  params += infomat*pderiv;
+  this->model.linear_predictor.update_parameters(params.head(this->P()));
+  this->re.u_.col(0) = params.tail(this->Q());
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
 }
 
 template<>

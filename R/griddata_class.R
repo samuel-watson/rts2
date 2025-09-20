@@ -923,7 +923,7 @@ grid <- R6::R6Class("grid",
                            lgcp_ml = function(popdens=NULL,
                                               covs=NULL,
                                               covs_grid = NULL,
-                                              approx = "nngp",
+                                              approx = "hsgp",
                                               m=10,
                                               L=1.5,
                                               model = "exp",
@@ -944,7 +944,7 @@ grid <- R6::R6Class("grid",
                                               trace = 1,
                                               use_cmdstanr = FALSE){
                              # some checks at the beginning
-                             if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp or none")
+                             if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp, or none")
                              if(m<=1 & approx == 'nngp')stop("m must be greater than one")
                              if(m >25 & trace >= 1)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
@@ -958,7 +958,7 @@ grid <- R6::R6Class("grid",
                              append_u <- FALSE
                              adaptive <- algo %in% 6:8
                              # set up main data and initialise the pointer to the C++ class
-                             datlist <- private$update_ptr(m,model,approx,popdens,covs,covs_grid,L,TRUE, formula_1, formula_2)
+                             datlist <- private$update_ptr(m,model,ifelse(approx == "hsgplaplace","hsgp",approx),popdens,covs,covs_grid,L,TRUE, formula_1, formula_2)
                              if(!is.null(known_theta)){
                                if((length(known_theta)!=2 & datlist$nT == 1) | (length(known_theta)!=3 & datlist$nT > 1))stop("Theta should be of length 2 (T=1) or 3")
                                datlist$known_cov <- 1
@@ -1005,10 +1005,14 @@ grid <- R6::R6Class("grid",
                              if(!is.null(upper_bound)) rtsModel__set_bound(private$ptr,private$cov_type,private$lp_type,upper_bound,lower=FALSE)
                              # run one iteration of fitting beta without re (i.e. glm) to get reasonable starting values
                              # otherwise the algorithm can struggle to converge
-                             rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx=="hsgp", m * m, datlist$Nsample),ncol=1),FALSE,private$cov_type,private$lp_type)
-                             if(trace >= 1)cat("\nIter: 0\n")
+                             
                              rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
-                             rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
+                             if(trace >= 1)cat("\nIter: 0\n")
+                             if(approx != "hsgplaplace"){
+                               rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx%in%c("hsgp"), m * m, datlist$Nsample),ncol=1),
+                                                  FALSE,private$cov_type,private$lp_type)
+                               rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
+                             } 
                              # initialise the parameters and data on the R side
                              beta <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                              theta <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
@@ -1036,38 +1040,41 @@ grid <- R6::R6Class("grid",
                                constr_zero = constr_zero
                              )
                              ## set up the stan model
-                             if(!is.null(self$region_data)){
-                               filecmd <- "rtsmcml_poisson_region_cmd.stan"
-                               filers <- "rtsmcml_poisson_region"
-                               if(private$lp_type == 3){
-                                 xb_grid <- rtsModel__region_grid_xb(private$ptr,private$cov_type)
+                             if(approx != "hsgplaplace"){
+                               if(!is.null(self$region_data)){
+                                 filecmd <- "rtsmcml_poisson_region_cmd.stan"
+                                 filers <- "rtsmcml_poisson_region"
+                                 if(private$lp_type == 3){
+                                   xb_grid <- rtsModel__region_grid_xb(private$ptr,private$cov_type)
+                                 } else {
+                                   xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
+                                 }
+                                 P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
+                                 data$Xb = exp(data$Xb)
+                                 data <- append(data,list(nRegion = datlist$n_region,
+                                                          ssize = length(P$Ai),
+                                                          Ap = P$Ap+1,
+                                                          Ai = P$Ai+1,
+                                                          Ax = P$Ax))
                                } else {
-                                 xb_grid <- matrix(0,nrow=datlist$Nsample*datlist$nT,ncol=1)
+                                 filecmd <- "rtsmcml_poisson_cmd.stan"
+                                 filers <- "rtsmcml_poisson"
                                }
-                               P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
-                               data$Xb = exp(data$Xb)
-                               data <- append(data,list(nRegion = datlist$n_region,
-                                                        ssize = length(P$Ai),
-                                                        Ap = P$Ap+1,
-                                                        Ai = P$Ai+1,
-                                                        Ax = P$Ax))
-                             } else {
-                               filecmd <- "rtsmcml_poisson_cmd.stan"
-                               filers <- "rtsmcml_poisson"
-                             }
-                             if(use_cmdstanr){
-                               if(!requireNamespace("cmdstanr")){
-                                 stop("cmdstanr is recommended but not installed, see https://mc-stan.org/cmdstanr/ for details on how to install.\n
+                               if(use_cmdstanr){
+                                 if(!requireNamespace("cmdstanr")){
+                                   stop("cmdstanr is recommended but not installed, see https://mc-stan.org/cmdstanr/ for details on how to install.\n
                                     Set option use_cmdstanr=FALSE to use rstan instead.")
-                               } else {
-                                 if(trace == 2)message("If this is the first time running this model, it will be compiled by cmdstan.")
-                                 model_file <- system.file("cmdstan",
-                                                           filecmd,
-                                                           package = "rts2",
-                                                           mustWork = TRUE)
-                                 mod <- suppressMessages(cmdstanr::cmdstan_model(model_file))
+                                 } else {
+                                   if(trace == 2)message("If this is the first time running this model, it will be compiled by cmdstan.")
+                                   model_file <- system.file("cmdstan",
+                                                             filecmd,
+                                                             package = "rts2",
+                                                             mustWork = TRUE)
+                                   mod <- suppressMessages(cmdstanr::cmdstan_model(model_file))
+                                 }
                                }
                              }
+                             
                              # this is the main algorithm. iterate until convergence
                              iter <- 0
                              converged <- FALSE
@@ -1079,42 +1086,45 @@ grid <- R6::R6Class("grid",
                                iter <- iter + 1
                                append_u <- I(algo %in% 4:5 & iter > 1)
                                if(trace >= 1)cat("\nIter: ",iter,"\n",Reduce(paste0,rep("-",40)))
-                               if(trace==2)t1 <- Sys.time()
-                               # update the data for stan
-                               data$Xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
-                               data$ZL <- rtsModel__L(private$ptr,private$cov_type,private$lp_type)
-                               data$rho <- rho
-                               if(!is.null(self$region_data)){
-                                 P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
-                                 data$Ax <- P$Ax
-                                 data$Xb <- exp(data$Xb)
-                               }
-                               if(data$nT > 1){
-                                 data$ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
-                               }
-                               if(use_cmdstanr){
-                                 if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
-                                 if(trace >= 1)cat("\nStarting MCMC sampling")
-                                 capture.output(fit <- mod$sample(data = data,
-                                                                  chains = 1,
-                                                                  iter_warmup = iter_warmup,
-                                                                  iter_sampling = n_mcmc_sampling,
-                                                                  refresh = 0),
-                                                file=tempfile())
-                                 dsamps <- fit$draws("gamma",format = "matrix")
-                                 class(dsamps) <- "matrix"
-                                 rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),private$cov_type,private$lp_type)
-                               } else {
-                                 capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[filers]],
-                                                                                         data=data,
-                                                                                         chains=1,
-                                                                                         iter = iter_warmup+n_mcmc_sampling,
-                                                                                         warmup = iter_warmup,
-                                                                                         cores = 1,
-                                                                                         refresh = 0)), file=tempfile())
-                                 dsamps <- rstan::extract(res,"gamma",permuted = FALSE)
-                                 dsamps <- as.matrix(dsamps[,1,])
-                                 rtsModel__update_u(private$ptr,t(dsamps),append_u,private$cov_type,private$lp_type)
+                               if(trace==2) t1 <- Sys.time()
+                               if(approx != "hsgplaplace"){
+                                 # update the data for stan
+                                 data$Xb <- rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
+                                 data$ZL <- rtsModel__L(private$ptr,private$cov_type,private$lp_type)
+                                 data$rho <- rho
+                                 if(!is.null(self$region_data)){
+                                   P <- rtsModel__grid_to_region_multiplier_matrix(private$ptr,private$cov_type,private$lp_type)
+                                   data$Ax <- P$Ax
+                                   data$Xb <- exp(data$Xb)
+                                 }
+                                 if(data$nT > 1){
+                                   data$ar_chol <- rtsModel__ar_chol(private$ptr,private$cov_type,private$lp_type)
+                                 }
+                                 if(use_cmdstanr){
+                                   if(is.null(self$region_data))data$Xb <-  rtsModel__xb(private$ptr,private$cov_type,private$lp_type)
+                                   if(trace >= 1)cat("\nStarting MCMC sampling")
+                                   capture.output(fit <- mod$sample(data = data,
+                                                                    chains = 1,
+                                                                    iter_warmup = iter_warmup,
+                                                                    iter_sampling = n_mcmc_sampling,
+                                                                    refresh = 0),
+                                                  file=tempfile())
+                                   dsamps <- fit$draws("gamma",format = "matrix")
+                                   class(dsamps) <- "matrix"
+                                   rtsModel__update_u(private$ptr,as.matrix(t(dsamps)),private$cov_type,private$lp_type)
+                                 } else {
+                                   capture.output(suppressWarnings( res <- rstan::sampling(stanmodels[[filers]],
+                                                                                           data=data,
+                                                                                           chains=1,
+                                                                                           iter = iter_warmup+n_mcmc_sampling,
+                                                                                           warmup = iter_warmup,
+                                                                                           cores = 1,
+                                                                                           refresh = 0)), file=tempfile())
+                                   dsamps <- rstan::extract(res,"gamma",permuted = FALSE)
+                                   dsamps <- as.matrix(dsamps[,1,])
+                                   rtsModel__update_u(private$ptr,t(dsamps),append_u,private$cov_type,private$lp_type)
+                                 }
+                                 
                                }
                                if(trace==2){
                                  t2 <- Sys.time()
@@ -1123,40 +1133,47 @@ grid <- R6::R6Class("grid",
                                }
                                
                                # step 2. fit beta 
-                               if(algo %in% c(1,3,6,8) & private$lp_type == 1){
-                                 tryCatch(rtsModel__ml_beta(private$ptr,2,private$cov_type,private$lp_type),
-                                          error = function(e){
-                                            message(conditionMessage(e))
-                                            cat("\nL-BFGS failed beta: trying BOBYQA")
-                                            rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
-                                          })
-                               } else {
-                                 rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
-                               }
-                               if(is.null(known_theta)){
-                                 if(algo %in% c(1,6)){
-                                   tryCatch(rtsModel__ml_theta(private$ptr,2,private$cov_type,private$lp_type),
+                               if(approx != "hsgplaplace"){
+                                 if(algo %in% c(1,3,6,8) & private$lp_type == 1){
+                                   tryCatch(rtsModel__ml_beta(private$ptr,2,private$cov_type,private$lp_type),
                                             error = function(e){
                                               message(conditionMessage(e))
-                                              cat("\nL-BFGS failed theta: trying BOBYQA")
-                                              rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                              cat("\nL-BFGS failed beta: trying BOBYQA")
+                                              rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
                                             })
                                  } else {
-                                   rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                   rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
                                  }
-                                if(datlist$nT > 1){
-                                  if(algo %in% c(1,6)){
-                                    tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
-                                             error = function(e){
-                                               message(conditionMessage(e))
-                                               cat("\nL-BFGS failed rho, trying BOBYQA")
-                                               rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
-                                             })
-                                  } else {
-                                    rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
-                                  }
-                                }
+                                 if(is.null(known_theta)){
+                                   if(algo %in% c(1,6)){
+                                     tryCatch(rtsModel__ml_theta(private$ptr,2,private$cov_type,private$lp_type),
+                                              error = function(e){
+                                                message(conditionMessage(e))
+                                                cat("\nL-BFGS failed theta: trying BOBYQA")
+                                                rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                              })
+                                   } else {
+                                     rtsModel__ml_theta(private$ptr,0,private$cov_type,private$lp_type)
+                                   }
+                                   if(datlist$nT > 1){
+                                     if(algo %in% c(1,6)){
+                                       tryCatch(rtsModel__ml_rho(private$ptr,2,private$cov_type,private$lp_type),
+                                                error = function(e){
+                                                  message(conditionMessage(e))
+                                                  cat("\nL-BFGS failed rho, trying BOBYQA")
+                                                  rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
+                                                })
+                                     } else {
+                                       rtsModel__ml_rho(private$ptr,0,private$cov_type,private$lp_type)
+                                     }
+                                   }
+                                 }
+                               } else {
+                                 rtsModel__laplace_nr_beta_u(private$ptr,private$cov_type,private$lp_type)
+                                 rtsModel__laplace_ml_theta(private$ptr,private$cov_type,private$lp_type)
+                                 if(datlist$nT > 1)rtsModel__laplace_ml_rho(private$ptr,private$cov_type,private$lp_type)
                                }
+                               
                                beta_new <- rtsModel__get_beta(private$ptr,private$cov_type,private$lp_type)
                                # step 3 fit covariance parameters
                                theta_new <- rtsModel__get_theta(private$ptr,private$cov_type,private$lp_type)
@@ -1165,27 +1182,33 @@ grid <- R6::R6Class("grid",
                                  rho_new <- rtsModel__get_rho(private$ptr,private$cov_type,private$lp_type)
                                  all_pars_new <- c(all_pars_new,rho_new)
                                }
-                               llvals <- rtsModel__get_log_likelihood_values(private$ptr,private$cov_type,private$lp_type)
-                               if(conv_criterion == 3){
-                                 converged <- (max(abs(beta - beta_new)) <= tol & max(abs(theta - theta_new)) <= tol)
-                               } 
-                               if(iter > 1){
-                                 udiagnostic <- rtsModel__u_diagnostic(private$ptr,private$cov_type,private$lp_type)
-                                 uval <- ifelse(conv_criterion == 1, Reduce(sum,udiagnostic), udiagnostic$first)
-                                 llvar <- rtsModel__ll_diff_variance(private$ptr, TRUE, conv_criterion==1, private$cov_type,private$lp_type)
-                                 if(adaptive) n_mcmc_sampling <- max(n_mcmc_sampling, min(iter_sampling, ceiling(llvar * 6.182557)/uval^2)) # (qnorm(0.95) + qnorm(0.8))^2
-                                 if(conv_criterion %in% c(1,2)){
-                                   nmult <- ifelse(algo %in% 4:6, iter^alpha)
-                                   conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/(n_mcmc_sampling*nmult))
-                                   converged <- conv.criterion.value < 0
-                                 } 
-                               }
-                               # some summary output
                                if(trace==2){
                                  t3 <- Sys.time()
                                  td1 <- t3-t2
                                  cat("\nModel fitting took: ",td1[[1]],attr(td1,"units"))
                                }
+                               if(approx != "hsgplaplace"){
+                                 llvals <- rtsModel__get_log_likelihood_values(private$ptr,private$cov_type,private$lp_type)
+                                 if(conv_criterion == 3){
+                                   converged <- (max(abs(beta - beta_new)) <= tol & max(abs(theta - theta_new)) <= tol)
+                                 } 
+                                 if(iter > 1){
+                                   udiagnostic <- rtsModel__u_diagnostic(private$ptr,private$cov_type,private$lp_type)
+                                   uval <- ifelse(conv_criterion == 1, Reduce(sum,udiagnostic), udiagnostic$first)
+                                   llvar <- rtsModel__ll_diff_variance(private$ptr, TRUE, conv_criterion==1, private$cov_type,private$lp_type)
+                                   if(adaptive) n_mcmc_sampling <- max(n_mcmc_sampling, min(iter_sampling, ceiling(llvar * 6.182557)/uval^2)) # (qnorm(0.95) + qnorm(0.8))^2
+                                   if(conv_criterion %in% c(1,2)){
+                                     nmult <- ifelse(algo %in% 4:6, iter^alpha)
+                                     conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/(n_mcmc_sampling*nmult))
+                                     converged <- conv.criterion.value < 0
+                                   } 
+                                 }
+                               } else {
+                                 converged <- (max(abs(beta - beta_new)) <= tol & max(abs(theta - theta_new)) <= tol)
+                               }
+                               
+                               # some summary output
+                               
                                if(trace>=1){
                                  cat("\nPARAMETER VALUES:\n")
                                  cat("\nBeta: ", beta_new)
@@ -1196,8 +1219,8 @@ grid <- R6::R6Class("grid",
                                  cat("\nTheta diff: ", round(max(abs(theta-theta_new)),5))
                                  if(datlist$nT > 1) cat(" | Rho diff: ", round(abs(rho-rho_new),5))
                                  cat("\nMax. diff: ", round(max(abs(all_pars-all_pars_new)),5))
-                                 cat("\nLog-likelihoods: Fixed: ", round(llvals$first,5)," Covariance: ",round(llvals$second,5))
-                                 if(iter>1){
+                                 if(approx != "hsgplaplace")cat("\nLog-likelihoods: Fixed: ", round(llvals$first,5)," Covariance: ",round(llvals$second,5))
+                                 if(iter>1 & approx != "hsgplaplace"){
                                    if(adaptive)cat("\nMCMC sample size (adaptive): ",n_mcmc_sampling)
                                    cat("\nLog-lik diff values: ", round(udiagnostic$first,5),", ", round(udiagnostic$second,5)," overall: ", round(Reduce(sum,udiagnostic), 5))
                                    cat("\nLog-lik variance: ", round(llvar,5))
@@ -2145,6 +2168,7 @@ grid <- R6::R6Class("grid",
 
                           rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)
                           rtsModel__set_y(private$ptr,data$y,private$cov_type,private$lp_type)
+                          rtsModel__update_theta(private$ptr,theta,private$cov_type,private$lp_type)
                           return(data)
                         }
                       },

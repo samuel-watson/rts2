@@ -30,12 +30,17 @@ public:
   void        update_theta(const dblvec &theta) override;
   void        update_u(const MatrixXd& u, bool append) override;
   void        update_rho(double rho);
+  void        laplace_nr_beta_u() override;
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_beta();
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_theta();
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_rho();
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_laplace_theta();
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_laplace_rho();
   // remove this function when CRAN is updated as base class has it defined...
   double      ll_diff_variance(bool beta = true, bool theta = true);
   double      log_likelihood_theta(const dblvec &theta);
@@ -44,6 +49,8 @@ public:
   double      log_likelihood_beta(const dblvec &beta);
   double      log_likelihood(bool beta) override;
   double      full_log_likelihood() override;
+  double      log_likelihood_laplace_theta(const dblvec &par);
+  double      log_likelihood_laplace_rho(const dblvec &par);
   ArrayXXd    region_intensity(bool uselog = true);
   ArrayXXd    y_predicted(bool uselog = true);
 };
@@ -226,6 +233,68 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_rho()
 }
 
 template<typename modeltype>
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_laplace_theta()
+{  
+  dblvec start = this->get_start_values(false,true,false);  
+  dblvec lower = this->get_lower_values(false,true,false);
+  dblvec upper = this->get_upper_values(false,true,false);
+  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    throw std::runtime_error("LBFGS not available with Laplace");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else {
+      throw std::runtime_error("Region model only allows BOBYQA currently");
+    }
+    
+    if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_laplace_theta, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_laplace_theta, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    } else {
+      throw std::runtime_error("Region model Laplace approximation only works with HSGP currently");
+    }
+    op.minimise();
+  }
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+template<typename modeltype>
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_laplace_rho()
+{  
+  dblvec start = this->get_start_values(false,true,false);  
+  dblvec lower = this->get_lower_values(false,true,false);
+  dblvec upper = this->get_upper_values(false,true,false);
+  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    throw std::runtime_error("LBFGS not available with Laplace");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else {
+      throw std::runtime_error("Region model only allows BOBYQA currently");
+    }
+    
+    if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_laplace_rho, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_laplace_rho, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    } else {
+      throw std::runtime_error("Region model Laplace approximation only works with HSGP currently");
+    }
+    op.minimise();
+  }
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+}
+
+template<typename modeltype>
 inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_theta(const dblvec& theta)
 {
   this->model.covariance.update_parameters(theta);
@@ -310,6 +379,108 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dbl
     ll = this->log_likelihood(false);
   }
   return -1*ll;
+}
+
+template<typename modeltype>
+inline void rts::rtsRegionModelOptim<modeltype>::laplace_nr_beta_u()
+{
+  throw std::runtime_error("NR beta-u region to be updated");
+}
+
+template<>
+inline void rts::rtsRegionModelOptim<BitsHSGPRegion>::laplace_nr_beta_u()
+{
+  VectorXd xbg = this->model.linear_predictor.grid_predictor.xb();
+  VectorXd xbr = this->model.linear_predictor.region_predictor.xb();
+  MatrixXd Xg = this->model.linear_predictor.grid_predictor.X();
+  MatrixXd Xr = this->model.linear_predictor.region_predictor.X();
+  MatrixXd ZL = this->model.covariance.ZL();
+  xbg = xbg.array().exp().matrix();
+  xbr = xbr.array().exp().matrix();
+  xbr = (xbr.array() * this->model.data.offset.array()).matrix();
+  sparse A = this->model.linear_predictor.region.grid_to_region_matrix();
+  A.transpose();
+  sparse A_mug = sparse_times_diagonal_l(A,xbg);
+  sparse A_mug_t(A_mug);
+  A_mug_t.transpose();
+  VectorXd A_mug_vec = A * xbg;
+  ArrayXd ydiva = this->model.data.y.array() * A_mug_vec.array().inverse();
+  sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
+  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
+  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  VectorXd h(xbg.size());
+  h.setZero();
+  VectorXd htmp(h);
+  double doth = 0;
+  for(int i = 0; i < xbr.size(); i++){
+    htmp = sparse_row_hademard_col(A,xbg,i);
+    doth = sparse_row_dot_col(A,xbg,i);
+    h += htmp * (this->model.data.y(i)/doth - xbr(i));
+  }
+  sparse hdiag = make_sparse_diagonal(h);
+  A_mug_y *= A_mug;
+  //negate
+  for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
+  hdiag += A_mug_y;
+
+  MatrixXd Iden = MatrixXd::Identity(this->Q(), this->Q());
+  MatrixXd ZLWLZ = (ZL.transpose() * (hdiag * ZL));
+  ZLWLZ -= Iden;
+  VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
+  sparse mudiag = make_sparse_diagonal(mu);
+  sparse wrg = sparse_times_diagonal_l(A_mug_t,xbr);
+  wrg.transpose();
+
+  MatrixXd M(Xr.cols() + Xg.cols() + this->Q(), Xr.cols() + Xg.cols()+ this->Q());
+  wrg.transpose();
+
+  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * (mudiag * Xr);
+  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * (hdiag * Xg);
+  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * (wrg * Xg);
+  M.block(Xr.cols(),0,Xg.cols(),Xr.cols()).noalias() = M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).transpose();
+  M.block(Xr.cols()+Xg.cols(),Xr.cols()+Xg.cols(),this->Q(),this->Q()) = ZLWLZ;
+  M.block(0,Xr.cols()+Xg.cols(),Xr.cols(),this->Q()).noalias() = Xr.transpose() * (wrg * ZL);
+  M.block(Xr.cols()+Xg.cols(),0,this->Q(),Xr.cols()).noalias() = M.block(0,Xr.cols()+Xg.cols(),Xr.cols(),this->Q()).transpose();
+  M.block(Xr.cols(),Xr.cols()+Xg.cols(),Xg.cols(),this->Q()).noalias() = Xg.transpose() * (hdiag * ZL);
+  M.block(Xr.cols()+Xg.cols(),Xr.cols(),this->Q(),Xg.cols()).noalias() = M.block(Xr.cols(),Xr.cols()+Xg.cols(),Xg.cols(),this->Q()).transpose();
+
+  VectorXd pderiv(Xr.cols()+Xg.cols()+this->Q());
+  pderiv.head(Xr.cols()) = Xr.transpose() * (this->model.data.y - mu);
+  pderiv.segment(Xr.cols(), Xg.cols()) = Xg.transpose() * (A_mug_t * (ydiva - 1.0).matrix());
+  pderiv.tail(this->Q()) = ZL.transpose() * (A_mug_t * (ydiva - 1.0).matrix()) - this->re.u_.col(0);
+
+  Rcpp::Rcout << "\nM: " << M.block(0,0,10,10);
+  Rcpp::Rcout << "\nPderiv: " << pderiv.transpose();
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_laplace_theta(const dblvec &par)
+{  
+  throw std::runtime_error("NR beta-u region to be updated");
+  // this->model.covariance.update_parameters(par);
+  // this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  // double ll = this->log_likelihood(false);
+  // this->matrix.W.update();
+  // MatrixXd LZWZL = this->model.covariance.LZWZL(this->matrix.W.W());
+  // double LZWdet = glmmr::maths::logdet(LZWZL);
+  // ll += -0.5*LZWdet;
+  // return -1.0*ll;
+  return 0.0;
+}
+
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_laplace_rho(const dblvec &par)
+{  
+  throw std::runtime_error("NR beta-u region to be updated");
+  // this->model.covariance.update_parameters(par);
+  // this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  // double ll = this->log_likelihood(false);
+  // this->matrix.W.update();
+  // MatrixXd LZWZL = this->model.covariance.LZWZL(this->matrix.W.W());
+  // double LZWdet = glmmr::maths::logdet(LZWZL);
+  // ll += -0.5*LZWdet;
+  // return -1.0*ll;
+  return 0.0;
 }
 
 template<>

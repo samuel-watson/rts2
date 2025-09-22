@@ -502,15 +502,13 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
   VectorXd Xr = model.linear_predictor.X();
   xbr = xbr.array().exp().matrix();
   xbr = (xbr.array() * model.data.offset.array()).matrix();
-  sparse A = model.linear_predictor.region.grid_to_region_matrix();
-  A.transpose();
-  sparse A_t();
-  A_t.transpose();
+  sparse A = grid_to_region_multiplier_matrix(); // region x grid
+  sparse A_t(A);
+  A_t.transpose(); // grid x region
   ArrayXd ydiva = model.data.y.array();
   sparse A_mug_y = sparse_times_diagonal_l(A_t,ydiva.matrix());
-  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
-  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
-  VectorXd h(A_t.n);
+  sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
+  VectorXd h(A_t.n); // n grid cells
   h.setZero();
   VectorXd htmp(h);
   double doth = 0;
@@ -527,13 +525,14 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
   for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
   hdiag += A_mug_y;
   
-  //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D();
-  D.noalias() = D + sparse_to_dense(hdiag);
+  MatrixXd D = model.covariance.D(false,false);
+  Rcpp::Rcout << "\nD dim: " << D.rows() << " " << D.cols() << " hdiag dim: " << hdiag.n << " " << hdiag.m;
+  if(D.rows() != hdiag.n)throw std::runtime_error("D != hdiag"); 
+  D += sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   sparse mudiag = make_sparse_diagonal(xbr);
   sparse wrg = sparse_times_diagonal_l(A_t,xbr);
-  wrg.transpose();
+  wrg.transpose(); // region times grid
   
   MatrixXd WrgD = wrg * D;
   MatrixXd WgD = hdiag * D;
@@ -541,10 +540,11 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
   MatrixXd M(Xr.cols(), Xr.cols());
   MatrixXd Wr = sparse_to_dense(mudiag);
   MatrixXd Wg = sparse_to_dense(hdiag);
-  MatrixXd Wrg = sparse_to_dense(wrg);
+  if(WrgD.cols() != wrg.m)throw std::runtime_error("WrgD != wrg");
+  if(Wr.rows() != WrgD.rows())throw std::runtime_error("Wr != WrgD");
+  if(Xr.rows() != Wr.cols())throw std::runtime_error("Xr != Wr");
   wrg.transpose();
-  M.noalias() = Xr.transpose() * (Wr - WrgD*wrg) * Xr;
-  
+  M.noalias() = Xr.transpose() * (Wr - (WrgD*wrg)) * Xr;
   
   return M;
 }
@@ -557,16 +557,16 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   xbg = xbg.array().exp().matrix();
   xbr = xbr.array().exp().matrix();
   xbr = (xbr.array() * model.data.offset.array()).matrix();
-  sparse A = model.linear_predictor.region.grid_to_region_matrix();
-  A.transpose();
-  sparse A_mug = sparse_times_diagonal_l(A,xbg);
+  sparse A = grid_to_region_multiplier_matrix(); // region x grid
+  sparse A_t(A);
+  A_t.transpose();
+  sparse A_mug = sparse_times_diagonal_l(A,xbg); 
   sparse A_mug_t(A_mug);
-  A_mug_t.transpose();
+  A_mug_t.transpose(); // grid x region
   VectorXd A_mug_vec = A * xbg;
   ArrayXd ydiva = model.data.y.array() * A_mug_vec.array().inverse();
   sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
-  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
-  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
   VectorXd h(xbg.size());
   h.setZero();
   VectorXd htmp(h);
@@ -584,7 +584,7 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   hdiag += A_mug_y;
   
   //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D();
+  MatrixXd D = model.covariance.D(false,false);
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
@@ -616,16 +616,16 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   xbg = xbg.array().exp().matrix();
   xbr = xbr.array().exp().matrix();
   xbr = (xbr.array() * model.data.offset.array()).matrix();
-  sparse A = model.linear_predictor.region.grid_to_region_matrix();
-  A.transpose();
-  sparse A_mug = sparse_times_diagonal_l(A,xbg);
+  sparse A = grid_to_region_multiplier_matrix(); // region x grid
+  sparse A_t(A);
+  A_t.transpose();
+  sparse A_mug = sparse_times_diagonal_l(A,xbg); 
   sparse A_mug_t(A_mug);
-  A_mug_t.transpose();
+  A_mug_t.transpose(); // grid x region
   VectorXd A_mug_vec = A * xbg;
   ArrayXd ydiva = model.data.y.array() * A_mug_vec.array().inverse();
   sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
-  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
-  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
   VectorXd h(xbg.size());
   h.setZero();
   VectorXd htmp(h);
@@ -643,7 +643,7 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   hdiag += A_mug_y;
   
   //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D();
+  MatrixXd D = model.covariance.D(false,false);
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
@@ -675,16 +675,16 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   xbg = xbg.array().exp().matrix();
   xbr = xbr.array().exp().matrix();
   xbr = (xbr.array() * model.data.offset.array()).matrix();
-  sparse A = model.linear_predictor.region.grid_to_region_matrix();
-  A.transpose();
-  sparse A_mug = sparse_times_diagonal_l(A,xbg);
+  sparse A = grid_to_region_multiplier_matrix(); // region x grid
+  sparse A_t(A);
+  A_t.transpose();
+  sparse A_mug = sparse_times_diagonal_l(A,xbg); 
   sparse A_mug_t(A_mug);
-  A_mug_t.transpose();
+  A_mug_t.transpose(); // grid x region
   VectorXd A_mug_vec = A * xbg;
   ArrayXd ydiva = model.data.y.array() * A_mug_vec.array().inverse();
   sparse A_mug_y = sparse_times_diagonal_l(A_mug_t,ydiva.matrix());
-  sparse A_mug_rg = sparse_times_diagonal_l(A,xbr);
-  // MatrixXd Ag = sparse_to_dense(A_mug_y * A_mug);
+  sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
   VectorXd h(xbg.size());
   h.setZero();
   VectorXd htmp(h);
@@ -702,7 +702,7 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   hdiag += A_mug_y;
   
   //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D();
+  MatrixXd D = model.covariance.D(false,false);
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();

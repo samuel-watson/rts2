@@ -7,7 +7,10 @@ namespace rts{
 using namespace Eigen;
 
 inline sparse sparse_times_diagonal_l(const sparse& A, const VectorXd& diag){
-  if(A.m != diag.size()) throw std::runtime_error("Sparse matrix A not equal to diagonal size");
+  if(A.m != diag.size()){
+    Rcpp::Rcout << "\nA dim (n x m): " << A.n << " " << A.m << " | diag : " << diag.size();
+    throw std::runtime_error("Sparse matrix A not equal to diagonal size");
+  } 
   sparse AD(A);
   int nelem = AD.Ai.size();
   for(int i = 0; i < nelem; i++){
@@ -26,7 +29,7 @@ inline double sparse_row_dot_col(const sparse& A, const VectorXd& vec, const int
 }
 
 inline VectorXd sparse_row_hademard_col(const sparse& A, const VectorXd& vec, const int i){
-  if(A.m != vec.size()) throw std::runtime_error("Sparse matrix A not equal to vector size");
+  if(A.m != vec.size()) throw std::runtime_error("Sparse matrix A not equal to vector size (hademard)");
   VectorXd result(A.m);
   result.setZero();
   for(int j = A.Ap[i]; j < A.Ap[i+1]; j++){
@@ -36,7 +39,7 @@ inline VectorXd sparse_row_hademard_col(const sparse& A, const VectorXd& vec, co
 }
 
 inline sparse make_sparse_diagonal(const VectorXd& vec){
-  sparse mat(vec.size(), vec.size());
+  sparse mat(vec.size(), vec.size(), true);
   for(int i = 0; i < vec.size(); i++) mat.insert(i,i,vec(i));
   return mat;
 }

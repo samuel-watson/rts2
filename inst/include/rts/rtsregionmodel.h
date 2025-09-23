@@ -525,7 +525,14 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
   for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
   hdiag += A_mug_y;
   
-  MatrixXd D = model.covariance.D(false,false);
+  MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
+  if(model.covariance.grid.T > 1){
+    MatrixXd ar = model.covariance.ar_matrix();
+    MatrixXd Dtmp = model.covariance.D(false,false);
+    D = kronecker(ar,Dtmp);
+  } else {
+    D = model.covariance.D(false,false);
+  }
   Rcpp::Rcout << "\nD dim: " << D.rows() << " " << D.cols() << " hdiag dim: " << hdiag.n << " " << hdiag.m;
   if(D.rows() != hdiag.n)throw std::runtime_error("D != hdiag"); 
   D += sparse_to_dense(hdiag);
@@ -535,17 +542,14 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
   wrg.transpose(); // region times grid
   
   MatrixXd WrgD = wrg * D;
-  MatrixXd WgD = hdiag * D;
+  MatrixXd WrgDgr = wrg * (WrgD.transpose());
   
-  MatrixXd M(Xr.cols(), Xr.cols());
   MatrixXd Wr = sparse_to_dense(mudiag);
-  MatrixXd Wg = sparse_to_dense(hdiag);
   if(WrgD.cols() != wrg.m)throw std::runtime_error("WrgD != wrg");
   if(Wr.rows() != WrgD.rows())throw std::runtime_error("Wr != WrgD");
   if(Xr.rows() != Wr.cols())throw std::runtime_error("Xr != Wr");
-  wrg.transpose();
-  M.noalias() = Xr.transpose() * (Wr - (WrgD*wrg)) * Xr;
-  
+  MatrixXd meat = Wr - WrgDgr;
+  MatrixXd M = Xr.transpose() * meat * Xr;
   return M;
 }
 
@@ -583,8 +587,14 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
   hdiag += A_mug_y;
   
-  //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D(false,false);
+  MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
+  if(model.covariance.grid.T > 1){
+    MatrixXd ar = model.covariance.ar_matrix();
+    MatrixXd Dtmp = model.covariance.D(false,false);
+    D = kronecker(ar,Dtmp);
+  } else {
+    D = model.covariance.D(false,false);
+  }
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
@@ -593,16 +603,22 @@ inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){
   wrg.transpose();
   
   MatrixXd WrgD = wrg * D;
+  MatrixXd WrgDgr = wrg * (WrgD.transpose());
   MatrixXd WgD = hdiag * D;
+  MatrixXd WgDg = hdiag * WgD.transpose();
+  MatrixXd WrgDg = hdiag * WrgD.transpose();
   
   MatrixXd M(Xr.cols() + Xg.cols(), Xr.cols() + Xg.cols());
   MatrixXd Wr = sparse_to_dense(mudiag);
   MatrixXd Wg = sparse_to_dense(hdiag);
   MatrixXd Wrg = sparse_to_dense(wrg);
-  wrg.transpose();
-  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * (Wr - WrgD*wrg) * Xr;
-  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * (Wg - WgD*hdiag) * Xg;
-  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * (Wrg - WrgD*hdiag) * Xg;
+  MatrixXd meat1 = Wr - WrgDgr;
+  MatrixXd meat2 = Wg - WgDg;
+  MatrixXd meat3 = Wrg - WrgDg.transpose();
+  
+  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * meat1 * Xr;
+  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * meat2* Xg;
+  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * meat3 * Xg;
   M.block(Xr.cols(),0,Xg.cols(),Xr.cols()).noalias() = M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).transpose();
   
   return M;
@@ -643,7 +659,14 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   hdiag += A_mug_y;
   
   //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D(false,false);
+  MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
+  if(model.covariance.grid.T > 1){
+    MatrixXd ar = model.covariance.ar_matrix();
+    MatrixXd Dtmp = model.covariance.D(false,false);
+    D = kronecker(ar,Dtmp);
+  } else {
+    D = model.covariance.D(false,false);
+  }
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
@@ -652,16 +675,22 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGPRegion>::intersection_infomat(){
   wrg.transpose();
   
   MatrixXd WrgD = wrg * D;
+  MatrixXd WrgDgr = wrg * (WrgD.transpose());
   MatrixXd WgD = hdiag * D;
+  MatrixXd WgDg = hdiag * WgD.transpose();
+  MatrixXd WrgDg = hdiag * WrgD.transpose();
   
   MatrixXd M(Xr.cols() + Xg.cols(), Xr.cols() + Xg.cols());
   MatrixXd Wr = sparse_to_dense(mudiag);
   MatrixXd Wg = sparse_to_dense(hdiag);
   MatrixXd Wrg = sparse_to_dense(wrg);
-  wrg.transpose();
-  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * (Wr - WrgD*wrg) * Xr;
-  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * (Wg - WgD*hdiag) * Xg;
-  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * (Wrg - WrgD*hdiag) * Xg;
+  MatrixXd meat1 = Wr - WrgDgr;
+  MatrixXd meat2 = Wg - WgDg;
+  MatrixXd meat3 = Wrg - WrgDg.transpose();
+  
+  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * meat1 * Xr;
+  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * meat2* Xg;
+  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * meat3 * Xg;
   M.block(Xr.cols(),0,Xg.cols(),Xr.cols()).noalias() = M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).transpose();
   
   return M;
@@ -701,8 +730,14 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
   hdiag += A_mug_y;
   
-  //MatrixXd Wg = h.asDiagonal() - sparse_to_dense(A_mug_y * A_mug);
-  MatrixXd D = model.covariance.D(false,false);
+  MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
+  if(model.covariance.grid.T > 1){
+    MatrixXd ar = model.covariance.ar_matrix();
+    MatrixXd Dtmp = model.covariance.D(false,false);
+    D = kronecker(ar,Dtmp);
+  } else {
+    D = model.covariance.D(false,false);
+  }
   D.noalias() = D + sparse_to_dense(hdiag);
   D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
   VectorXd mu = (xbr.array() * A_mug_vec.array()).matrix();
@@ -711,16 +746,22 @@ inline MatrixXd rts::rtsRegionModel<BitsHSGPRegion>::intersection_infomat(){
   wrg.transpose();
   
   MatrixXd WrgD = wrg * D;
+  MatrixXd WrgDgr = wrg * (WrgD.transpose());
   MatrixXd WgD = hdiag * D;
+  MatrixXd WgDg = hdiag * WgD.transpose();
+  MatrixXd WrgDg = hdiag * WrgD.transpose();
   
   MatrixXd M(Xr.cols() + Xg.cols(), Xr.cols() + Xg.cols());
   MatrixXd Wr = sparse_to_dense(mudiag);
   MatrixXd Wg = sparse_to_dense(hdiag);
   MatrixXd Wrg = sparse_to_dense(wrg);
-  wrg.transpose();
-  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * (Wr - WrgD*wrg) * Xr;
-  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * (Wg - WgD*hdiag) * Xg;
-  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * (Wrg - WrgD*hdiag) * Xg;
+  MatrixXd meat1 = Wr - WrgDgr;
+  MatrixXd meat2 = Wg - WgDg;
+  MatrixXd meat3 = Wrg - WrgDg.transpose();
+  
+  M.block(0,0,Xr.cols(),Xr.cols()).noalias() = Xr.transpose() * meat1 * Xr;
+  M.block(Xr.cols(),Xr.cols(),Xg.cols(),Xg.cols()).noalias() = Xg.transpose() * meat2* Xg;
+  M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).noalias() = Xr.transpose() * meat3 * Xg;
   M.block(Xr.cols(),0,Xg.cols(),Xr.cols()).noalias() = M.block(0,Xr.cols(),Xr.cols(),Xg.cols()).transpose();
   
   return M;

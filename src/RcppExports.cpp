@@ -360,6 +360,19 @@ BEGIN_RCPP
     return R_NilValue;
 END_RCPP
 }
+// rtsModel__ml_beta_theta
+void rtsModel__ml_beta_theta(SEXP xp, int algo, int covtype_, int lptype_);
+RcppExport SEXP _rts2_rtsModel__ml_beta_theta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
+    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
+    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
+    rtsModel__ml_beta_theta(xp, algo, covtype_, lptype_);
+    return R_NilValue;
+END_RCPP
+}
 // rtsModel__ml_rho
 void rtsModel__ml_rho(SEXP xp, int algo, int covtype_, int lptype_);
 RcppExport SEXP _rts2_rtsModel__ml_rho(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
@@ -1142,6 +1155,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_rtsModel__P", (DL_FUNC) &_rts2_rtsModel__P, 3},
     {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 4},
     {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 4},
+    {"_rts2_rtsModel__ml_beta_theta", (DL_FUNC) &_rts2_rtsModel__ml_beta_theta, 4},
     {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 4},
     {"_rts2_rtsModel__nr_beta", (DL_FUNC) &_rts2_rtsModel__nr_beta, 3},
     {"_rts2_rtsModel__laplace_nr_beta_u", (DL_FUNC) &_rts2_rtsModel__laplace_nr_beta_u, 3},

@@ -109,6 +109,10 @@ rtsModel__ml_beta <- function(xp, algo, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_beta`, xp, algo, covtype_, lptype_))
 }
 
+rtsModel__ml_beta_theta <- function(xp, algo, covtype_, lptype_) {
+    invisible(.Call(`_rts2_rtsModel__ml_beta_theta`, xp, algo, covtype_, lptype_))
+}
+
 rtsModel__ml_rho <- function(xp, algo, covtype_, lptype_) {
     invisible(.Call(`_rts2_rtsModel__ml_rho`, xp, algo, covtype_, lptype_))
 }

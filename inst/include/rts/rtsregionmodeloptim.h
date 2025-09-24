@@ -38,6 +38,8 @@ public:
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_rho();
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
+  void        ml_beta_theta();
+  template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_laplace_theta();
   template<class algo, typename = std::enable_if_t<std::is_base_of<optim_algo, algo>::value> >
   void        ml_laplace_rho();
@@ -47,6 +49,7 @@ public:
   double      log_likelihood_rho(const dblvec &rho);
   double      log_likelihood_rho_with_gradient(const VectorXd &rho, VectorXd& g);
   double      log_likelihood_beta(const dblvec &beta);
+  double      log_likelihood_beta_theta(const dblvec &pars);
   double      log_likelihood(bool beta) override;
   double      full_log_likelihood() override;
   double      log_likelihood_laplace_theta(const dblvec &par);
@@ -168,6 +171,59 @@ inline void rts::rtsRegionModelOptim<modeltype>::ml_theta(){
     this->current_ll_values.second = this->ll_current.col(1).tail(eval_size).mean();
     rts_current_ll_var.second = (this->ll_current.col(1).tail(eval_size) - this->ll_current.col(1).tail(eval_size).mean()).square().sum() / (eval_size - 1);
   }  
+}
+
+template<typename modeltype>
+template<class algo, typename>
+inline void rts::rtsRegionModelOptim<modeltype>::ml_beta_theta(){  
+  dblvec start = this->get_start_values(true,true,false);  
+  dblvec lower = this->get_lower_values(true,true,false);
+  dblvec upper = this->get_upper_values(true,true,false);
+  if(this->model.covariance.grid.T > 1){
+    start.push_back(this->model.covariance.rho);
+    lower.push_back(-1.0);
+    upper.push_back(1.0);
+  }
+  
+  this->previous_ll_values.first = this->current_ll_values.first;
+  rts_previous_ll_var.first = rts_current_ll_var.first;
+  this->previous_ll_values.second = this->current_ll_values.second;
+  rts_previous_ll_var.second = rts_current_ll_var.second;
+  
+  if constexpr (std::is_same_v<algo,LBFGS>){
+    throw std::runtime_error("Dual optimisation not available with LBFGS");
+  } else {
+    optim<double(const std::vector<double>&),algo> op(start);
+    if constexpr (std::is_same_v<algo,DIRECT>) {      
+      dblvec upper2(lower.size());
+      std::fill(upper2.begin(),upper2.end(),1.0);
+      op.set_bounds(lower,upper2,false);
+      this->set_direct_control(op);
+    } else if constexpr (std::is_same_v<algo,BOBYQA>) {
+      this->set_bobyqa_control(op);
+      op.set_bounds(lower,upper);
+    } else if constexpr (std::is_same_v<algo,NEWUOA>) {
+      this->set_newuoa_control(op);
+      op.set_bounds(lower,upper);
+    }
+    
+    if constexpr (std::is_same_v<modeltype,BitsHSGP>) {
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_beta_theta, rts::rtsRegionModelOptim<BitsHSGP> >(this);
+    } else if constexpr (std::is_same_v<modeltype,BitsHSGPRegion>){
+      op.template fn<&rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_beta_theta, rts::rtsRegionModelOptim<BitsHSGPRegion> >(this);
+    } else {
+      throw std::runtime_error("Dual optimisation only available with HSGP currently");
+    }
+    
+    op.minimise();
+  }
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  
+  int eval_size = this->control.saem ? this->re.mcmc_block_size : this->ll_current.rows();
+  this->current_ll_values.second = this->ll_current.col(0).tail(eval_size).mean();
+  this->current_ll_values.first = this->current_ll_values.second;
+  rts_current_ll_var.second = (this->ll_current.col(0).tail(eval_size) - this->ll_current.col(0).tail(eval_size).mean()).square().sum() / (eval_size - 1);
+  rts_current_ll_var.first = rts_current_ll_var.second;
 }
 
 template<typename modeltype>
@@ -340,11 +396,30 @@ inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_theta(const db
   return -1*ll;
 }
 
+template<typename modeltype>
+inline double rts::rtsRegionModelOptim<modeltype>::log_likelihood_beta_theta(const dblvec& pars)
+{
+  throw std::runtime_error("Only available with HSGP currently");
+  return 0.0;
+}
+
 template<>
-inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dblvec& theta){
+inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_beta_theta(const dblvec& pars){
+  dblvec beta(pars.begin(), pars.begin() + this->model.linear_predictor.P());
+  dblvec theta(pars.begin() + this->model.linear_predictor.P(), pars.begin() + this->model.linear_predictor.P() + this->model.covariance.npar());
+  
+  glmmr::print_vec_1d<dblvec>(beta);
+  glmmr::print_vec_1d<dblvec>(theta);
+  
+  this->model.linear_predictor.update_parameters(beta);
   this->model.covariance.update_parameters(theta);
+  
+  if(this->model.covariance.grid.T > 1){
+    this->model.covariance.update_rho(pars[pars.size()-1]);
+  }
+  
   this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
-  double ll = this->log_likelihood(false);
+  double ll = this->log_likelihood(true);
   this->fn_counter.first += this->re.scaled_u_.cols();
   if(this->control.saem)
   {
@@ -376,6 +451,61 @@ inline double rts::rtsRegionModelOptim<BitsHSGP>::log_likelihood_theta(const dbl
       ll = ll_t;
     }
   } 
+  
+  this->ll_current.col(1) = this->ll_current.col(0);
+  
+  return -1*ll;
+}
+
+
+template<>
+inline double rts::rtsRegionModelOptim<BitsHSGPRegion>::log_likelihood_beta_theta(const dblvec& pars){
+  dblvec beta(pars.begin(), pars.begin() + this->model.linear_predictor.P());
+  dblvec theta(pars.begin() + this->model.linear_predictor.P(), pars.begin() + this->model.linear_predictor.P() + this->model.covariance.npar());
+   
+  this->model.linear_predictor.update_parameters(beta);
+  this->model.covariance.update_parameters(theta);
+  
+  if(this->model.covariance.grid.T> 1){
+    this->model.covariance.update_rho(pars[pars.size()-1]);
+  }
+  
+  this->re.zu_ = this->model.covariance.ZLu(this->re.u_);
+  double ll = this->log_likelihood(true);
+  this->fn_counter.first += this->re.scaled_u_.cols();
+  if(this->control.saem)
+  {
+    int     iteration = std::max((int)this->re.zu_.cols() / this->re.mcmc_block_size, 1);
+    double  gamma = pow(1.0/iteration,this->control.alpha);
+    double  ll_t = 0;
+    double  ll_pr = 0;
+    for(int i = 0; i < iteration; i++){
+      int lower_range = i * this->re.mcmc_block_size;
+      int upper_range = (i + 1) * this->re.mcmc_block_size;
+      if(i == (iteration - 1) && iteration > 1){
+        double ll_t_c = ll_t;
+        double ll_pr_c = ll_pr;
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        if(this->control.pr_average) ll_pr += ll_t;
+        for(int j = lower_range; j < upper_range; j++)
+        {
+          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
+        }
+      } else {
+        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        if(this->control.pr_average) ll_pr += ll_t;
+      }
+    }
+    if(this->control.pr_average){
+      ll = ll_pr / (double)iteration;
+    } else {
+      ll = ll_t;
+    }
+  } 
+  
+  this->ll_current.col(1) = this->ll_current.col(0);
+  
   return -1*ll;
 }
 

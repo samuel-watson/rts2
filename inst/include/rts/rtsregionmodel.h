@@ -498,59 +498,73 @@ inline MatrixXd rts::rtsRegionModel<BitsNNGP>::intersection_infomat(){
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsHSGP>::intersection_infomat(){
-  VectorXd xbr = model.linear_predictor.xb();
-  VectorXd Xr = model.linear_predictor.X();
-  xbr = xbr.array().exp().matrix();
-  xbr = (xbr.array() * model.data.offset.array()).matrix();
-  sparse A = grid_to_region_multiplier_matrix(); // region x grid
-  sparse A_t(A);
-  A_t.transpose(); // grid x region
-  ArrayXd ydiva = model.data.y.array();
-  sparse A_mug_y = sparse_times_diagonal_l(A_t,ydiva.matrix());
-  sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
-  VectorXd h(A_t.n); // n grid cells
-  h.setZero();
-  VectorXd htmp(h);
-  double doth = 0;
-  VectorXd ones(A.m);
-  ones.setConstant(1.0);
-  for(int i = 0; i < xbr.size(); i++){
-    htmp = sparse_row_hademard_col(A,ones,i);
-    h += htmp * (model.data.y(i) - xbr(i));
+  MatrixXd X = model.linear_predictor.X();
+  VectorXd xb = model.linear_predictor.xb();
+  xb += model.data.offset;
+  xb = xb.array().exp().inverse().matrix();
+  rts::ar1Covariance newcov(model.covariance.form_.formula_, model.covariance.grid.X, model.covariance.colnames_, 1);
+  newcov.update_parameters(model.covariance.parameters_);
+  MatrixXd D = newcov.D(false,false);
+  MatrixXd AR = model.covariance.ar_matrix();
+  MatrixXd ARD = rts::kronecker(AR,D); // on grid
+  MatrixXd Sigma = region.grid_to_region(ARD,false);//sparse_matrix_mult(C,ARD,false);
+  MatrixXd Sigma2 = region.grid_to_region(Sigma.transpose(),false);
+  Sigma2 += xb.asDiagonal();
+  Sigma2 = Sigma2.llt().solve(MatrixXd::Identity(Sigma2.rows(),Sigma2.cols()));
+  if(X.rows() != Sigma2.cols()){
+    Rcpp::Rcout << "\nX dim: " << X.rows() << " " << X.cols() << " Sigma2 dim " << Sigma2.rows() << " " << Sigma2.cols();
+    throw std::runtime_error("X rows != Sigma cols ");
   }
-  // try it with the existing covariance matrix
-  sparse hdiag = make_sparse_diagonal(h);
-  A_mug_y *= A;
-  //negate
-  for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
-  hdiag += A_mug_y;
-  
-  MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
-  if(model.covariance.grid.T > 1){
-    MatrixXd ar = model.covariance.ar_matrix();
-    MatrixXd Dtmp = model.covariance.D(false,false);
-    D = kronecker(ar,Dtmp);
-  } else {
-    D = model.covariance.D(false,false);
-  }
-  Rcpp::Rcout << "\nD dim: " << D.rows() << " " << D.cols() << " hdiag dim: " << hdiag.n << " " << hdiag.m;
-  if(D.rows() != hdiag.n)throw std::runtime_error("D != hdiag"); 
-  D += sparse_to_dense(hdiag);
-  D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
-  sparse mudiag = make_sparse_diagonal(xbr);
-  sparse wrg = sparse_times_diagonal_l(A_t,xbr);
-  wrg.transpose(); // region times grid
-  
-  MatrixXd WrgD = wrg * D;
-  MatrixXd WrgDgr = wrg * (WrgD.transpose());
-  
-  MatrixXd Wr = sparse_to_dense(mudiag);
-  if(WrgD.cols() != wrg.m)throw std::runtime_error("WrgD != wrg");
-  if(Wr.rows() != WrgD.rows())throw std::runtime_error("Wr != WrgD");
-  if(Xr.rows() != Wr.cols())throw std::runtime_error("Xr != Wr");
-  MatrixXd meat = Wr - WrgDgr;
-  MatrixXd M = Xr.transpose() * meat * Xr;
+  MatrixXd M = X.transpose() * Sigma2 * X;
   return M;
+  
+  // VectorXd xbr = model.linear_predictor.xb();
+  // VectorXd Xr = model.linear_predictor.X();
+  // xbr = xbr.array().exp().matrix();
+  // xbr = (xbr.array() * model.data.offset.array()).matrix();
+  // sparse A = grid_to_region_multiplier_matrix(); // region x grid
+  // sparse A_t(A);
+  // A_t.transpose(); // grid x region
+  // ArrayXd ydiva = model.data.y.array();
+  // sparse A_mug_y = sparse_times_diagonal_l(A_t,ydiva.matrix());
+  // sparse A_mug_rg = sparse_times_diagonal_l(A_t,xbr);
+  // VectorXd h(A_t.n); // n grid cells
+  // h.setZero();
+  // VectorXd htmp(h);
+  // double doth = 0;
+  // VectorXd ones(A.m);
+  // ones.setConstant(1.0);
+  // for(int i = 0; i < xbr.size(); i++){
+  //   htmp = sparse_row_hademard_col(A,ones,i);
+  //   h += htmp * (model.data.y(i) - xbr(i));
+  // }
+  // // try it with the existing covariance matrix
+  // sparse hdiag = make_sparse_diagonal(h);
+  // A_mug_y *= A;
+  // //negate
+  // for(int i = 0; i < A_mug_y.Ax.size(); i++)A_mug_y.Ax[i] *= -1.0;
+  // hdiag += A_mug_y;
+  // 
+  // MatrixXd D(model.covariance.grid.N*model.covariance.grid.T, model.covariance.grid.N*model.covariance.grid.T);
+  // if(model.covariance.grid.T > 1){
+  //   MatrixXd ar = model.covariance.ar_matrix();
+  //   MatrixXd Dtmp = model.covariance.D(false,false);
+  //   D = kronecker(ar,Dtmp);
+  // } else {
+  //   D = model.covariance.D(false,false);
+  // }
+  // D += sparse_to_dense(hdiag);
+  // D = D.llt().solve(MatrixXd::Identity(D.rows(), D.cols()));
+  // sparse mudiag = make_sparse_diagonal(xbr);
+  // A_mug_rg.transpose(); // region times grid
+  // 
+  // MatrixXd WrgD = A_mug_rg * D;
+  // MatrixXd WrgDgr = A_mug_rg * (WrgD.transpose());
+  // 
+  // MatrixXd Wr = sparse_to_dense(mudiag);
+  // MatrixXd meat = Wr - WrgDgr;
+  // MatrixXd M = Xr.transpose() * meat * Xr;
+  // return M;
 }
 
 inline MatrixXd rts::rtsRegionModel<BitsARRegion>::intersection_infomat(){

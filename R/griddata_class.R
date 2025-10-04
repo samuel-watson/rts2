@@ -285,7 +285,7 @@ grid <- R6::R6Class("grid",
                              } else {
                                stop("Not yet implemented for region data models")
                              }
-                           }
+                           },
                            #' @description
                            #' Adds covariate data to the grid
                            #'

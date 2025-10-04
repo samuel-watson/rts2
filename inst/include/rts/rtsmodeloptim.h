@@ -536,15 +536,15 @@ inline double rts::rtsModelOptim<BitsHSGP>::log_likelihood_beta_theta(const dblv
       if(i == (iteration - 1) && iteration > 1){
         double ll_t_c = ll_t;
         double ll_pr_c = ll_pr;
-        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
         for(int j = lower_range; j < upper_range; j++)
         {
-          this->ll_current(j,1) = ll_t_c + gamma*(this->ll_current(j,1) - ll_t_c);
-          if(this->control.pr_average) this->ll_current(j,1) = (this->ll_current(j,1) + ll_pr_c)/((double)iteration);
+          this->ll_current(j,0) = ll_t_c + gamma*(this->ll_current(j,0) - ll_t_c);
+          if(this->control.pr_average) this->ll_current(j,0) = (this->ll_current(j,0) + ll_pr_c)/((double)iteration);
         }
       } else {
-        ll_t = ll_t + gamma*(this->ll_current.col(1).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
+        ll_t = ll_t + gamma*(this->ll_current.col(0).segment(lower_range, this->re.mcmc_block_size).mean() - ll_t);
         if(this->control.pr_average) ll_pr += ll_t;
       }
     }

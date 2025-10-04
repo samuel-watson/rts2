@@ -1006,8 +1006,9 @@ grid <- R6::R6Class("grid",
                              # run one iteration of fitting beta without re (i.e. glm) to get reasonable starting values
                              # otherwise the algorithm can struggle to converge
                              
-                             rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
+                             
                              if(trace >= 1)cat("\nIter: 0\n")
+                             rtsModel__ml_beta(private$ptr,0,private$cov_type,private$lp_type)
                              rtsModel__update_u(private$ptr,matrix(0,nrow = ifelse(approx%in%c("hsgp","hsgpdual"), m * m, datlist$Nsample),ncol=1),
                                                 FALSE,private$cov_type,private$lp_type)
                              rtsModel__saem(private$ptr, algo %in% 4:5, n_mcmc_sampling, alpha, algo==5, private$cov_type, private$lp_type)
@@ -1206,7 +1207,7 @@ grid <- R6::R6Class("grid",
                                  llvar <- rtsModel__ll_diff_variance(private$ptr, TRUE, conv_criterion==1, private$cov_type,private$lp_type)
                                  if(adaptive) n_mcmc_sampling <- max(n_mcmc_sampling, min(iter_sampling, ceiling(llvar * 6.182557)/uval^2)) # (qnorm(0.95) + qnorm(0.8))^2
                                  if(conv_criterion %in% c(1,2)){
-                                   nmult <- ifelse(algo %in% 4:6, iter^alpha)
+                                   nmult <- ifelse(algo %in% 4:6, iter^alpha, 1)
                                    conv.criterion.value <- uval + qnorm(0.95)*sqrt(llvar/(n_mcmc_sampling*nmult))
                                    converged <- conv.criterion.value < 0
                                  } 
@@ -1318,6 +1319,7 @@ grid <- R6::R6Class("grid",
                              t_end <- Sys.time()
                              t_diff <- t_end - t_start
                              if(trace == 2)cat("Total time: ", t_diff[[1]], " ", attr(t_diff,"units"))
+                             if(algo %in% 4:6) u <- u[,(ncol(u) - 2*iter_sampling + 1):ncol(u)]
                              out <- list(coefficients = res,
                                          converged = converged,
                                          approx = approx,
@@ -1328,7 +1330,7 @@ grid <- R6::R6Class("grid",
                                          se="gls",
                                          Rsq = c(cond = condR2,marg=margR2),
                                          logl = rtsModel__log_likelihood(private$ptr,private$cov_type,private$lp_type),
-                                         re.samps = u[,(ncol(u) - 2*iter_sampling + 1):ncol(u)],
+                                         re.samps = u,
                                          iter = iter,
                                          time = t_diff,
                                          region = !is.null(self$region_data),
@@ -2177,7 +2179,6 @@ grid <- R6::R6Class("grid",
                                                                        m,
                                                                        data$L)
                           }
-
                           rtsModel__set_offset(private$ptr,log(data$popdens),private$cov_type,private$lp_type)
                           rtsModel__set_y(private$ptr,data$y,private$cov_type,private$lp_type)
                           rtsModel__update_theta(private$ptr,theta,private$cov_type,private$lp_type)

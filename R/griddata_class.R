@@ -270,7 +270,22 @@ grid <- R6::R6Class("grid",
                                self$grid_data$y <-  lengths(sf::st_intersects(self$grid_data,point_data))
                              }
                              if(verbose)message("added points data to grid data")
+                             return(invisible(self))
                            },
+                           #' @description 
+                           #' Returns a data frame with the grid data and coordinates
+                           #' 
+                           #' Returns a standard data frame with the grid data and coordinates, which may be useful to 
+                           #' run models in another package.
+                           model_data_frame = function(){
+                             if(is.null(self$region_data)){
+                               df <- as.data.frame(self$grid_data)[,2:ncol(self$grid_data)]
+                               df <- cbind(df, st_coordinates(st_centroid(self$grid_data)))
+                               return(df)
+                             } else {
+                               stop("Not yet implemented for region data models")
+                             }
+                           }
                            #' @description
                            #' Adds covariate data to the grid
                            #'
@@ -429,6 +444,7 @@ grid <- R6::R6Class("grid",
                                stop("Cov_data type not supported")
                              }
                              if(verbose)message(paste0("\n added covariates ",zcols))
+                             return(invisible(self))
                            },
                            #' @description
                            #' Generate day of week data
@@ -504,6 +520,7 @@ grid <- R6::R6Class("grid",
                                  }
                                }
                              }
+                             return(invisible(self))
                            },
                            #' @description
                            #' Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods

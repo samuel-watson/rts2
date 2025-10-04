@@ -357,6 +357,31 @@ void rtsModel__ml_beta(SEXP xp, int algo, int covtype_, int lptype_){
 }
 
 // [[Rcpp::export]]
+void rtsModel__ml_beta_theta(SEXP xp, int algo, int covtype_, int lptype_){
+  TypeSelector model(xp,covtype_,lptype_);
+  auto functor = overloaded {
+    [](int) {}, 
+    [&algo](auto ptr){
+      switch(algo){
+      case 1:
+        ptr->optim.template ml_beta_theta<NEWUOA>();
+        break;
+      case 2:
+        ptr->optim.template ml_beta_theta<LBFGS>();
+        break;
+      case 3:
+        ptr->optim.template ml_beta_theta<DIRECT>();
+        break;
+      default:
+        ptr->optim.template ml_beta_theta<BOBYQA>();
+      break;
+      }
+    }
+  };
+  std::visit(functor,model.ptr);
+}
+
+// [[Rcpp::export]]
 void rtsModel__ml_rho(SEXP xp, int algo, int covtype_, int lptype_){
   TypeSelector model(xp,covtype_,lptype_);
   auto functor = overloaded {

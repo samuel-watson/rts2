@@ -33,7 +33,8 @@ Imports:
     rstantools (>= 2.1.1),
     lubridate (>= 1.9.0),
     stars (>= 0.6-1),
-    raster (>= 3.6-1)
+    raster (>= 3.6-1),
+    spdep
 Suggests:
     cmdstanr (>= 0.4.0),
     testthat

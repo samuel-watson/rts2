@@ -299,7 +299,8 @@ grid <- R6::R6Class("grid",
                            #' `cov_data` is an object describing covariate over the area of interest. 
                            #' sf, RasterLayer and SpatRaster objects are supported, with rasters converted internally to sf.
                            #' The mapping can use a spatially-smoothed method (pynchophylatic) or a variance or entropy minimising 
-                           #' method. `lambda_smooth` controls the degree of spatial smoothing - if set to zero then no spatial smoothing 
+                           #' method or a simple "flat" mapping using only the weighted average of intersections between the grid and 
+                           #' covariate polygons. For non-"flat" mapping,  `lambda_smooth` controls the degree of spatial smoothing - if set to zero then no spatial smoothing 
                            #' is used. The argument `lambda_e` adds a small amount to reduce numerical instability. One can also map strictly positive covariates (e.g. population density)
                            #' by setting the `is_positive` argument to true. In this case, `lambda_e` is used to add an entropy minimising criterion (instead of, or in addition to)
                            #' spatial smoothing crtierion. If population density information, then this can be accounted for in the smoothing by setting 
@@ -338,11 +339,10 @@ grid <- R6::R6Class("grid",
                            #' @param verbose logical. Whether to provide a progress bar
                            #' @param t_label integer. If adding spatio-temporally varying data by time period,
                            #' this time label should be appended to the column name. See details.
-                           #' @param flat Logical indicating if the disaggregation should be flat (i.e. variance minimising) if there is no
-                           #' information about within area spatial distribution.
+                           #' @param flat Logical indicating if the disaggregation should be flat and just a weighted average over intersections. Cannot be strictly positive.
                            #' @param lambda_smooth weight on spatial smoothness, used if `flat` is FALSE
                            #' @param lambda_e small ridge for numerical stability (needed because L is singular), or for 
-                           #' strictly positive covariates, the weight on entropy in the minimisation. Used if `flat` is FALSE
+                           #' strictly positive covariates, the weight on entropy in the minimisation. 
                            #' @param is_positive Logical. Should the disaggregation be strictly positive.
                            #' @return NULL
                            #' @examples
@@ -351,8 +351,7 @@ grid <- R6::R6Class("grid",
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
                            #' g1$add_covariates(cov1$grid_data,
-                           #'                   zcols="cov",
-                           #'                   verbose = FALSE)
+                           #'                   zcols="cov")
                            #' 
                            #' \donttest{
                            #' # mapping population data from some other polygons
@@ -363,17 +362,15 @@ grid <- R6::R6Class("grid",
                            #' suppressWarnings(sf::st_crs(msoa) <- sf::st_crs(g2$grid_data)) # ensure crs matches
                            #' g2$add_covariates(msoa,
                            #'                   zcols="pop",
-                           #'                   weight_type="area",
-                           #'                   verbose=FALSE)
+                           #'                   weight_type="area")
                            #'                   
                            #' # add a case count                  
                            #' g2$add_covariates(msoa,
                            #'                   zcols=c("t1"),
                            #'                   weight_type="area",
-                           #'                   verbose=FALSE,
                            #'                   is_positive = TRUE,
                            #'                   lambda_smooth = 0,
-                           #'                   lambda_ridge = 1)
+                           #'                   lambda_e = 1e-6)
                            #'
                            #' g2$grid_data$t1 <- round(g2$grid_data$t1,0)
                            #' g2$plot("pop")
@@ -387,7 +384,8 @@ grid <- R6::R6Class("grid",
                                                      lambda_smooth = 1,
                                                      lambda_e = 1e-6,
                                                      is_positive = FALSE){
-
+                              
+                             if(flat & is_positive)message("is_positive is ignored as flat=TRUE")
                              if(!weight_type%in%c("area","pop"))stop("Type must be area or pop.")
                              if((weight_type=="pop"&is.null(popdens)))stop("Pop. dens. variable not found.")
                              if(weight_type=="pop"&!is.null(popdens)){
@@ -421,9 +419,6 @@ grid <- R6::R6Class("grid",
                              }
                              
                              if(is(cov_data,"sf")){
-                               if(is.null(private$grid_adj_matrix)){
-                                 private$grid_adj_matrix <- spdep::nb2mat(spdep::poly2nb(self$grid_data), style = "B")
-                               }
                                sf::st_agr(cov_data) = "constant"
                                sf::st_agr(self$grid_data) = "constant"
                                self$grid_data$grid_id <- 1:nrow(self$grid_data)
@@ -437,10 +432,9 @@ grid <- R6::R6Class("grid",
                                ncell <- unname(table(tmp$region_id))
                                ncell <- c(1, cumsum(ncell)+1)
                                W <- as.matrix(Matrix::sparseMatrix(j = tmp$grid_id, p = ncell-1, x = tmp$w))
-                               
                                if(flat){
                                  for(j in 1:length(zcols)){
-                                   out <- flat_disaggregate(as.data.frame(cov_data[,zcols[j]])[,1], W, is_positive, lambda_e)
+                                   out <- flat_disaggregate(as.data.frame(cov_data[unique(tmp$region_id),zcols[j]])[,1], W)
                                    self$grid_data$x <- out
                                    if(is.null(t_label)){
                                      colnames(self$grid_data)[length(colnames(self$grid_data))] <- zcols[j]
@@ -449,6 +443,9 @@ grid <- R6::R6Class("grid",
                                    }
                                  }
                                } else {
+                                 if(is.null(private$grid_adj_matrix)){
+                                   private$grid_adj_matrix <- spdep::nb2mat(spdep::poly2nb(self$grid_data), style = "B")
+                                 }
                                  if(weight_type == "pop"){
                                    pop <- self$grid_data[,popdens]
                                  } else {
@@ -456,11 +453,11 @@ grid <- R6::R6Class("grid",
                                  }
                                  for(j in 1:length(zcols)){
                                    if(is_positive){
-                                     out <- disaggregate_positive(W, as.data.frame(cov_data[,zcols[j]])[,1], pop, private$grid_adj_matrix, lambda_smooth, lambda_e)
+                                     out <- disaggregate_positive(W, as.data.frame(cov_data[unique(tmp$region_id),zcols[j]])[,1], pop, private$grid_adj_matrix, lambda_smooth, lambda_e)
                                      self$grid_data$x <- out$y_s
                                      cat("Mapped positive covariate",zcols[j],"Morans's I:",round(out$moran_I,2),"Residual:",out$residual,"\n")
                                    } else {
-                                     out <- disaggregate_covariate(as.data.frame(cov_data[,zcols[j]])[,1], W, private$grid_adj_matrix, pop, lambda_smooth, lambda_e)
+                                     out <- disaggregate_covariate(as.data.frame(cov_data[unique(tmp$region_id),zcols[j]])[,1], W, private$grid_adj_matrix, pop, lambda_smooth, lambda_e)
                                      self$grid_data$x <- out$x_s
                                      cat("Mapped covariate",zcols[j],"Morans's I:",round(out$moran_I,2),"Mean Error:",out$mean_error,"\n")
                                    }
@@ -868,42 +865,29 @@ grid <- R6::R6Class("grid",
                            #' (see `add_covariates`). If a population density variable is not provided it is set to one. If the data are regional data then the outcome
                            #' counts must be in self$region_data. See `lgcp_bayes()` for Bayesian approaches to model fitting and more details on the model.
                            #' 
-                           #' The argument `approx` specifies whether to use a full LGCP model (`approx='none'`) or whether
-                           #' to use either a nearest neighbour approximation (`approx='nngp'`, or `approx='hsgp'`) 
-                           #' 
-                           #' Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
-                           #'  1. Sample random effects using MCMC. The arguments 
-                           #'    `mcmc_warmup` and `mcmc_sampling` specify the warmup and sampling iterations for this step. If the algorithm 
-                           #'    is SAEM (the default), then the samples contribute to all subsequent iterations but with decaying effect given 
-                           #'    by alpha. SAEM is often faster than MCEM but may have high Monte Carlo error. 
-                           #'  2. Fit fixed effect parameters using expectation maximisation.
-                           #'  3. Fit covariance parameters using expectation maximisation. The NNGP and HSGP approximations
-                           #'     provide significant speed improvements at the expense of some approximation error, which diminishes with larger values of `m`. 
-                           #'     This step can be skipped if the covaraince parameters are "known" and provided.   
+                           #' Model fitting uses a fast stochastic maximum likelihood algorithms, which have three steps:
+                           #'  1. Sample random effects using MCMC. The argument  
+                           #'     `mcmc_sampling` specifies the iterations for this step. 
+                           #'  2. Fit fixed effect parameters using a Newton-Raphson step.
+                           #'  3. Fit covariance parameters using a Newton-Raphson step. 
                            #'     
-                           #'  The argument `algo` specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation 
-                           #'  expectation maximisation. MCMC-ML can be used with or without adaptive MCMC sample sizes
-                           #'  and either a derivative free or quasi-Newton optimiser (depending on the underlying model). The defaults are chosen
-                           #'  based on average efficiency and reliability, but may not be the best choice in every case.
+                           #'  The algorithm uses Bayes Factor termination criterion to measure the evidence of convergence. The algorithm terminates when
+                           #'  the Bayes Factor is greater than `tol` (default is 10). The prior is based on the expected number of iterations until convergence, 
+                           #'  given by `k0` (defaul is 10).
                            #' 
-                           #' @param popdens character string. Name of the population density column
+                           #' @param popdens character string. Name of the population density column in grid data or region data
                            #' @param covs vector of strings. Base names of the covariates to
                            #' include. For temporally-varying covariates only the stem is required and not
                            #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
                            #' `dayMon2`, etc.) For regional models, covariates should be mapped to the grid currently (see add_covariates)
-                           #' @param approx String indicating if an approximation is to be used. If not "none", then either "hsgp" for reduced rank approximation, or "nngp" for nearest 
-                           #' neighbour Gaussian process. The approximations are not compatible with spatio-temporal models currently and other optimisations available in the package. The
-                           #' full model fitting should provide tolerable fitting times for moderate and large data sets (<10,000 cells).
-                           #' @param m integer. Number of basis functions for reduced rank approximation, or
-                           #' number of nearest neighbours for nearest neighbour Gaussian process. See Details.
-                           #' @param L integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
-                           #' `L=2` is a doubling of the analysis area. See Details.
                            #' @param model Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Other functions 
                            #' from glmmrBase will work, but may be less relevant to spatial models.
-                           #' @param tol Scalar indicating the Bayes Factor termination criterion.
                            #' @param iter_sampling integer. Number of random effects samples to draw on each iteration.
+                           #' @param max_iter Integer. Maximum number of iterations.
+                           #' @param tol Scalar. The tolerance for the Bayes Factor convergence criterion.
+                           #' @param hist Integer. The length of the running mean for the convergence criterion for non-Gaussian models.
+                           #' @param k0 Integer. The expected number of iterations until convergence.
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
-                           #' @param ... additional options to pass to `$sample()`
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
@@ -915,11 +899,13 @@ grid <- R6::R6Class("grid",
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
                            #' g1$add_covariates(cov1$grid_data,
-                           #'                   zcols="cov",
-                           #'                   verbose = FALSE)
+                           #'                   zcols="cov")
                            #' g1$points_to_grid(dp, laglength=5)
+                           #' 
+                           #' # an example 
+                           #' 
                            #' \donttest{
-                           #' g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
+                           #' g1$lgcp_ml(popdens="cov",iter_sampling = 50)
                            #' g1$model_fit()
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
@@ -939,18 +925,15 @@ grid <- R6::R6Class("grid",
                            #' 
                            lgcp_ml = function(popdens=NULL,
                                               covs=NULL,
-                                              approx = "none",
-                                              m=10,
-                                              L=1.5,
                                               model = "fexp",
-                                              tol = 10,
                                               max.iter = 30,
                                               iter_sampling=200,
+                                              max_iter = 30, 
+                                              tol = 10, 
+                                              hist = 5, 
+                                              k0 = 10,
                                               trace = 1){
                              # some checks at the beginning
-                             if(!approx%in%c('nngp','none','hsgp'))stop("approx must be one of nngp, hsgp, or none")
-                             if(m<=1 & approx == 'nngp')stop("m must be greater than one")
-                             if(m >25 & trace >= 1)message("m is large, sampling may take a long time.")
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
                              if(is.null(popdens)){
                                self$grid_data$intercept <- 1
@@ -960,15 +943,15 @@ grid <- R6::R6Class("grid",
                              ## in this new version we are just going to use glmmrBase to fit the model!
                              # generate formula
                              
-                             data <- private$prepare_data(m,
+                             data <- private$prepare_data(1,
                                       model,
-                                      approx,
+                                      "none",
                                       popdens,
                                       covs,
                                       NULL,
                                       TRUE,
                                       FALSE,
-                                      L)
+                                      1)
                              
                              form <- "~"
                              if(!is.null(covs)){
@@ -978,20 +961,13 @@ grid <- R6::R6Class("grid",
                              }
                              
                              if(data$nT > 1){
-                               if(approx%in%c("nngp","hsgp"))stop("NNGP and HSGP disabled for spatio-temporal models")
                                if(is.null(self$region_data)){
                                  form <- paste0(form,"(1|ar","_",model,"log(x,y,t=",data$nT,"))")
                                } else {
                                  form <- paste0(form,"(1|",model,"log(x,y))")
                                }
                              } else {
-                               if(approx == "hsgp"){
-                                 form <- paste0(form,"(1|hsgp_",model,"(x,y))")
-                               } else if(approx == "nngp"){
-                                 form <- paste0(form,"(1|nngp_",model,"(x,y))")
-                               } else {
-                                 form <- paste0(form,"(1|",model,"log(x,y))")
-                               }
+                               form <- paste0(form,"(1|",model,"log(x,y))")
                              }
                             
                              
@@ -1004,23 +980,26 @@ grid <- R6::R6Class("grid",
                                  data = dat,
                                  family = poisson(),
                                  offset = log(data$popdens)
-                               )$set_trace(2)
+                               )$set_trace(trace)
                                mod$update_parameters(cov.pars = log(runif(2+I(data$nT>1)*1)))
                                mod$update_y(data$y)
                                fit <- mod$fit()
+                               
                                ll <- mod$log_likelihood()
                                X <- mod$mean$X
-                               
+                               n_cov_pars <- ifelse(data$nT > 1, 3, 2)
+                               cov_par_names <- c("tau_sq (log)","lambda (log)")
+                               if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
+                               fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                popd <- private$stack_variable(popdens)
                                w <- glmmrBase:::Model__get_importance_weights(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
                                sum_w <- sum(w)
                                M <- solve(mod$information_matrix())  # V_beta
+                               M_theta <- solve(mod$information_matrix(theta = TRUE))
                                u <- mod$u(scaled = TRUE)  # n x K matrix
                                K <- ncol(u)
-                               
                                # Linear predictor without random effects
                                xb <- mod$fitted()  # X %*% beta
-                               
                                # Grid-level intensity samples
                                mu_pp_samples <- matrix(0, nrow(X), K)
                                mu_tot_samples <- matrix(0, nrow(X), K)
@@ -1032,39 +1011,22 @@ grid <- R6::R6Class("grid",
                                # Weighted means (predictions)
                                mu_pp_mean <- rowSums(t(t(mu_pp_samples) * w)) / sum_w
                                mu_tot_mean <- rowSums(t(t(mu_tot_samples) * w)) / sum_w
-                               
                                # Weighted mean of squared intensities (for delta method)
                                mu_pp_sq_mean <- rowSums(t(t(mu_pp_samples^2) * w)) / sum_w
                                mu_tot_sq_mean <- rowSums(t(t(mu_tot_samples^2) * w)) / sum_w
-                               
                                # Variance from random effects (weighted variance)
                                var_u_pp <- rowSums(t(t((mu_pp_samples - mu_pp_mean)^2) * w)) / sum_w
                                var_u_tot <- rowSums(t(t((mu_tot_samples - mu_tot_mean)^2) * w)) / sum_w
-                               
-                               # Variance from beta (delta method)
-                               # Var(lambda) from beta ≈ E[lambda^2] * diag(X V_beta X^T)
                                XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
                                var_beta_pp <- XVX * mu_pp_sq_mean
                                var_beta_tot <- XVX * mu_tot_sq_mean
-                               
-                               # Standard errors (sqrt of total variance)
                                SEpp <- sqrt(var_beta_pp + var_u_pp)
                                SEtot <- sqrt(var_beta_tot + var_u_tot)
-                               
-                               # Predictions
                                ypred <- mu_tot_mean
                                mupred <- mu_pp_mean
-                               
-                               # Relative risk samples: RR = exp(u)
                                rr_samples <- exp(u)  # n x K matrix
-                               
-                               # Weighted mean (prediction)
                                rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
-                               
-                               # Variance from random effects (weighted variance)
                                var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                               
-                               # Standard error
                                SE_rr <- sqrt(var_rr)
                              } else {
                                ## now do regional model variant
@@ -1176,16 +1138,12 @@ grid <- R6::R6Class("grid",
                                  n_A <- ncol(W)
                                  n_R <- nrow(W)
                                  T_periods <- nrow(mu_samples) / n_A
-                                 
                                  mu_r_samples <- matrix(0, n_R * T_periods, K)
                                  
                                  for (t in 1:T_periods) {
-                                   # Extract rows for time period t: indices [(t-1)*n_A + 1, t*n_A]
                                    row_start <- (t - 1) * n_A + 1
                                    row_end <- t * n_A
                                    mu_samples_t <- mu_samples[row_start:row_end, , drop = FALSE]  # n_A x K
-                                   
-                                   # Aggregate to regions for time period t
                                    out_start <- (t - 1) * n_R + 1
                                    out_end <- t * n_R
                                    mu_r_samples[out_start:out_end, ] <- as.matrix(W %*% mu_samples_t)  # n_R x K
@@ -1207,7 +1165,12 @@ grid <- R6::R6Class("grid",
                                var_from_beta_r <- var_from_beta_r / sum_w
                                SEtot <- sqrt(var_from_beta_r + var_from_u_r)
                                ypred <- mu_r_mean
-                               mupred <- mu_mean
+                               mu_samples <- matrix(0, n, K)
+                               xb <- drop(X %*% beta) 
+                               for (k in 1:K) {
+                                 mu_samples[, k] <- exp(xb + u[, k])
+                               }
+                               mupred <- rowSums(t(t(mu_samples) * w)) / sum_w
                                # Relative risk samples: RR = exp(u)
                                rr_samples <- exp(u)  # n x K matrix
                                rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
@@ -1216,11 +1179,10 @@ grid <- R6::R6Class("grid",
                                ll <- regionModel__log_likelihood(ptr, type)
                               
                              }
-                             
 
                              out <- list(coefficients = fit$coefficients,
                                          converged = fit$converged,
-                                         approx = approx,
+                                         approx = "none",
                                          method = "mcml",
                                          m = dim(u)[2],
                                          tol = tol,
@@ -1386,7 +1348,7 @@ grid <- R6::R6Class("grid",
                                      self$grid_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
                                      self$grid_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
                                      self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)
-                                     self$grid_data$pred_mean_pp_sd <- private$last_model_fit$se_pred$pp
+                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp
                                    }
                                    
                                  } else {
@@ -1400,7 +1362,7 @@ grid <- R6::R6Class("grid",
                                      self$region_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
                                      self$region_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
                                      self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)
-                                     self$grid_data$pred_mean_pp_sd <- private$last_model_fit$se_pred$pp
+                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp
                                    }
                                  }
                                }
@@ -1409,8 +1371,8 @@ grid <- R6::R6Class("grid",
                                    self$grid_data$rr <- exp(apply(private$last_model_fit$re.samps,1,mean))
                                    self$grid_data$rr_sd <- exp(apply(private$last_model_fit$re.samps,1,sd))
                                  } else {
-                                   self$grid_data$rr <- drop(private$last_model_fit$rr_predicted)
-                                   self$grid_data$rr_sd <- private$last_model_fit$se_pred$rr
+                                   self$grid_data$rr <- drop(private$last_model_fit$rr)
+                                   self$grid_data$rr_se <- private$last_model_fit$se_pred$rr
                                  }
                                }
                              }

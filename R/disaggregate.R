@@ -168,42 +168,8 @@ disaggregate_covariate <- function(x_r, W, adj, pop = NULL,
   )
 }
 
-flat_disaggregate <- function(x_r, W, nonneg = TRUE, penalty = 1e6) {
-  n <- ncol(W)
-  
-  # Target: weighted average of regional values for each cell
+flat_disaggregate <- function(x_r, W) {
   W_colsums <- colSums(W)
-  x_target <- as.vector(t(W) %*% x_r / pmax(W_colsums, 1e-10))
-  
-  # Objective: ||x - x_target||^2 + penalty * ||Wx - x_r||^2
-  obj <- function(x) {
-    deviation_term <- sum((x - x_target)^2)
-    constraint_term <- sum((W %*% x - x_r)^2)
-    deviation_term + penalty * constraint_term
-  }
-  
-  grad <- function(x) {
-    deviation_grad <- 2 * (x - x_target)
-    constraint_grad <- 2 * t(W) %*% (W %*% x - x_r)
-    deviation_grad + penalty * as.vector(constraint_grad)
-  }
-  
-  if (nonneg) {
-    sol <- optim(x_target, obj, grad, method = "L-BFGS-B",
-                 lower = rep(1e-10, n),
-                 control = list(maxit = 1000))
-  } else {
-    sol <- optim(x_target, obj, grad, method = "BFGS",
-                 control = list(maxit = 1000))
-  }
-  
-  x_s <- sol$par
-  
-  constraint_error <- max(abs(W %*% x_s - x_r))
-  if (constraint_error > 1e-4) {
-    message(sprintf("Constraint error: %.2e. Consider increasing penalty.", 
-                    constraint_error))
-  }
-  
+  x_s <- as.vector(t(W) %*% x_r / pmax(W_colsums, 1e-10))
   x_s
 }

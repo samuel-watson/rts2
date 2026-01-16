@@ -40,7 +40,7 @@ public:
               u_loglik_(VectorXd::Zero(niter_)),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
-  
+
   template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::ar1Covariance> > >
   regionModel(const std::string& formula_,
               const ArrayXXd& data_,
@@ -60,7 +60,6 @@ public:
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
   
-  
   void              init_beta();
   void              usample(const int niter);
   MatrixXd          lambda_r();
@@ -68,7 +67,6 @@ public:
   void              nr_beta();
   void              nr_theta();
   void              fit(const double tol, const int max_iter, const int hist, const int k0);
-  //standard_error();
   bool             check_convergence(const double tol, const int hist, const int k, const int k0);
   MatrixXd         u() const;
   MatrixXd         information_matrix() const;

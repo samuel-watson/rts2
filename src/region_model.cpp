@@ -38,7 +38,7 @@ MatrixXd rts::regionModel<cov>::lambda_r()
 {
   int n_regions = weights.rows();
   int n_cells = weights.cols();
-  
+
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     int T = covariance.Q() / covariance.Covariance::Q();
     int n_A = covariance.Covariance::Q();  // Spatial dimension
@@ -88,7 +88,7 @@ void rts::regionModel<cov>::usample(const int niter_){
   int n_cells = weights.cols();
   int T = 1;
   int n_A = covariance.Q();
-  
+
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     T = covariance.Q() / covariance.Covariance::Q();
     n_A = covariance.Covariance::Q();
@@ -115,47 +115,9 @@ void rts::regionModel<cov>::usample(const int niter_){
   int itero = 0;
   MatrixXd C(n_regions * T, n_cols);
   LLT<MatrixXd> llt_CCt;
-  
+
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
-    // int T = covariance.Q() / covariance.Covariance::Q();
-    // int n_A = covariance.Covariance::Q();
     while(diff > 1e-6 && itero < 10) {
-      // VectorXd Zu = ZL * b;
-      // eta_s = xb + Zu.array();
-      // ArrayXd lambda_s = eta_s.exp();
-      // 
-      // VectorXd lambda_r(n_regions * T);
-      // for(int t = 0; t < T; t++){
-      //   VectorXd lambda_s_t = lambda_s.segment(t * n_A, n_A).matrix();
-      //   VectorXd result = weights * lambda_s_t;
-      //   lambda_r.segment(t * n_regions, n_regions) = result;
-      // }
-      // 
-      // ArrayXd y_over_lambda_r = y / lambda_r.array();
-      // VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
-      // 
-      // // A = diag(lambda_s) * ZL
-      // MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
-      // 
-      // // WA = W * A, applied per time period
-      // MatrixXd WA(n_regions * T, n_cols);
-      // for(int t = 0; t < T; t++){
-      //   MatrixXd A_t = A.middleRows(t * n_A, n_A);
-      //   WA.middleRows(t * n_regions, n_regions) = weights * A_t;
-      // }
-      // 
-      // ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
-      // MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
-      // LWL.noalias() = C.transpose() * C;
-      // VectorXd ZLt_score = WA.transpose() * resid_r;
-      // yb.noalias() = LWL * b + ZLt_score;
-      // LWL.diagonal().array() += 1.0;
-      // llt_Pb.compute(LWL);
-      // bnew = llt_Pb.solve(yb);
-      // diff = (b - bnew).array().abs().maxCoeff();
-      // itero++;
-      // b.swap(bnew);
-      
       VectorXd Zu = ZL * b;
       eta_s = xb + Zu.array();
       ArrayXd lambda_s = eta_s.exp();
@@ -205,25 +167,6 @@ void rts::regionModel<cov>::usample(const int niter_){
     // Standard spatial case
     
     while(diff > 1e-6 && itero < 10) {
-      // VectorXd Zu = ZL * b;
-      // eta_s = xb + Zu.array();
-      // ArrayXd lambda_s = eta_s.exp();
-      // VectorXd lambda_r = weights * lambda_s.matrix();
-      // ArrayXd y_over_lambda_r = y / lambda_r.array();
-      // VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
-      // MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
-      // MatrixXd WA = weights * A;
-      // ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
-      // MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
-      // LWL.noalias() = C.transpose() * C;
-      // VectorXd ZLt_score = WA.transpose() * resid_r;
-      // yb.noalias() = LWL * b + ZLt_score;
-      // LWL.diagonal().array() += 1.0;
-      // llt_Pb.compute(LWL);
-      // bnew = llt_Pb.solve(yb);
-      // diff = (b - bnew).array().abs().maxCoeff();
-      // itero++;
-      // b.swap(bnew);
       
       VectorXd Zu = ZL * b;
       eta_s = xb + Zu.array();
@@ -254,6 +197,7 @@ void rts::regionModel<cov>::usample(const int niter_){
       b.swap(bnew);
     }
   }
+
   // Common code for both cases
   Mb = b;
   u_mean_ = Mb;
@@ -384,9 +328,13 @@ ArrayXd rts::regionModel<cov>::log_likelihood()
   
 #pragma omp parallel for 
   for(int i = 0; i < scaled_u_.cols(); i++){
-    //ArrayXd mu = lr.col(i).array();
-    //ll(i) = (y.array() * mu - mu.exp()).sum();
+    
+#ifdef GLMMR13
     ll(i) =  maths::log_likelihood(y.array(),lr.col(i).array().log(), ArrayXd::Constant(y.size(),1.0), fam);
+#else
+    ArrayXd mu = lr.col(i).array();
+    ll(i) = (y.array() * mu - mu.exp()).sum();
+#endif
   }
   return ll;
 }
@@ -404,7 +352,7 @@ void rts::regionModel<cov>::nr_beta(){
   
   MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());
   VectorXd score = VectorXd::Zero(beta.size());
-  
+
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     int T = covariance.Q() / covariance.Covariance::Q();
     int n_A = covariance.Covariance::Q();
@@ -455,6 +403,7 @@ void rts::regionModel<cov>::nr_beta(){
       XtWXm.noalias() += u_weight_(i) * B.transpose() * inv_lambda_r_B;
     }
   }
+  
   M = XtWXm;
   Eigen::LLT<MatrixXd> llt(XtWXm);
   gradients.head(X.cols()) = score;
@@ -545,7 +494,6 @@ void rts::regionModel<cov>::nr_theta(){
       break;
     }
   }
-  
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     if(std::isnan(covariance.rho)) {
       theta_has_nan = true;
@@ -664,12 +612,13 @@ SEXP regionModel_ar__new(const std::string& formula_,
 {
   using namespace rts;
   using namespace Rcpp;
-  
+
   XPtr<regionModel<glmmr::ar1Covariance>> ptr(
       new regionModel<glmmr::ar1Covariance>(formula_, data_, colnames_, X_, y_, niter_, T_), 
       true
   );
   return ptr;
+  
 }
 
 // [[Rcpp::export]]
@@ -693,7 +642,6 @@ void regionModel__set_weights(SEXP xp,
   
   Eigen::SparseMatrix<double> W(nrow, ncol);
   W.setFromTriplets(triplets.begin(), triplets.end());
-  
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->weights = W;
@@ -769,7 +717,8 @@ SEXP regionModel__u(SEXP xp, int type = 0){
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
-  } else {
+  } 
+  else {
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
   }

@@ -86,11 +86,13 @@ template<typename cov>
 void rts::regionModel<cov>::usample(const int niter_){
   int n_regions = weights.rows();
   int n_cells = weights.cols();
+  int T = 1;
+  int n_A = covariance.Q();
   
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
-    int T = covariance.Q() / covariance.Covariance::Q();
-    int n_A = covariance.Covariance::Q();
-  }
+    T = covariance.Q() / covariance.Covariance::Q();
+    n_A = covariance.Covariance::Q();
+  } 
   
   ArrayXd xb = (X * beta + offset).array();
   ArrayXd Lu_umean = covariance.Lu(u_mean_).array();
@@ -111,12 +113,49 @@ void rts::regionModel<cov>::usample(const int niter_){
   VectorXd bnew(b);
   double diff = 1.0;
   int itero = 0;
+  MatrixXd C(n_regions * T, n_cols);
+  LLT<MatrixXd> llt_CCt;
   
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
-    int T = covariance.Q() / covariance.Covariance::Q();
-    int n_A = covariance.Covariance::Q();
-    
+    // int T = covariance.Q() / covariance.Covariance::Q();
+    // int n_A = covariance.Covariance::Q();
     while(diff > 1e-6 && itero < 10) {
+      // VectorXd Zu = ZL * b;
+      // eta_s = xb + Zu.array();
+      // ArrayXd lambda_s = eta_s.exp();
+      // 
+      // VectorXd lambda_r(n_regions * T);
+      // for(int t = 0; t < T; t++){
+      //   VectorXd lambda_s_t = lambda_s.segment(t * n_A, n_A).matrix();
+      //   VectorXd result = weights * lambda_s_t;
+      //   lambda_r.segment(t * n_regions, n_regions) = result;
+      // }
+      // 
+      // ArrayXd y_over_lambda_r = y / lambda_r.array();
+      // VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
+      // 
+      // // A = diag(lambda_s) * ZL
+      // MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
+      // 
+      // // WA = W * A, applied per time period
+      // MatrixXd WA(n_regions * T, n_cols);
+      // for(int t = 0; t < T; t++){
+      //   MatrixXd A_t = A.middleRows(t * n_A, n_A);
+      //   WA.middleRows(t * n_regions, n_regions) = weights * A_t;
+      // }
+      // 
+      // ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
+      // MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
+      // LWL.noalias() = C.transpose() * C;
+      // VectorXd ZLt_score = WA.transpose() * resid_r;
+      // yb.noalias() = LWL * b + ZLt_score;
+      // LWL.diagonal().array() += 1.0;
+      // llt_Pb.compute(LWL);
+      // bnew = llt_Pb.solve(yb);
+      // diff = (b - bnew).array().abs().maxCoeff();
+      // itero++;
+      // b.swap(bnew);
+      
       VectorXd Zu = ZL * b;
       eta_s = xb + Zu.array();
       ArrayXd lambda_s = eta_s.exp();
@@ -128,20 +167,11 @@ void rts::regionModel<cov>::usample(const int niter_){
         lambda_r.segment(t * n_regions, n_regions) = result;
       }
       
-      // Coarse level intensity: apply weights per time period
-      // VectorXd lambda_r(n_regions * T);
-      // for(int t = 0; t < T; t++){
-      //   VectorXd lambda_s_t = lambda_s.segment(t * n_A, n_A).matrix();
-      //   lambda_r.segment(t * n_regions, n_regions) = weights * lambda_s_t;
-      // }
-      
       ArrayXd y_over_lambda_r = y / lambda_r.array();
       VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
       
-      // A = diag(lambda_s) * ZL
       MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
       
-      // WA = W * A, applied per time period
       MatrixXd WA(n_regions * T, n_cols);
       for(int t = 0; t < T; t++){
         MatrixXd A_t = A.middleRows(t * n_A, n_A);
@@ -149,20 +179,52 @@ void rts::regionModel<cov>::usample(const int niter_){
       }
       
       ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
-      MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
-      LWL.noalias() = C.transpose() * C;
+      C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
       VectorXd ZLt_score = WA.transpose() * resid_r;
-      yb.noalias() = LWL * b + ZLt_score;
-      LWL.diagonal().array() += 1.0;
-      llt_Pb.compute(LWL);
-      bnew = llt_Pb.solve(yb);
+      
+      // === WOODBURY: form CC' instead of C'C ===
+      MatrixXd CCt = C * C.transpose();  // (n_regions*T) × (n_regions*T)
+      CCt.diagonal().array() += 1.0;
+      llt_CCt.compute(CCt);
+      
+      // Compute yb = C'Cb + ZLt_score
+      VectorXd Cb = C * b;
+      yb = C.transpose() * Cb + ZLt_score;
+      
+      // Solve (C'C + I)^{-1} yb using Woodbury:
+      // x = yb - C'(CC' + I)^{-1}(C * yb)
+      VectorXd Cyb = C * yb;
+      VectorXd tmp = llt_CCt.solve(Cyb);
+      bnew = yb - C.transpose() * tmp;
+      
       diff = (b - bnew).array().abs().maxCoeff();
       itero++;
       b.swap(bnew);
     }
   } else {
     // Standard spatial case
+    
     while(diff > 1e-6 && itero < 10) {
+      // VectorXd Zu = ZL * b;
+      // eta_s = xb + Zu.array();
+      // ArrayXd lambda_s = eta_s.exp();
+      // VectorXd lambda_r = weights * lambda_s.matrix();
+      // ArrayXd y_over_lambda_r = y / lambda_r.array();
+      // VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
+      // MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
+      // MatrixXd WA = weights * A;
+      // ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
+      // MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
+      // LWL.noalias() = C.transpose() * C;
+      // VectorXd ZLt_score = WA.transpose() * resid_r;
+      // yb.noalias() = LWL * b + ZLt_score;
+      // LWL.diagonal().array() += 1.0;
+      // llt_Pb.compute(LWL);
+      // bnew = llt_Pb.solve(yb);
+      // diff = (b - bnew).array().abs().maxCoeff();
+      // itero++;
+      // b.swap(bnew);
+      
       VectorXd Zu = ZL * b;
       eta_s = xb + Zu.array();
       ArrayXd lambda_s = eta_s.exp();
@@ -172,13 +234,21 @@ void rts::regionModel<cov>::usample(const int niter_){
       MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
       MatrixXd WA = weights * A;
       ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
-      MatrixXd C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
-      LWL.noalias() = C.transpose() * C;
+      C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
       VectorXd ZLt_score = WA.transpose() * resid_r;
-      yb.noalias() = LWL * b + ZLt_score;
-      LWL.diagonal().array() += 1.0;
-      llt_Pb.compute(LWL);
-      bnew = llt_Pb.solve(yb);
+      
+      // Woodbury
+      MatrixXd CCt = C * C.transpose();  // n_regions × n_regions
+      CCt.diagonal().array() += 1.0;
+      llt_CCt.compute(CCt);
+      
+      VectorXd Cb = C * b;
+      yb = C.transpose() * Cb + ZLt_score;
+      
+      VectorXd Cyb = C * yb;
+      VectorXd tmp = llt_CCt.solve(Cyb);
+      bnew = yb - C.transpose() * tmp;
+      
       diff = (b - bnew).array().abs().maxCoeff();
       itero++;
       b.swap(bnew);
@@ -187,7 +257,7 @@ void rts::regionModel<cov>::usample(const int niter_){
   // Common code for both cases
   Mb = b;
   u_mean_ = Mb;
-  llt_Pb.solveInPlace(Vb);
+  //llt_Pb.solveInPlace(Vb);
   
   MatrixXd unew(u_.rows(), niter_);
   std::random_device rd;
@@ -198,10 +268,32 @@ void rts::regionModel<cov>::usample(const int niter_){
     data[i] = d(gen);
   }
   
-  LLT<MatrixXd> llt(Vb);
-  MatrixXd LVb = llt.matrixL();
-  //LVb *= 1.5;
-  unew = LVb * unew;
+  int m = C.rows();  // n_regions * T
+  int n_samples = unew.cols();
+  
+  // Generate w ~ N(0, I)
+  MatrixXd w(m, n_samples);
+  // ... fill with N(0,1) random values ...
+  data = w.data();
+  for(int i = 0; i < w.size(); ++i) {
+    data[i] = d(gen);
+  }
+  
+  // RHS = z + C'w
+  MatrixXd RHS = unew + C.transpose() * w;
+  
+  // Apply Woodbury: (C'C + I)^{-1} RHS = RHS - C'(CC'+I)^{-1}(C * RHS)
+  MatrixXd CRHS = C * RHS;
+  MatrixXd tmp = llt_CCt.solve(CRHS);
+  unew = RHS - C.transpose() * tmp;
+  
+  // Add mean
+  //unew.colwise() += bnew;
+  
+  // LLT<MatrixXd> llt(Vb);
+  // MatrixXd LVb = llt.matrixL();
+  // //LVb *= 1.5;
+  // unew = LVb * unew;
   
   if(u_.cols() != niter_){
     u_.resize(NoChange, niter_);
@@ -213,12 +305,18 @@ void rts::regionModel<cov>::usample(const int niter_){
   
   u_.noalias() = unew;
   
+  MatrixXd Cu = C * u_;
+  ArrayXd Cu_norms = Cu.colwise().squaredNorm();
+  ArrayXd u_norms = u_.colwise().squaredNorm();
+  u_loglik_ = -0.5 * (Cu_norms + u_norms);
+  
+  
   // Compute proposal log-likelihood (no race condition)
-#pragma omp parallel for
-  for(int i = 0; i < u_.cols(); i++){
-    VectorXd v = llt.solve(u_.col(i));
-    u_loglik_(i) = -0.5 * v.dot(u_.col(i));
-  }
+// #pragma omp parallel for
+//   for(int i = 0; i < u_.cols(); i++){
+//     VectorXd v = llt.solve(u_.col(i));
+//     u_loglik_(i) = -0.5 * v.dot(u_.col(i));
+//   }
   
   u_.colwise() += u_mean_;
   

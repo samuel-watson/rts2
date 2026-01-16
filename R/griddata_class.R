@@ -375,6 +375,7 @@ grid <- R6::R6Class("grid",
                            #' g2$grid_data$t1 <- round(g2$grid_data$t1,0)
                            #' g2$plot("pop")
                            #' }
+                           #' @importFrom spdep nb2mat
                            add_covariates = function(cov_data,
                                                      zcols,
                                                      weight_type="area",
@@ -642,8 +643,7 @@ grid <- R6::R6Class("grid",
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
                            #' g1$add_covariates(cov1$grid_data,
-                           #'                   zcols="cov",
-                           #'                   verbose = FALSE)
+                           #'                   zcols="cov")
                            #' g1$points_to_grid(dp, laglength=5)
                            #' g1$priors <- list(
                            #'   prior_lscale=c(0,0.5),
@@ -657,7 +657,7 @@ grid <- R6::R6Class("grid",
                            #' # we can extract predictions
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
-                           #' g1$hotspots(rr.threshold = 2)
+                           #' g1$hotspots(threshold = 2, stat = "rr")
                            #' 
                            #'  # this example uses real aggregated data but will take a relatively long time to run
                            #'  data("birmingham_crime")
@@ -674,7 +674,7 @@ grid <- R6::R6Class("grid",
                            #' g2$model_fit()
                            #' g2$extract_preds("rr")
                            #' g2$plot("rr")
-                           #' g2$hotspots(rr.threshold = 2)
+                           #' g2$hotspots(threshold = 2, stat = "rr")
                            #' }
                            lgcp_bayes = function(popdens=NULL,
                                                covs=NULL,
@@ -862,23 +862,27 @@ grid <- R6::R6Class("grid",
                            #' @param max_iter Integer. Maximum number of iterations.
                            #' @param tol Scalar. The tolerance for the Bayes Factor convergence criterion.
                            #' @param hist Integer. The length of the running mean for the convergence criterion for non-Gaussian models.
-                           #' @param k0 Integer. The expected number of iterations until convergence.
+                           #' @param k0 Integer. The expected nunb2mber of iterations until convergence.
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
                            #' @param start_theta Optional. Starting values for the covariance parameters (log(tau sq), log(lambda), rho), with rho only 
                            #' required if more than one time period.
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
+                           #' # note: these examples are spatial only in 0.10.0 to prevent an error 
+                           #' # with the reverse dependency check when updating the base package.
+                           #' # If you're seeing this note, then an updated package will be available
+                           #' # imminently.
                            #' # a simple example with completely random points
                            #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
                            #' g1 <- grid$new(b1,0.5)
-                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-                           #' dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
+                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3))
+                           #' dp <- create_points(dp,pos_vars = c('y','x'))
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
                            #' g1$add_covariates(cov1$grid_data,
                            #'                   zcols="cov")
-                           #' g1$points_to_grid(dp, laglength=5)
+                           #' g1$points_to_grid(dp)
                            #' 
                            #' # an example 
                            #' 
@@ -887,7 +891,7 @@ grid <- R6::R6Class("grid",
                            #' g1$model_fit()
                            #' g1$extract_preds("rr")
                            #' g1$plot("rr")
-                           #' g1$hotspots(rr.threshold = 2)
+                           #' g1$hotspots(threshold = 2, stat = "rr")
                            #' 
                            #' # this example uses real aggregated data but will take a relatively long time to run
                            #'  data("birmingham_crime")
@@ -898,15 +902,14 @@ grid <- R6::R6Class("grid",
                            #'  g2$model_fit()
                            #'  g2$extract_preds("rr")
                            #'  g2$plot("rr")
-                           #'  g2$hotspots(rr.threshold = 2) 
+                           #'  g2$hotspots(threshold = 2, stat = "rr") 
                            #' }
                            #' 
                            lgcp_ml = function(popdens=NULL,
                                               covs=NULL,
                                               model = "fexp",
-                                              max.iter = 30,
+                                              max_iter = 30,
                                               iter_sampling=200,
-                                              max_iter = 30, 
                                               tol = 10, 
                                               hist = 5, 
                                               k0 = 10,
@@ -969,11 +972,17 @@ grid <- R6::R6Class("grid",
                                }
                                mod$update_parameters(cov.pars = start_cov)
                                mod$update_y(data$y)
-                               fit <- mod$fit(niter = iter_sampling,
-                                              max_iter = max_iter, 
-                                              tol = tol, 
-                                              hist = hist, 
-                                              k0 = k0)
+                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                                 fit <- mod$fit(niter = iter_sampling,
+                                                max_iter = max_iter, 
+                                                tol = tol, 
+                                                hist = hist, 
+                                                k0 = k0)
+                               } else {
+                                 fit <- mod$MCML(method = "mcnr",
+                                                 se.theta = FALSE)
+                               }
+                               
                                ll <- mod$log_likelihood()
                                X <- mod$mean$X
                                n_cov_pars <- ifelse(data$nT > 1, 3, 2)
@@ -981,11 +990,19 @@ grid <- R6::R6Class("grid",
                                if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
                                fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                popd <- private$stack_variable(popdens)
-                               w <- glmmrBase:::Model__get_importance_weights(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
+                               u <- mod$u(scaled = TRUE)  # n x K matrix
+                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                                 w <- glmmrBase:::Model__get_importance_weights(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
+                               } else {
+                                 w <- rep(1/ncol(u),length(ncol(u)))
+                               }
                                sum_w <- sum(w)
                                M <- solve(mod$information_matrix())  # V_beta
-                               M_theta <- solve(mod$information_matrix(theta = TRUE))
-                               u <- mod$u(scaled = TRUE)  # n x K matrix
+                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                                 M_theta <- solve(mod$information_matrix(theta = TRUE))
+                               } else {
+                                 M_theta <- diag(2)
+                               }
                                K <- ncol(u)
                                # Linear predictor without random effects
                                xb <- mod$fitted()  # X %*% beta
@@ -1222,7 +1239,6 @@ grid <- R6::R6Class("grid",
                            #' @param t.lag integer. Extract predictions for previous time periods.
                            #' @param popdens character string. Name of the column in `grid_data` with the
                            #' population density data
-                           #' @param verbose Logical indicating whether to print messages to the console
                            #' @return NULL
                            #' @details
                            #' **EXTRACTING PREDICTIONS**
@@ -1253,8 +1269,7 @@ grid <- R6::R6Class("grid",
                            extract_preds = function(type=c("pred","rr","irr"),
                                                     irr.lag=NULL,
                                                     t.lag=0,
-                                                    popdens=NULL,
-                                                    verbose = TRUE){
+                                                    popdens=NULL){
                              if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
                              if(is.null(self$region_data) & "pred"%in%type&is.null(popdens))popdens <- "intercept"
                              nCells <- nrow(self$grid_data)
@@ -1277,7 +1292,6 @@ grid <- R6::R6Class("grid",
                                      self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
                                    }
                                  } else {
-                                   if(verbose)message("Predicted rates are added to region_data, rr and irr are added to grid_data")
                                    if(private$last_model_fit$method %in% c("vb","mcmc")){
                                      popd <- as.data.frame(self$region_data)[,popdens]
                                      fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/popd
@@ -1470,8 +1484,7 @@ grid <- R6::R6Class("grid",
                            #' cov1 <- grid$new(b1,0.8)
                            #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
                            #' g1$add_covariates(cov1$grid_data,
-                           #'                   zcols="cov",
-                           #'                   verbose = FALSE)
+                           #'                   zcols="cov")
                            #' g1$points_to_grid(dp, laglength=5)
                            #' g1$priors <- list(
                            #'   prior_lscale=c(0,0.5),

@@ -39,6 +39,7 @@ MatrixXd rts::regionModel<cov>::lambda_r()
   int n_regions = weights.rows();
   int n_cells = weights.cols();
 
+#ifdef GLMMR13
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     int T = covariance.Q() / covariance.Covariance::Q();
     int n_A = covariance.Covariance::Q();  // Spatial dimension
@@ -63,6 +64,16 @@ MatrixXd rts::regionModel<cov>::lambda_r()
     }
     return lr;
   }
+#else
+  // Standard spatial case
+  MatrixXd lr(n_regions, u_.cols());
+  for(int i = 0; i < u_.cols(); i++){
+    ArrayXd eta_s = (X * beta + offset).array() + scaled_u_.col(i).array();
+    ArrayXd lambda_s = eta_s.exp();
+    lr.col(i) = weights * lambda_s.matrix();
+  }
+  return lr;
+#endif
 }
 
 template<typename cov>
@@ -89,10 +100,12 @@ void rts::regionModel<cov>::usample(const int niter_){
   int T = 1;
   int n_A = covariance.Q();
 
+#ifdef GLMMR13
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     T = covariance.Q() / covariance.Covariance::Q();
     n_A = covariance.Covariance::Q();
   } 
+#endif
   
   ArrayXd xb = (X * beta + offset).array();
   ArrayXd Lu_umean = covariance.Lu(u_mean_).array();
@@ -116,6 +129,7 @@ void rts::regionModel<cov>::usample(const int niter_){
   MatrixXd C(n_regions * T, n_cols);
   LLT<MatrixXd> llt_CCt;
 
+#ifdef GLMMR13
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     while(diff > 1e-6 && itero < 10) {
       VectorXd Zu = ZL * b;
@@ -197,6 +211,40 @@ void rts::regionModel<cov>::usample(const int niter_){
       b.swap(bnew);
     }
   }
+#else
+  // Standard spatial case
+  
+  while(diff > 1e-6 && itero < 10) {
+    
+    VectorXd Zu = ZL * b;
+    eta_s = xb + Zu.array();
+    ArrayXd lambda_s = eta_s.exp();
+    VectorXd lambda_r = weights * lambda_s.matrix();
+    ArrayXd y_over_lambda_r = y / lambda_r.array();
+    VectorXd resid_r = (y_over_lambda_r - 1.0).matrix();
+    MatrixXd A = (ZL.array().colwise() * lambda_s).matrix();
+    MatrixXd WA = weights * A;
+    ArrayXd inv_sqrt_lambda_r = lambda_r.array().sqrt().inverse();
+    C = (WA.array().colwise() * inv_sqrt_lambda_r).matrix();
+    VectorXd ZLt_score = WA.transpose() * resid_r;
+    
+    // Woodbury
+    MatrixXd CCt = C * C.transpose();  // n_regions × n_regions
+    CCt.diagonal().array() += 1.0;
+    llt_CCt.compute(CCt);
+    
+    VectorXd Cb = C * b;
+    yb = C.transpose() * Cb + ZLt_score;
+    
+    VectorXd Cyb = C * yb;
+    VectorXd tmp = llt_CCt.solve(Cyb);
+    bnew = yb - C.transpose() * tmp;
+    
+    diff = (b - bnew).array().abs().maxCoeff();
+    itero++;
+    b.swap(bnew);
+  }
+#endif
 
   // Common code for both cases
   Mb = b;
@@ -266,7 +314,14 @@ void rts::regionModel<cov>::usample(const int niter_){
   
   // Compute importance weights
   scaled_u_ = covariance.Lu(u_);
+#ifdef GLMMR13
   u_solve_ = covariance.solve(scaled_u_);
+#else
+  MatrixXd D = covariance.D();
+  LLT<MatrixXd> llt_D;
+  llt_D.compute(D);
+  u_solve_ = llt_D.solve(scaled_u_);
+#endif
   u_weight_.setZero();
   ArrayXd ll = log_likelihood();
 #pragma omp parallel for
@@ -353,6 +408,7 @@ void rts::regionModel<cov>::nr_beta(){
   MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());
   VectorXd score = VectorXd::Zero(beta.size());
 
+#ifdef GLMMR13
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     int T = covariance.Q() / covariance.Covariance::Q();
     int n_A = covariance.Covariance::Q();
@@ -403,6 +459,24 @@ void rts::regionModel<cov>::nr_beta(){
       XtWXm.noalias() += u_weight_(i) * B.transpose() * inv_lambda_r_B;
     }
   }
+#else
+  // Standard spatial case (original code)
+#pragma omp parallel for
+  for(int i = 0; i < niter; ++i){
+    ArrayXd lambda_s = zd.col(i).array().exp();
+    VectorXd lambda_r = weights * lambda_s.matrix();
+    VectorXd resid_r = (y / lambda_r.array() - 1.0).matrix();
+    
+    MatrixXd lambda_s_X = (X.array().colwise() * lambda_s).matrix();
+    MatrixXd B = weights * lambda_s_X;
+    
+    score.noalias() += u_weight_(i) * B.transpose() * resid_r;
+    
+    ArrayXd inv_lambda_r = lambda_r.array().inverse();
+    MatrixXd inv_lambda_r_B = (B.array().colwise() * inv_lambda_r).matrix();
+    XtWXm.noalias() += u_weight_(i) * B.transpose() * inv_lambda_r_B;
+  }
+#endif
   
   M = XtWXm;
   Eigen::LLT<MatrixXd> llt(XtWXm);
@@ -483,8 +557,14 @@ bool rts::regionModel<cov>::check_convergence(const double tol, const int hist, 
 template<typename cov>
 void rts::regionModel<cov>::nr_theta(){
   ArrayXd  tmp(u_.cols());
+#ifdef GLMMR13
   covariance.nr_step(scaled_u_, u_solve_, tmp, gradients, u_weight_);
   ll_theta = tmp.mean();
+#else
+  Rcpp::Rcout << "If you're seeing this message you need to update glmmrBase to >=1.2.0" << std::endl;
+  ll_theta = 0;
+#endif
+  
   
   // Diagnostic checks
   bool theta_has_nan = false;
@@ -494,11 +574,13 @@ void rts::regionModel<cov>::nr_theta(){
       break;
     }
   }
+#ifdef GLMMR13
   if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
     if(std::isnan(covariance.rho)) {
       theta_has_nan = true;
     }
   }
+#endif
   
   if(theta_has_nan) {
     Rcpp::Rcout << "=== DIAGNOSTIC: NaN in theta ===" << std::endl;
@@ -507,11 +589,15 @@ void rts::regionModel<cov>::nr_theta(){
       Rcpp::Rcout << covariance.parameters_[i] << " ";
     }
     Rcpp::Rcout << std::endl;
+#ifdef GLMMR13
     if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
       Rcpp::Rcout << "rho: " << covariance.rho << std::endl;
     }
+#endif
     Rcpp::Rcout << "gradients: " << gradients.transpose() << std::endl;
+#ifdef GLMMR13
     Rcpp::Rcout << "infomat_theta diagonal: " << covariance.infomat_theta.diagonal().transpose() << std::endl;
+#endif
     Rcpp::Rcout << "u_weight_ range: [" << u_weight_.minCoeff() << ", " << u_weight_.maxCoeff() << "]" << std::endl;
     Rcpp::Rcout << "scaled_u_ range: [" << scaled_u_.minCoeff() << ", " << scaled_u_.maxCoeff() << "]" << std::endl;
     Rcpp::Rcout << "u_solve_ range: [" << u_solve_.minCoeff() << ", " << u_solve_.maxCoeff() << "]" << std::endl;
@@ -540,35 +626,37 @@ void rts::regionModel<cov>::fit(const double tol, const int max_iter, const int 
   dblpair ll, lldiff;
   double lltot, llvartot, prob;
   // start at ml values
-  if(trace > 0)std::cout << "\nStarting values\nBeta: " << beta.transpose() << "\ntheta: ";
-  if(trace > 0)for(const auto& i: covariance.parameters_) std::cout << " " << i;
-  if(trace > 0)std::cout << " || " << std::endl;
+  if(trace > 0)Rcpp::Rcout << "\nStarting values\nBeta: " << beta.transpose() << "\ntheta: ";
+  if(trace > 0)for(const auto& i: covariance.parameters_) Rcpp::Rcout << " " << i;
+  if(trace > 0)Rcpp::Rcout << " || " << std::endl;
   
   while (!converged && iter <= max_iter) {
-    if(trace > 0)std::cout << "\n-------------- ITER: " << iter << " ------------" << std::endl;
+    if(trace > 0)Rcpp::Rcout << "\n-------------- ITER: " << iter << " ------------" << std::endl;
     auto t1 = high_resolution_clock::now();
     usample(niter);
     auto t2 = high_resolution_clock::now();
     duration<double, std::milli> ms_double = t2 - t1;
-    if(trace > 0)std::cout << "TIMING STEP 1 (posterior u sample): " << ms_double.count() << "ms" << std::endl;
+    if(trace > 0)Rcpp::Rcout << "TIMING STEP 1 (posterior u sample): " << ms_double.count() << "ms" << std::endl;
     nr_beta();
     auto t3 = high_resolution_clock::now();
     ms_double = t3 - t2;
-    if(trace > 0)std::cout << "TIMING STEP 2 (nr beta): " << ms_double.count() << "ms" << std::endl;
+    if(trace > 0)Rcpp::Rcout << "TIMING STEP 2 (nr beta): " << ms_double.count() << "ms" << std::endl;
     nr_theta();
     auto t4 = high_resolution_clock::now();
     ms_double = t4 - t3;
-    if(trace > 0)std::cout << "TIMING STEP 3 (nr theta): " << ms_double.count() << "ms" << std::endl;
-    if(trace > 0)std::cout << "\nBeta: " << beta.transpose() << "\ntheta: ";
-    if(trace > 0)for(const auto& i: covariance.parameters_) std::cout << " " << i;
+    if(trace > 0)Rcpp::Rcout << "TIMING STEP 3 (nr theta): " << ms_double.count() << "ms" << std::endl;
+    if(trace > 0)Rcpp::Rcout << "\nBeta: " << beta.transpose() << "\ntheta: ";
+    if(trace > 0)for(const auto& i: covariance.parameters_) Rcpp::Rcout << " " << i;
+#ifdef GLMMR13
     if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>){
-      if(trace>0) std::cout << "\nRho: " << covariance.rho;
+      if(trace>0) Rcpp::Rcout << "\nRho: " << covariance.rho;
     }
-    if(trace > 0)std::cout << "\nu: " << u_.topRows(5).rowwise().mean().transpose();
-    if(trace > 0)std::cout << "\nLog-likelihood: " << ll_beta << " | " << ll_theta << std::endl;
+#endif
+    if(trace > 0)Rcpp::Rcout << "\nu: " << u_.topRows(5).rowwise().mean().transpose();
+    if(trace > 0)Rcpp::Rcout << "\nLog-likelihood: " << ll_beta << " | " << ll_theta << std::endl;
     if (iter > 2) {
       converged = check_convergence(tol,hist,iter,k0);
-      if (converged && trace > 0) std::cout << "\nCONVERGED!";
+      if (converged && trace > 0) Rcpp::Rcout << "\nCONVERGED!";
     }
     iter++;
   }
@@ -613,11 +701,16 @@ SEXP regionModel_ar__new(const std::string& formula_,
   using namespace rts;
   using namespace Rcpp;
 
+#ifdef GLMMR13
   XPtr<regionModel<glmmr::ar1Covariance>> ptr(
       new regionModel<glmmr::ar1Covariance>(formula_, data_, colnames_, X_, y_, niter_, T_), 
       true
   );
   return ptr;
+#else
+  throw std::runtime_error("Update to glmmrBase >= 1.2.0 for ar1");
+  return 0;
+#endif
   
 }
 
@@ -647,9 +740,11 @@ void regionModel__set_weights(SEXP xp,
     ptr->weights = W;
     ptr->init_beta();
   } else {
+#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->weights = W;
     ptr->init_beta();
+#endif
   }
   
 }
@@ -660,11 +755,13 @@ void regionModel__set_theta(SEXP xp, std::vector<double> theta, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->covariance.update_parameters_extern(theta);
   } else {
+#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     double rho = theta.back();
     theta.pop_back();
     ptr->covariance.update_parameters_extern(theta);
     ptr->covariance.update_rho(rho);
+#endif
   }
 }
 
@@ -674,8 +771,10 @@ void regionModel__set_offset(SEXP xp, Eigen::VectorXd offset, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->set_offset(offset);
   } else {
+#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->set_offset(offset);
+#endif
   }
 }
 
@@ -685,13 +784,16 @@ void regionModel__fit(SEXP xp, double tol, int max_iter, int hist, int k0, int t
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
   } else {
+#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
+#endif
   }
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__information_matrix(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix());
@@ -699,10 +801,15 @@ SEXP regionModel__information_matrix(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix());
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->information_matrix());
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__information_matrix_theta(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
@@ -710,10 +817,14 @@ SEXP regionModel__information_matrix_theta(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
   }
+#else
+  return Rcpp::wrap(Eigen::MatrixXd::Identity(2,2));
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__u(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
@@ -722,10 +833,15 @@ SEXP regionModel__u(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->u());
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_beta(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
@@ -733,10 +849,15 @@ SEXP regionModel__get_beta(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->beta);
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_weights(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
@@ -744,10 +865,15 @@ SEXP regionModel__get_weights(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->sampling_weights());
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__log_likelihood(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
@@ -755,10 +881,15 @@ SEXP regionModel__log_likelihood(SEXP xp, int type = 0){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->total_log_likelihood());
+#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_theta(SEXP xp, int type = 0){
+#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.parameters_);
@@ -768,6 +899,10 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
     theta.push_back(ptr->covariance.rho);
     return Rcpp::wrap(theta);
   }
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->covariance.parameters_);
+#endif
 }
 
 // [[Rcpp::export]]

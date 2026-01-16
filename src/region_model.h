@@ -40,7 +40,8 @@ public:
               u_loglik_(VectorXd::Zero(niter_)),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
-
+  
+#ifdef GLMMR13
   template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::ar1Covariance> > >
   regionModel(const std::string& formula_,
               const ArrayXXd& data_,
@@ -59,6 +60,7 @@ public:
               u_loglik_(VectorXd::Zero(niter_)),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
+#endif
   
   void              init_beta();
   void              usample(const int niter);

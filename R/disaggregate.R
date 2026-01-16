@@ -1,22 +1,24 @@
+#' Disaggregation function for strictly positive covariates
+#' 
+#' Pycnophylactic disaggregation with spatial smoothness on rates
+#' @details
+#' Solves: min ||W y_s - y_r||^2 
+#'             + lambda_smooth * sum_(i~j) w_ij (r_i - r_j)^2
+#'             + lambda_entropy * sum(y_s * log(y_s))
+#'         s.t. y_s >= 0
+#'
+#' @param W             m x n aggregation matrix
+#' @param y_r           length m vector (observed regional counts)
+#' @param pop           length n vector (population per cell)
+#' @param adj           n x n adjacency matrix (1 if neighbours, 0 otherwise)
+#'                or a sparse Matrix from the Matrix package
+#' @param lambda_smooth weight on spatial smoothness
+#' @param lambda_entropy weight on entropy (0 = pure QP, >0 = nonlinear)
+#' @param weights       optional n x n matrix of edge weights (e.g., inverse distance)
+#' @return A list
+#' @importFrom stats var optim
 disaggregate_positive <- function(W, y_r, pop, adj, lambda_smooth = 1, 
                                 lambda_entropy = 0, weights = NULL) {
-  # Pycnophylactic disaggregation with spatial smoothness on rates
-  #
-  
-  # Solves: min ||W y_s - y_r||^2 
-  #             + lambda_smooth * sum_{i~j} w_ij (r_i - r_j)^2
-  #             + lambda_entropy * sum(y_s * log(y_s))
-  #         s.t. y_s >= 0
-  #
-  # W:             m x n aggregation matrix
-  
-  # y_r:           length m vector (observed regional counts)
-  # pop:           length n vector (population per cell)
-  # adj:           n x n adjacency matrix (1 if neighbours, 0 otherwise)
-  #                or a sparse Matrix from the Matrix package
-  # lambda_smooth: weight on spatial smoothness
-  # lambda_entropy: weight on entropy (0 = pure QP, >0 = nonlinear)
-  # weights:       optional n x n matrix of edge weights (e.g., inverse distance)
   
   n <- ncol(W)
   eps <- 1e-10
@@ -102,6 +104,17 @@ disaggregate_positive <- function(W, y_r, pop, adj, lambda_smooth = 1,
   )
 }
 
+#' Disaggregate regional means to fine grid, preserving aggregate means
+#'
+#' @param x_r           length m vector of regional means (or pop-weighted means)
+#' @param W             m x n aggregation matrix (1 if cell in region, 0 otherwise)
+#' @param adj           n x n adjacency matrix
+#' @param pop           optional length n population vector; if provided, preserves
+#'                population-weighted means rather than simple means
+#' @param lambda_smooth weight on spatial smoothness
+#' @param lambda_ridge  small ridge for numerical stability (needed because L is singular)
+#' @return A list
+#' @importFrom package function
 disaggregate_covariate <- function(x_r, W, adj, pop = NULL, 
                                    lambda_smooth = 1, lambda_ridge = 1e-4) {
   # Disaggregate regional means to fine grid, preserving aggregate means
@@ -168,6 +181,13 @@ disaggregate_covariate <- function(x_r, W, adj, pop = NULL,
   )
 }
 
+#' Simple flat disaggregation
+#' 
+#' Simply solves t(W) %*% x_r
+#' 
+#' @param x_r Covariate to be disaggregtated
+#' @param W weight matrix for disaggregation
+#' @return Vector
 flat_disaggregate <- function(x_r, W) {
   W_colsums <- colSums(W)
   x_s <- as.vector(t(W) %*% x_r / pmax(W_colsums, 1e-10))

@@ -168,8 +168,8 @@ data {
   int nT; //number of time periods
   array[is_region ? n_region*nT : Nsample*nT] int y; //outcome
   matrix[Nsample,D] x_grid; //prediction grid and observations
-  vector[is_region ? n_region*nT : Nsample*nT] popdens; //population density
-  matrix[is_region ? n_region*nT : Nsample*nT,Q] X;
+  vector[Nsample*nT] popdens; //population density
+  matrix[Nsample*nT,Q] X;
   
   // priors
   array[2] real prior_lscale;
@@ -187,8 +187,8 @@ data {
   array[is_region ? n_region+1 : 1] int<lower=1> n_cell; //number of cells intersecting region  
   array[is_region ? n_Q : 1] int<lower=1> cell_id; // IDs of the cells intersecting the region
   vector[is_region ? n_Q : 1] q_weights; // proportionate weights
-  int<lower=0> Q_g; //number of covariates
-  matrix[is_region ? Nsample*nT : 1,Q_g == 0 ? 1 : Q_g] X_g;
+  //int<lower=0> Q_g; //number of covariates
+  //matrix[is_region ? Nsample*nT : 1,Q_g == 0 ? 1 : Q_g] X_g;
   
   // HSGP
   int<lower=1> M; // number of basis functions (per dimension) or nearest neighbours
@@ -200,7 +200,7 @@ data {
   array[approx == 2 ? M : 1, approx == 2 ? Nsample : 1] int NN;
 }
 transformed data {
-  vector[is_region ? n_region*nT : Nsample*nT] logpopdens = log(popdens);
+  vector[Nsample*nT] logpopdens = log(popdens);
   // full GP
   matrix[known_cov && approx == 0 ? Nsample : 0, known_cov  && approx == 0 ? Nsample : 0] L_data;
   array[approx != 1 ? (Nsample*(Nsample-1))%/%2 : 0] real dists;
@@ -243,7 +243,7 @@ parameters {
   array[known_cov ? 0 : 1] real<lower=1e-05> phi_param; //length scale
   array[known_cov ? 0 : 1] real<lower=1e-05> sigma_param;
   vector[Q] gamma;
-  vector[Q_g] gamma_g;
+  //vector[Q_g] gamma_g;
   array[nT > 1 ? 1 : 0] real<lower=-1,upper=1> ar;
   array[(approx == 0 || approx == 2) ? Nsample*nT : 2] real f_raw;
   matrix[approx == 1 ? M_nD : 0, approx == 1 ? nT : 0] beta;
@@ -326,7 +326,7 @@ transformed parameters{
 model{
   vector[is_region ? n_region*nT : 0] lambda_r;
   vector[is_region ? Nsample*nT : 0] region_mean;
-  real accum = 0;
+  //real accum = 0;
   
   if(is_region){
     lambda_r = rep_vector(0,n_region*nT);
@@ -358,11 +358,7 @@ model{
     }
   
   if(is_region){
-    if(Q_g > 0){
-      gamma_g ~ normal(0,2);
-      region_mean = X_g * gamma_g;
-    }
-    
+    region_mean = X * gamma + logpopdens;
     if(approx == 0){
       f_raw ~ std_normal();
     } 
@@ -371,13 +367,11 @@ model{
     {
       for(t in 1:nT)
       {
-        accum = 0;
-        lambda_r[r+(t-1)*n_region] = popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma);
+        //lambda_r[r+(t-1)*n_region] = popdens[r+(t-1)*n_region]*exp(X[r+(t-1)*n_region,]*gamma);
         for(l in 1:(n_cell[r+1]-n_cell[r]))
         {
-          accum += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample] + region_mean[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
+          lambda_r[r+(t-1)*n_region] += q_weights[n_cell[r]+l-1]*exp(f[cell_id[n_cell[r]+l-1] + (t-1)*Nsample] + region_mean[cell_id[n_cell[r]+l-1] + (t-1)*Nsample]);
         }
-        lambda_r[r+(t-1)*n_region] *= accum;
       }
     }
     y ~ poisson(lambda_r);
@@ -391,7 +385,7 @@ model{
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
   vector[is_region ? n_region*nT : 0] region_predict;
-  vector[is_region ? Nsample*nT : 0] region_mean_predict;
+  vector[is_region ? Nsample*nT: 0] region_mean_predict;
   
   if(!is_region){
     for(i in 1:(Nsample*nT)){
@@ -399,10 +393,7 @@ generated quantities{
     }
   } else {
     region_predict = rep_vector(0,n_region*nT);
-    region_mean_predict = rep_vector(0,Nsample*nT);
-    if(Q_g > 0){
-      region_mean_predict = X_g * gamma_g;
-    }
+    region_mean_predict = X * gamma + logpopdens;
     for(i in 1:(Nsample*nT))
     {
       y_grid_predict[i] = exp(f[i] + region_mean_predict[i]);

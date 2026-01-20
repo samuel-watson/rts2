@@ -27,8 +27,9 @@ random.effects <- function(object){
 #' @return A matrix of dimension (number of fixed effects ) x (number of MCMC samples). For Laplace approximation, the number of "samples" equals one.
 #' @export
 covariance.parameters <- function(object){
-  cov.pars <- object$coefficients$est[(object$P+1):nrow(object$coefficients)]
-  names(cov.pars) <- object$coefficients$par[(object$P+1):nrow(object$coefficients)]
+  ncovpar <- ifelse(object$nT == 1, 2, 3)
+  cov.pars <- object$coefficients$est[(object$P+1):(object$P+ncovpar)]
+  names(cov.pars) <- object$coefficients$par[(object$P+1):(object$P+ncovpar)]
   return(cov.pars)
 }
 
@@ -54,14 +55,7 @@ print.rtsFit <- function(x, ...){
              "Bayesian Log Gaussian Cox Process Model\n",
              "Maximum Likelihood Log Gaussian Cox Process Model\n"))
   algo <- switch(as.character(x$method),
-                 "1" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "2" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "3" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "4" = "Stochastic Approximation Expectation Maximisation",
-                 "5" = "Stochastic Approximation Expectation Maximisation with Ruppert-Polyak Averaging",
-                 "6" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
-                 "7" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
-                 "8" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
+                 "mcml" = "Maximum Likelihood",
                  "mcmc" = "Markov Chain Monte Carlo",
                  "vb" = "Variational Bayes"
                  )
@@ -99,14 +93,7 @@ print.rtsFit <- function(x, ...){
 summary.rtsFit <- function(object,...){
   ml <- !object$method%in%c("mcmc","vb")
   algo <- switch(as.character(object$method),
-                 "1" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "2" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "3" = "MCMC Maximum Likelihood Expectation Maximisation",
-                 "4" = "Stochastic Approximation Expectation Maximisation",
-                 "5" = "Stochastic Approximation Expectation Maximisation with Ruppert-Polyak Averaging",
-                 "6" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
-                 "7" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
-                 "8" = "MCMC Maximum Likelihood Expectation Maximisation with Adaptive Sample Sizes",
+                 "mcml" = "Maximum Likelihood",
                  "mcmc" = "Markov Chain Monte Carlo",
                  "vb" = "Variational Bayes"
   )
@@ -127,19 +114,7 @@ summary.rtsFit <- function(object,...){
   }
   rownames(pars) <- object$coefficients$par
   pars <- apply(pars,2,round,digits = 4)
-  
-  preds <- list()
-  ncell <- nrow(object$re.samps)/object$nT
-  ny <- nrow(object$y_predicted)/object$nT
-  for(t in 1:object$nT){
-    preds <- append(preds, 
-                    list(
-                      list(
-                        rr = object$re.samps[((t-1)*ncell + 1):(t*ncell),],
-                        y = object$y_predicted[((t-1)*ny + 1):(t*ny),]
-                      )
-                    ))
-  }
+  n_cov_pars <- ifelse(object$nT > 1, 3, 2)
   summout <- list(
     algo = algo,
     ml = ml,
@@ -149,12 +124,12 @@ summary.rtsFit <- function(object,...){
     iter = object$iter,
     approx = approx,
     fixef = pars[1:object$P,],
-    covpars = pars[(object$P+1):nrow(pars),1],
+    covpars = pars[(object$P+1):(object$P+n_cov_pars),1],
     P = object$P,
     Rsq = object$Rsq,
+    region = object$region,
     aic = object$aic,
-    logl = object$logl,
-    preds = preds
+    logl = object$logl
   )
   class(summout) <- "rtsFitSummary"
   return(summout)
@@ -193,18 +168,18 @@ print.rtsFitSummary <- function(x,...){
   cat("\nFixed effects: \n")
   print(x$fixef)
   if(x$ml){
-    cat("\ncAIC: ",round(x$aic,digits))
-    cat("\nApproximate R-squared: Conditional: ",round(x$Rsq[1],digits)," Marginal: ",round(x$Rsq[2],digits))
+    if(!x$region)cat("\ncAIC: ",round(x$aic,digits))
+    if(!x$region)cat("\nApproximate R-squared: Conditional: ",round(x$Rsq[1],digits)," Marginal: ",round(x$Rsq[2],digits))
     cat("\nLog-likelihood: ",round(x$logl,digits))
   }
-  cat("\n\nModel predictions: \n")
-  nT <- length(x$preds)
-  for(t in 1:nT){
-    cat("\n\U2BC8 Time period ",t,"\n     \U2BA1 Relative risk\n")
-    print(summary(exp(rowMeans(x$preds[[t]]$rr))))
-    cat("     \U2BA1 Predicted incidences\n")
-    print(summary(x$preds[[t]]$y))
-  }
+  # cat("\n\nModel predictions: \n")
+  # nT <- length(x$preds)
+  # for(t in 1:nT){
+  #   cat("\n\U2BC8 Time period ",t,"\n     \U2BA1 Relative risk\n")
+  #   print(summary(exp(rowMeans(x$preds[[t]]$rr))))
+  #   cat("     \U2BA1 Predicted incidences\n")
+  #   print(summary(x$preds[[t]]$y))
+  # }
   cat("\n")
 }
 

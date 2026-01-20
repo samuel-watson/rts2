@@ -64,12 +64,13 @@ is the most recent period.
 
 \code{cov_data} is an object describing covariate over the area of interest.
 sf, RasterLayer and SpatRaster objects are supported, with rasters converted internally to sf.
-The values are mapped onto \code{grid_data}. For each grid cell in \code{grid_data} a weighted
-average of each covariate listed in \code{zcols} is generated with weights either
-equal to the area of intersection of the grid cell and the polygons in
-\code{cov_data} (\code{weight_type="area"}), or this area multiplied by the population
-density of the polygon for population weighted (\code{weight_type="pop"}). Columns
-with the names in \code{zcols} are added to the output.
+The mapping can use a spatially-smoothed method (pynchophylatic) or a variance or entropy minimising
+method or a simple "flat" mapping using only the weighted average of intersections between the grid and
+covariate polygons. For non-"flat" mapping,  \code{lambda_smooth} controls the degree of spatial smoothing - if set to zero then no spatial smoothing
+is used. The argument \code{lambda_e} adds a small amount to reduce numerical instability. One can also map strictly positive covariates (e.g. population density)
+by setting the \code{is_positive} argument to true. In this case, \code{lambda_e} is used to add an entropy minimising criterion (instead of, or in addition to)
+spatial smoothing crtierion. If population density information, then this can be accounted for in the smoothing by setting
+\code{weight_type} to \code{pop} and specifying the name of covariate to \code{popdens}, which should be on the grid.
 
 \emph{Temporally-varying only data}
 
@@ -148,25 +149,17 @@ count in each time period (see \code{points_to_grid}), or \code{y} if single tim
 (see \code{add_covariates}). If a population density variable is not provided it is set to one. If the data are regional data then the outcome
 counts must be in self$region_data. See \code{lgcp_bayes()} for Bayesian approaches to model fitting and more details on the model.
 
-The argument \code{approx} specifies whether to use a full LGCP model (\code{approx='none'}) or whether
-to use either a nearest neighbour approximation (\code{approx='nngp'}, or \code{approx='hsgp'})
-
-Model fitting uses one of several stochastic maximum likelihood algorithms, which have three steps:
+Model fitting uses a fast stochastic maximum likelihood algorithms, which have three steps:
 \enumerate{
-\item Sample random effects using MCMC. The arguments
-\code{mcmc_warmup} and \code{mcmc_sampling} specify the warmup and sampling iterations for this step. If the algorithm
-is SAEM (the default), then the samples contribute to all subsequent iterations but with decaying effect given
-by alpha. SAEM is often faster than MCEM but may have high Monte Carlo error.
-\item Fit fixed effect parameters using expectation maximisation.
-\item Fit covariance parameters using expectation maximisation. The NNGP and HSGP approximations
-provide significant speed improvements at the expense of some approximation error, which diminishes with larger values of \code{m}.
-This step can be skipped if the covaraince parameters are "known" and provided.
+\item Sample random effects using MCMC. The argument
+\code{mcmc_sampling} specifies the iterations for this step.
+\item Fit fixed effect parameters using a Newton-Raphson step.
+\item Fit covariance parameters using a Newton-Raphson step.
 }
 
-The argument \code{algo} specifies the algorithm, the user can select either MCMC maximum likelihood or stochastic approximation
-expectation maximisation. MCMC-ML can be used with or without adaptive MCMC sample sizes
-and either a derivative free or quasi-Newton optimiser (depending on the underlying model). The defaults are chosen
-based on average efficiency and reliability, but may not be the best choice in every case.
+The algorithm uses Bayes Factor termination criterion to measure the evidence of convergence. The algorithm terminates when
+the Bayes Factor is greater than \code{tol} (default is 10). The prior is based on the expected number of iterations until convergence,
+given by \code{k0} (defaul is 10).
 
 \strong{EXTRACTING PREDICTIONS}
 
@@ -238,8 +231,7 @@ g1 <- grid$new(b1,0.5)
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 
 \donttest{
 # mapping population data from some other polygons
@@ -250,8 +242,17 @@ msoa <- sf::st_transform(birmingham_crime,crs = 4326)
 suppressWarnings(sf::st_crs(msoa) <- sf::st_crs(g2$grid_data)) # ensure crs matches
 g2$add_covariates(msoa,
                   zcols="pop",
+                  weight_type="area")
+                  
+# add a case count                  
+g2$add_covariates(msoa,
+                  zcols=c("t1"),
                   weight_type="area",
-                  verbose=FALSE)
+                  is_positive = TRUE,
+                  lambda_smooth = 0,
+                  lambda_e = 1e-6)
+
+g2$grid_data$t1 <- round(g2$grid_data$t1,0)
 g2$plot("pop")
 }
 
@@ -279,8 +280,7 @@ dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 g1$points_to_grid(dp, laglength=5)
 g1$priors <- list(
   prior_lscale=c(0,0.5),
@@ -294,7 +294,7 @@ g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
 g1$plot("rr")
-g1$hotspots(rr.threshold = 2)
+g1$hotspots(threshold = 2, stat = "rr")
 
  # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
@@ -311,41 +311,51 @@ g2$lgcp_bayes(popdens="pop", approx = "hsgp", parallel_chains = 0)
 g2$model_fit()
 g2$extract_preds("rr")
 g2$plot("rr")
-g2$hotspots(rr.threshold = 2)
+g2$hotspots(threshold = 2, stat = "rr")
 }
 
 ## ------------------------------------------------
 ## Method `grid$lgcp_ml`
 ## ------------------------------------------------
 
+# note: these examples are spatial only in 0.10.0 to prevent an error 
+# with the reverse dependency check when updating the base package.
+# If you're seeing this note, then an updated package will be available
+# imminently.
 # a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
+dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3))
+dp <- create_points(dp,pos_vars = c('y','x'))
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
+                  zcols="cov")
+g1$points_to_grid(dp)
+
+# an example 
+
 \donttest{
-g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
+g1$lgcp_ml(popdens="cov",iter_sampling = 50)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
-g1$hotspots(rr.threshold = 2)
+g1$hotspots(threshold = 2, stat = "rr")
 
-# this example uses real aggregated data but will take a relatively long time to run
+# this example uses real aggregated spatial data
+# note that the full dataset has 12 time periods
+# and can be used as a spatio-temporal example by removing
+# the lines marked # spatial 
  data("birmingham_crime")
- example_data <- birmingham_crime[,c(1:8,21)]
- example_data$y <- birmingham_crime$t12
- g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
+ example_data <- birmingham_crime[,c(1:8,21)] # spatial
+ example_data$y <- birmingham_crime$t12 # spatial
+ example_data <- sf::st_transform(example_data, crs = 4326)
+ g2 <- grid$new(example_data,cellsize=0.006)
+ g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")
- g2$hotspots(rr.threshold = 2) 
+ g2$hotspots(threshold = 2, stat = "rr") 
 }
 
 
@@ -375,8 +385,7 @@ dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 g1$points_to_grid(dp, laglength=5)
 g1$priors <- list(
   prior_lscale=c(0,0.5),
@@ -444,6 +453,7 @@ covariance parameter optimisation, while the former control the linear predictor
 \item \href{#method-grid-print}{\code{grid$print()}}
 \item \href{#method-grid-plot}{\code{grid$plot()}}
 \item \href{#method-grid-points_to_grid}{\code{grid$points_to_grid()}}
+\item \href{#method-grid-model_data_frame}{\code{grid$model_data_frame()}}
 \item \href{#method-grid-add_covariates}{\code{grid$add_covariates()}}
 \item \href{#method-grid-get_dow}{\code{grid$get_dow()}}
 \item \href{#method-grid-add_time_indicators}{\code{grid$add_time_indicators()}}
@@ -605,20 +615,36 @@ g1$points_to_grid(dp, laglength=5)
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-grid-model_data_frame"></a>}}
+\if{latex}{\out{\hypertarget{method-grid-model_data_frame}{}}}
+\subsection{Method \code{model_data_frame()}}{
+Returns a data frame with the grid data and coordinates
+
+Returns a standard data frame with the grid data and coordinates, which may be useful to
+run models in another package.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{grid$model_data_frame()}\if{html}{\out{</div>}}
+}
+
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-grid-add_covariates"></a>}}
 \if{latex}{\out{\hypertarget{method-grid-add_covariates}{}}}
 \subsection{Method \code{add_covariates()}}{
 Adds covariate data to the grid
 
-Maps spatial, temporal, or spatio-temporal covariate data onto the grid.
+Maps spatial, temporal, or spatio-temporal covariate data onto the grid using different methods.
 \subsection{Usage}{
 \if{html}{\out{<div class="r">}}\preformatted{grid$add_covariates(
   cov_data,
   zcols,
   weight_type = "area",
   popdens = NULL,
-  verbose = TRUE,
-  t_label = NULL
+  t_label = NULL,
+  flat = TRUE,
+  lambda_smooth = 1,
+  lambda_e = 1e-06,
+  is_positive = FALSE
 )}\if{html}{\out{</div>}}
 }
 
@@ -636,10 +662,19 @@ for population-weighted average}
 \item{\code{popdens}}{character string. The name of the column in \code{cov_data} with the
 population density. Required if weight_type="pop"}
 
-\item{\code{verbose}}{logical. Whether to provide a progress bar}
-
 \item{\code{t_label}}{integer. If adding spatio-temporally varying data by time period,
 this time label should be appended to the column name. See details.}
+
+\item{\code{flat}}{Logical indicating if the disaggregation should be flat and just a weighted average over intersections. Cannot be strictly positive.}
+
+\item{\code{lambda_smooth}}{weight on spatial smoothness, used if \code{flat} is FALSE}
+
+\item{\code{lambda_e}}{small ridge for numerical stability (needed because L is singular), or for
+strictly positive covariates, the weight on entropy in the minimisation.}
+
+\item{\code{is_positive}}{Logical. Should the disaggregation be strictly positive.}
+
+\item{\code{verbose}}{logical. Whether to provide a progress bar}
 }
 \if{html}{\out{</div>}}
 }
@@ -653,8 +688,7 @@ g1 <- grid$new(b1,0.5)
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 
 \donttest{
 # mapping population data from some other polygons
@@ -665,8 +699,17 @@ msoa <- sf::st_transform(birmingham_crime,crs = 4326)
 suppressWarnings(sf::st_crs(msoa) <- sf::st_crs(g2$grid_data)) # ensure crs matches
 g2$add_covariates(msoa,
                   zcols="pop",
+                  weight_type="area")
+                  
+# add a case count                  
+g2$add_covariates(msoa,
+                  zcols=c("t1"),
                   weight_type="area",
-                  verbose=FALSE)
+                  is_positive = TRUE,
+                  lambda_smooth = 0,
+                  lambda_e = 1e-6)
+
+g2$grid_data$t1 <- round(g2$grid_data$t1,0)
 g2$plot("pop")
 }
 }
@@ -744,7 +787,6 @@ Fit an (approximate) log-Gaussian Cox Process model using Bayesian methods
   parallel_chains = 3,
   verbose = TRUE,
   vb = FALSE,
-  use_cmdstanr = FALSE,
   return_stan_fit = FALSE,
   ...
 )}\if{html}{\out{</div>}}
@@ -790,9 +832,6 @@ then the covariance parameters are assumed to be known and will not be estimated
 
 \item{\code{vb}}{Logical indicating whether to use variational Bayes (TRUE) or full MCMC sampling (FALSE)}
 
-\item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
-instead of rstan.}
-
 \item{\code{return_stan_fit}}{logical. The results of the model fit are stored internally as an \code{rstFit} object and
 returned in that format. If this argument is set to TRUE, then the fitted stan object will instead be returned,
 but the \code{rtsFit} object will still be saved.}
@@ -816,8 +855,7 @@ dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 g1$points_to_grid(dp, laglength=5)
 g1$priors <- list(
   prior_lscale=c(0,0.5),
@@ -831,7 +869,7 @@ g1$model_fit()
 # we can extract predictions
 g1$extract_preds("rr")
 g1$plot("rr")
-g1$hotspots(rr.threshold = 2)
+g1$hotspots(threshold = 2, stat = "rr")
 
  # this example uses real aggregated data but will take a relatively long time to run
  data("birmingham_crime")
@@ -848,7 +886,7 @@ g2$lgcp_bayes(popdens="pop", approx = "hsgp", parallel_chains = 0)
 g2$model_fit()
 g2$extract_preds("rr")
 g2$plot("rr")
-g2$hotspots(rr.threshold = 2)
+g2$hotspots(threshold = 2, stat = "rr")
 }
 }
 \if{html}{\out{</div>}}
@@ -865,101 +903,44 @@ Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
 \if{html}{\out{<div class="r">}}\preformatted{grid$lgcp_ml(
   popdens = NULL,
   covs = NULL,
-  covs_grid = NULL,
-  approx = "nngp",
-  m = 10,
-  L = 1.5,
-  model = "exp",
-  known_theta = NULL,
-  starting_values = NULL,
-  lower_bound = NULL,
-  upper_bound = NULL,
-  formula_1 = NULL,
-  formula_2 = NULL,
-  algo = 4,
-  alpha = 0.7,
-  conv_criterion = 1,
-  tol = 0.01,
-  max.iter = 30,
-  iter_warmup = 100,
-  iter_sampling = 250,
-  constr_zero = 0.001,
-  trace = 1,
-  use_cmdstanr = FALSE
+  model = "fexp",
+  max_iter = 30,
+  iter_sampling = 200,
+  tol = 10,
+  hist = 5,
+  k0 = 10,
+  start_theta = NULL,
+  trace = 1
 )}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{popdens}}{character string. Name of the population density column}
+\item{\code{popdens}}{character string. Name of the population density column in grid data or region data}
 
 \item{\code{covs}}{vector of strings. Base names of the covariates to
 include. For temporally-varying covariates only the stem is required and not
 the individual column names for each time period (e.g. \code{dayMon} and not \code{dayMon1},
-\code{dayMon2}, etc.) Alternatively, a formula can be passed to the \code{formula} arguments below.}
+\code{dayMon2}, etc.) For regional models, covariates should be mapped to the grid currently (see add_covariates)}
 
-\item{\code{covs_grid}}{If using a region model, covariates at the level of the grid can also be specified by providing their
-names to this argument. Alternatively, a formula can be passed to the \code{formula} arguments below.}
+\item{\code{model}}{Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Other functions
+from glmmrBase will work, but may be less relevant to spatial models.}
 
-\item{\code{approx}}{Either "rank" for reduced rank approximation, or "nngp" for nearest
-neighbour Gaussian process.}
+\item{\code{max_iter}}{Integer. Maximum number of iterations.}
 
-\item{\code{m}}{integer. Number of basis functions for reduced rank approximation, or
-number of nearest neighbours for nearest neighbour Gaussian process. See Details.}
+\item{\code{iter_sampling}}{integer. Number of random effects samples to draw on each iteration.}
 
-\item{\code{L}}{integer. For reduced rank approximation, boundary condition as proportionate extension of area, e.g.
-\code{L=2} is a doubling of the analysis area. See Details.}
+\item{\code{tol}}{Scalar. The tolerance for the Bayes Factor convergence criterion.}
 
-\item{\code{model}}{Either "exp" for exponential covariance function or "sqexp" for squared exponential
-covariance function}
+\item{\code{hist}}{Integer. The length of the running mean for the convergence criterion for non-Gaussian models.}
 
-\item{\code{known_theta}}{An optional vector of two values of the covariance parameters. If these are provided
-then the covariance parameters are assumed to be known and will not be estimated.}
+\item{\code{k0}}{Integer. The expected nunb2mber of iterations until convergence.}
 
-\item{\code{starting_values}}{An optional list providing starting values of the model parameters. The list can have named elements
-\code{gamma} for the linear predictor parameters, \code{theta} for the covariance parameters, and \code{ar} for the auto-regressive parameter.
-If there are covariates for the grid in a region data model then their parameters are \code{gamma_g}. The list elements must be a
-vector of starting values. If this is not provided then the non-intercept linear predictor parameters are initialised randomly
-as N(0,0.1), the covariance parameters as Uniform(0,0.5) and the auto-regressive parameter to 0.1.}
-
-\item{\code{lower_bound}}{Optional. Vector of lower bound values for the fixed effect parameters.}
-
-\item{\code{upper_bound}}{Optional. Vector of upper bound values for the fixed effect parameters.}
-
-\item{\code{formula_1}}{Optional. Instead of providing a list of covariates above (to \code{covs}) a formula can be specified here. For a regional model, this
-argument specified the regional-level fixed effects model.}
-
-\item{\code{formula_2}}{Optional. Instead of providing a list of covariates above (to \code{covs_grid}) a formula can be specified here. For a regional model, this
-argument specified the grid-level fixed effects model.}
-
-\item{\code{algo}}{integer. 1 = MCMC ML with L-BFGS for beta and non-approximate covariance parameters,
-2 = MCMC ML with BOBYQA for both, 3 = MCMC ML with L-BFGS for beta, BOBYQA for covariance parameters,
-4 = SAEM with BOBYQA for both, 5 = SAEM with RP averaging and BOBYQA for both (default), 6-8 = as 1-3 but
-with adaptive MCMC sample size that starts at 20 with a max of \code{iter_sampling}}
-
-\item{\code{alpha}}{Optional. Value for alpha in the SAEM parameter.}
-
-\item{\code{conv_criterion}}{Integer. The convergence criterion for the algorithm. 1 = No improvement in the overall log-likelihood with probability 0.95,
-2 = No improvement in the log-likelihood for beta with probability 0.95, 3 = Difference between model parameters is less than \code{tol} between iterations.}
-
-\item{\code{tol}}{Scalar indicating the upper bound for the maximum absolute difference between parameter estimates on sucessive iterations, after which the algorithm
-terminates.}
-
-\item{\code{max.iter}}{Integer. The maximum number of iterations for the algorithm.}
-
-\item{\code{iter_warmup}}{integer. Number of warmup iterations}
-
-\item{\code{iter_sampling}}{integer. Number of sampling iterations}
-
-\item{\code{constr_zero}}{Scalar. In the MCMC sampling step, the mean of the random effects is constrained to have variance of this value.}
+\item{\code{start_theta}}{Optional. Starting values for the covariance parameters (log(tau sq), log(lambda), rho), with rho only
+required if more than one time period.}
 
 \item{\code{trace}}{Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.}
-
-\item{\code{use_cmdstanr}}{logical. Defaults to false. If true then cmdstanr will be used
-instead of rstan.}
-
-\item{\code{...}}{additional options to pass to \verb{$sample()}}
 }
 \if{html}{\out{</div>}}
 }
@@ -968,34 +949,44 @@ Optionally, an \code{rtsFit} model fit object. This fit is stored internally and
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{# a simple example with completely random points
+\preformatted{# note: these examples are spatial only in 0.10.0 to prevent an error 
+# with the reverse dependency check when updating the base package.
+# If you're seeing this note, then an updated package will be available
+# imminently.
+# a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
-dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3),date=paste0("2021-01-",11:20))
-dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
+dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3))
+dp <- create_points(dp,pos_vars = c('y','x'))
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
-g1$points_to_grid(dp, laglength=5)
+                  zcols="cov")
+g1$points_to_grid(dp)
+
+# an example 
+
 \donttest{
-g1$lgcp_ml(popdens="cov",iter_warmup = 100, iter_sampling = 50)
+g1$lgcp_ml(popdens="cov",iter_sampling = 50)
 g1$model_fit()
 g1$extract_preds("rr")
 g1$plot("rr")
-g1$hotspots(rr.threshold = 2)
+g1$hotspots(threshold = 2, stat = "rr")
 
-# this example uses real aggregated data but will take a relatively long time to run
+# this example uses real aggregated spatial data
+# note that the full dataset has 12 time periods
+# and can be used as a spatio-temporal example by removing
+# the lines marked # spatial 
  data("birmingham_crime")
- example_data <- birmingham_crime[,c(1:8,21)]
- example_data$y <- birmingham_crime$t12
- g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
+ example_data <- birmingham_crime[,c(1:8,21)] # spatial
+ example_data$y <- birmingham_crime$t12 # spatial
+ example_data <- sf::st_transform(example_data, crs = 4326)
+ g2 <- grid$new(example_data,cellsize=0.006)
+ g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")
- g2$hotspots(rr.threshold = 2) 
+ g2$hotspots(threshold = 2, stat = "rr") 
 }
 
 }
@@ -1017,8 +1008,7 @@ Extract incidence and relative risk predictions. The predictions will be extract
   type = c("pred", "rr", "irr"),
   irr.lag = NULL,
   t.lag = 0,
-  popdens = NULL,
-  verbose = TRUE
+  popdens = NULL
 )}\if{html}{\out{</div>}}
 }
 
@@ -1036,8 +1026,6 @@ periods lag previous the ratio is in comparison to}
 
 \item{\code{popdens}}{character string. Name of the column in \code{grid_data} with the
 population density data}
-
-\item{\code{verbose}}{Logical indicating whether to print messages to the console}
 }
 \if{html}{\out{</div>}}
 }
@@ -1064,45 +1052,28 @@ predictions. If no previous model fit then use either \code{lgcp_ml()} or \code{
 \code{model_fit()} to update the stored model fit.
 
 Given a definition of a hotspot in terms of threshold(s) for incidence,
-relative risk, and/or incidence rate ratio, returns the probabilities
+relative risk, or incidence rate ratio, returns the probabilities
 each area is a "hotspot". See Details of \code{extract_preds}. Columns
 will be added to \code{grid_data}. Note that for incidence threshold, the threshold should
 be specified as the per individual incidence.
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{grid$hotspots(
-  incidence.threshold = NULL,
-  irr.threshold = NULL,
-  irr.lag = 1,
-  rr.threshold = NULL,
-  t.lag = 0,
-  popdens,
-  col_label = NULL
-)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{grid$hotspots(threshold = NULL, stat = "rr", t.lag = 0, popdens = NULL)}\if{html}{\out{</div>}}
 }
 
 \subsection{Arguments}{
 \if{html}{\out{<div class="arguments">}}
 \describe{
-\item{\code{incidence.threshold}}{Numeric. Threshold of population standardised incidence
+\item{\code{threshold}}{Numeric. Threshold of population standardised incidence
 above which an area is a hotspot}
 
-\item{\code{irr.threshold}}{Numeric. Threshold of incidence rate ratio
+\item{\code{stat}}{Numeric. Threshold of incidence rate ratio
 above which an area is a hotspot.}
-
-\item{\code{irr.lag}}{integer. Lag of time period to calculate the incidence rate ratio.
-Only required if \code{irr.threshold} is not \code{NULL}.}
-
-\item{\code{rr.threshold}}{numeric. Threshold of local relative risk
-above which an area is a hotspot}
 
 \item{\code{t.lag}}{integer. Extract predictions for incidence or relative risk for previous time periods.}
 
 \item{\code{popdens}}{character string. Name of variable in \code{grid_data}
 specifying the population density. Needed if \code{incidence.threshold} is not
 \code{NULL}}
-
-\item{\code{col_label}}{character string. If not NULL then the name of the column
-for the hotspot probabilities.}
 }
 \if{html}{\out{</div>}}
 }
@@ -1169,8 +1140,7 @@ dp <- create_points(dp,pos_vars = c('y','x'),t_var='date')
 cov1 <- grid$new(b1,0.8)
 cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
 g1$add_covariates(cov1$grid_data,
-                  zcols="cov",
-                  verbose = FALSE)
+                  zcols="cov")
 g1$points_to_grid(dp, laglength=5)
 g1$priors <- list(
   prior_lscale=c(0,0.5),

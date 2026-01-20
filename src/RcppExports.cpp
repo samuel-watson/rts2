@@ -11,1087 +11,176 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// GridData__NN
-SEXP GridData__NN(SEXP ptr_);
-RcppExport SEXP _rts2_GridData__NN(SEXP ptr_SEXP) {
+// regionModel__new
+SEXP regionModel__new(const std::string& formula_, const Eigen::ArrayXXd& data_, const std::vector<std::string>& colnames_, const Eigen::MatrixXd& X_, const Eigen::ArrayXd& y_, const int niter_, int type);
+RcppExport SEXP _rts2_regionModel__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP X_SEXP, SEXP y_SEXP, SEXP niter_SEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(GridData__NN(ptr_));
+    Rcpp::traits::input_parameter< const std::string& >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y_(y_SEXP);
+    Rcpp::traits::input_parameter< const int >::type niter_(niter_SEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__new(formula_, data_, colnames_, X_, y_, niter_, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// GridData__gen_NN
-void GridData__gen_NN(SEXP ptr_, SEXP m_);
-RcppExport SEXP _rts2_GridData__gen_NN(SEXP ptr_SEXP, SEXP m_SEXP) {
+// regionModel_ar__new
+SEXP regionModel_ar__new(const std::string& formula_, const Eigen::ArrayXXd& data_, const std::vector<std::string>& colnames_, const Eigen::MatrixXd& X_, const Eigen::ArrayXd& y_, const int niter_, const int T_);
+RcppExport SEXP _rts2_regionModel_ar__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP X_SEXP, SEXP y_SEXP, SEXP niter_SEXP, SEXP T_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string& >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y_(y_SEXP);
+    Rcpp::traits::input_parameter< const int >::type niter_(niter_SEXP);
+    Rcpp::traits::input_parameter< const int >::type T_(T_SEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel_ar__new(formula_, data_, colnames_, X_, y_, niter_, T_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// regionModel__set_weights
+void regionModel__set_weights(SEXP xp, Rcpp::IntegerVector i, Rcpp::IntegerVector p, Rcpp::NumericVector x, int nrow, int ncol, int type);
+RcppExport SEXP _rts2_regionModel__set_weights(SEXP xpSEXP, SEXP iSEXP, SEXP pSEXP, SEXP xSEXP, SEXP nrowSEXP, SEXP ncolSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    GridData__gen_NN(ptr_, m_);
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type i(iSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type p(pSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< int >::type nrow(nrowSEXP);
+    Rcpp::traits::input_parameter< int >::type ncol(ncolSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    regionModel__set_weights(xp, i, p, x, nrow, ncol, type);
     return R_NilValue;
 END_RCPP
 }
-// rtsModel__set_y
-void rtsModel__set_y(SEXP xp, SEXP y_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__set_y(SEXP xpSEXP, SEXP y_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__set_theta
+void regionModel__set_theta(SEXP xp, std::vector<double> theta, int type);
+RcppExport SEXP _rts2_regionModel__set_theta(SEXP xpSEXP, SEXP thetaSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type y_(y_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__set_y(xp, y_, covtype_, lptype_);
+    Rcpp::traits::input_parameter< std::vector<double> >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    regionModel__set_theta(xp, theta, type);
     return R_NilValue;
 END_RCPP
 }
-// rtsModel__set_offset
-void rtsModel__set_offset(SEXP xp, SEXP offset_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__set_offset(SEXP xpSEXP, SEXP offset_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__set_offset
+void regionModel__set_offset(SEXP xp, Eigen::VectorXd offset, int type);
+RcppExport SEXP _rts2_regionModel__set_offset(SEXP xpSEXP, SEXP offsetSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type offset_(offset_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__set_offset(xp, offset_, covtype_, lptype_);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type offset(offsetSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    regionModel__set_offset(xp, offset, type);
     return R_NilValue;
 END_RCPP
 }
-// rtsModel__set_weights
-void rtsModel__set_weights(SEXP xp, SEXP weights_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__set_weights(SEXP xpSEXP, SEXP weights_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__fit
+void regionModel__fit(SEXP xp, double tol, int max_iter, int hist, int k0, int type);
+RcppExport SEXP _rts2_regionModel__fit(SEXP xpSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP histSEXP, SEXP k0SEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type weights_(weights_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__set_weights(xp, weights_, covtype_, lptype_);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< int >::type hist(histSEXP);
+    Rcpp::traits::input_parameter< int >::type k0(k0SEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    regionModel__fit(xp, tol, max_iter, hist, k0, type);
     return R_NilValue;
 END_RCPP
 }
-// rtsModel__update_beta
-void rtsModel__update_beta(SEXP xp, SEXP beta_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__update_beta(SEXP xpSEXP, SEXP beta_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__update_beta(xp, beta_, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__update_rho
-void rtsModel__update_rho(SEXP xp, double rho_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__update_rho(SEXP xpSEXP, SEXP rho_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< double >::type rho_(rho_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__update_rho(xp, rho_, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__update_theta
-void rtsModel__update_theta(SEXP xp, SEXP theta_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__update_theta(SEXP xpSEXP, SEXP theta_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__update_theta(xp, theta_, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__update_u
-void rtsModel__update_u(SEXP xp, SEXP u_, bool append, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__update_u(SEXP xpSEXP, SEXP u_SEXP, SEXP appendSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
-    Rcpp::traits::input_parameter< bool >::type append(appendSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__update_u(xp, u_, append, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__use_attenuation
-void rtsModel__use_attenuation(SEXP xp, SEXP use_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__use_attenuation(SEXP xpSEXP, SEXP use_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type use_(use_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__use_attenuation(xp, use_, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__get_W
-SEXP rtsModel__get_W(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__get_W(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__information_matrix
+SEXP regionModel__information_matrix(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__information_matrix(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__get_W(xp, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__information_matrix(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__Sigma
-SEXP rtsModel__Sigma(SEXP xp, bool inverse, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__Sigma(SEXP xpSEXP, SEXP inverseSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__information_matrix_theta
+SEXP regionModel__information_matrix_theta(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__information_matrix_theta(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< bool >::type inverse(inverseSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__Sigma(xp, inverse, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__information_matrix_theta(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__u
-SEXP rtsModel__u(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__u(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__u
+SEXP regionModel__u(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__u(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__u(xp, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__u(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__uraw
-SEXP rtsModel__uraw(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__uraw(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__get_beta
+SEXP regionModel__get_beta(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__get_beta(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__uraw(xp, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__get_beta(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__X
-SEXP rtsModel__X(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__X(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__get_weights
+SEXP regionModel__get_weights(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__get_weights(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__X(xp, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__get_weights(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__ar_chol
-SEXP rtsModel__ar_chol(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ar_chol(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__log_likelihood
+SEXP regionModel__log_likelihood(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__log_likelihood(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__ar_chol(xp, covtype_, lptype_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__log_likelihood(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
-// rtsModel__set_trace
-void rtsModel__set_trace(SEXP xp, SEXP trace_, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__set_trace(SEXP xpSEXP, SEXP trace_SEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type trace_(trace_SEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__set_trace(xp, trace_, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__get_beta
-SEXP rtsModel__get_beta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__get_beta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
+// regionModel__get_theta
+SEXP regionModel__get_theta(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__get_theta(SEXP xpSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__get_beta(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__get_rho
-SEXP rtsModel__get_rho(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__get_rho(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__get_rho(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__get_theta
-SEXP rtsModel__get_theta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__get_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__get_theta(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__ZL
-SEXP rtsModel__ZL(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ZL(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__ZL(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__L
-SEXP rtsModel__L(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__L(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__L(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__D
-SEXP rtsModel__D(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__D(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__D(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__xb
-SEXP rtsModel__xb(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__xb(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__xb(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__P
-SEXP rtsModel__P(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__P(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__P(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__ml_theta
-void rtsModel__ml_theta(SEXP xp, int algo, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_theta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_theta(xp, algo, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__ml_beta
-void rtsModel__ml_beta(SEXP xp, int algo, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_beta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_beta(xp, algo, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__ml_beta_theta
-void rtsModel__ml_beta_theta(SEXP xp, int algo, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_beta_theta(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_beta_theta(xp, algo, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__ml_rho
-void rtsModel__ml_rho(SEXP xp, int algo, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ml_rho(SEXP xpSEXP, SEXP algoSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type algo(algoSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__ml_rho(xp, algo, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__nr_beta
-void rtsModel__nr_beta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__nr_beta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__nr_beta(xp, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__laplace_nr_beta_u
-void rtsModel__laplace_nr_beta_u(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__laplace_nr_beta_u(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__laplace_nr_beta_u(xp, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__laplace_ml_theta
-void rtsModel__laplace_ml_theta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__laplace_ml_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__laplace_ml_theta(xp, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__laplace_ml_rho
-void rtsModel__laplace_ml_rho(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__laplace_ml_rho(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__laplace_ml_rho(xp, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__information_matrix
-SEXP rtsModel__information_matrix(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__information_matrix(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__information_matrix(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__log_likelihood
-SEXP rtsModel__log_likelihood(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__log_likelihood(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__log_likelihood(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__information_matrix_region
-SEXP rtsModel__information_matrix_region(SEXP xp, int covtype, int lptype);
-RcppExport SEXP _rts2_rtsModel__information_matrix_region(SEXP xpSEXP, SEXP covtypeSEXP, SEXP lptypeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype(covtypeSEXP);
-    Rcpp::traits::input_parameter< int >::type lptype(lptypeSEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__information_matrix_region(xp, covtype, lptype));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__get_log_likelihood_values
-SEXP rtsModel__get_log_likelihood_values(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__get_log_likelihood_values(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__get_log_likelihood_values(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__u_diagnostic
-SEXP rtsModel__u_diagnostic(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__u_diagnostic(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__u_diagnostic(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__saem
-void rtsModel__saem(SEXP xp, bool saem_, int block_size, double alpha, bool pr_average, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__saem(SEXP xpSEXP, SEXP saem_SEXP, SEXP block_sizeSEXP, SEXP alphaSEXP, SEXP pr_averageSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< bool >::type saem_(saem_SEXP);
-    Rcpp::traits::input_parameter< int >::type block_size(block_sizeSEXP);
-    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
-    Rcpp::traits::input_parameter< bool >::type pr_average(pr_averageSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rtsModel__saem(xp, saem_, block_size, alpha, pr_average, covtype_, lptype_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__ll_diff_variance
-SEXP rtsModel__ll_diff_variance(SEXP xp, bool beta, bool theta, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__ll_diff_variance(SEXP xpSEXP, SEXP betaSEXP, SEXP thetaSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< bool >::type beta(betaSEXP);
-    Rcpp::traits::input_parameter< bool >::type theta(thetaSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__ll_diff_variance(xp, beta, theta, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__set_bobyqa_control
-void rtsModel__set_bobyqa_control(SEXP xp, int covtype_, int lptype_, SEXP npt_, SEXP rhobeg_, SEXP rhoend_);
-RcppExport SEXP _rts2_rtsModel__set_bobyqa_control(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP npt_SEXP, SEXP rhobeg_SEXP, SEXP rhoend_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type npt_(npt_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rhobeg_(rhobeg_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rhoend_(rhoend_SEXP);
-    rtsModel__set_bobyqa_control(xp, covtype_, lptype_, npt_, rhobeg_, rhoend_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__set_bound
-void rtsModel__set_bound(SEXP xp, int covtype_, int lptype_, SEXP bound_, bool lower);
-RcppExport SEXP _rts2_rtsModel__set_bound(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP bound_SEXP, SEXP lowerSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type bound_(bound_SEXP);
-    Rcpp::traits::input_parameter< bool >::type lower(lowerSEXP);
-    rtsModel__set_bound(xp, covtype_, lptype_, bound_, lower);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel_nngp__A
-SEXP rtsModel_nngp__A(SEXP ptr_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel_nngp__A(SEXP ptr_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_nngp__A(ptr_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_nngp__D
-SEXP rtsModel_nngp__D(SEXP ptr_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel_nngp__D(SEXP ptr_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_nngp__D(ptr_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_nngp__submatrix
-SEXP rtsModel_nngp__submatrix(SEXP ptr_, SEXP lptype_, SEXP i_);
-RcppExport SEXP _rts2_rtsModel_nngp__submatrix(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP i_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type i_(i_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_nngp__submatrix(ptr_, lptype_, i_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_hsgp__Phi
-SEXP rtsModel_hsgp__Phi(SEXP ptr_, SEXP lptype_, bool lambda, bool inverse);
-RcppExport SEXP _rts2_rtsModel_hsgp__Phi(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP lambdaSEXP, SEXP inverseSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< bool >::type lambda(lambdaSEXP);
-    Rcpp::traits::input_parameter< bool >::type inverse(inverseSEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_hsgp__Phi(ptr_, lptype_, lambda, inverse));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_hsgp__Lambda
-SEXP rtsModel_hsgp__Lambda(SEXP ptr_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel_hsgp__Lambda(SEXP ptr_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_hsgp__Lambda(ptr_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_hsgp__set_function
-void rtsModel_hsgp__set_function(SEXP ptr_, SEXP lptype_, bool sqexp);
-RcppExport SEXP _rts2_rtsModel_hsgp__set_function(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP sqexpSEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< bool >::type sqexp(sqexpSEXP);
-    rtsModel_hsgp__set_function(ptr_, lptype_, sqexp);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel_cov__log_likelihood
-SEXP rtsModel_cov__log_likelihood(SEXP xp, int covtype_, int lptype_, SEXP u_);
-RcppExport SEXP _rts2_rtsModel_cov__log_likelihood(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP, SEXP u_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_cov__log_likelihood(xp, covtype_, lptype_, u_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_cov__set_sparse
-void rtsModel_cov__set_sparse(SEXP ptr_, SEXP lptype_, SEXP sparse_);
-RcppExport SEXP _rts2_rtsModel_cov__set_sparse(SEXP ptr_SEXP, SEXP lptype_SEXP, SEXP sparse_SEXP) {
-BEGIN_RCPP
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type sparse_(sparse_SEXP);
-    rtsModel_cov__set_sparse(ptr_, lptype_, sparse_);
-    return R_NilValue;
-END_RCPP
-}
-// rtsModel__aic
-SEXP rtsModel__aic(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__aic(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__aic(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__beta_parameter_names
-SEXP rtsModel__beta_parameter_names(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__beta_parameter_names(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__beta_parameter_names(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__theta_parameter_names
-SEXP rtsModel__theta_parameter_names(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__theta_parameter_names(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__theta_parameter_names(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__infomat_theta
-SEXP rtsModel__infomat_theta(SEXP xp, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__infomat_theta(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__infomat_theta(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__region_intensity
-SEXP rtsModel__region_intensity(SEXP xp, SEXP covtype_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel__region_intensity(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__region_intensity(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__y_pred
-SEXP rtsModel__y_pred(SEXP xp, SEXP covtype_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel__y_pred(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__y_pred(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__grid_to_region_multiplier_matrix
-SEXP rtsModel__grid_to_region_multiplier_matrix(SEXP xp, SEXP covtype_, SEXP lptype_);
-RcppExport SEXP _rts2_rtsModel__grid_to_region_multiplier_matrix(SEXP xpSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__grid_to_region_multiplier_matrix(xp, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__region_grid_xb
-SEXP rtsModel__region_grid_xb(SEXP xp, SEXP covtype_);
-RcppExport SEXP _rts2_rtsModel__region_grid_xb(SEXP xpSEXP, SEXP covtype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type covtype_(covtype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__region_grid_xb(xp, covtype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__grid_to_region
-SEXP rtsModel__grid_to_region(SEXP xp, SEXP u_);
-RcppExport SEXP _rts2_rtsModel__grid_to_region(SEXP xpSEXP, SEXP u_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type u_(u_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__grid_to_region(xp, u_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel__predict
-SEXP rtsModel__predict(SEXP xp, SEXP newdata_, SEXP newoffset_, int m, int covtype_, int lptype_);
-RcppExport SEXP _rts2_rtsModel__predict(SEXP xpSEXP, SEXP newdata_SEXP, SEXP newoffset_SEXP, SEXP mSEXP, SEXP covtype_SEXP, SEXP lptype_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type newdata_(newdata_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type newoffset_(newoffset_SEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< int >::type covtype_(covtype_SEXP);
-    Rcpp::traits::input_parameter< int >::type lptype_(lptype_SEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel__predict(xp, newdata_, newoffset_, m, covtype_, lptype_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// rtsModel_predictor
-Rcpp::List rtsModel_predictor(SEXP xp);
-RcppExport SEXP _rts2_rtsModel_predictor(SEXP xpSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    rcpp_result_gen = Rcpp::wrap(rtsModel_predictor(xp));
-    return rcpp_result_gen;
-END_RCPP
-}
-// nngpCovariance__new
-SEXP nngpCovariance__new(SEXP formula_, SEXP data_, SEXP colnames_, SEXP T_, SEXP m_, SEXP gptr_);
-RcppExport SEXP _rts2_nngpCovariance__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP T_SEXP, SEXP m_SEXP, SEXP gptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(nngpCovariance__new(formula_, data_, colnames_, T_, m_, gptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// GridData__new
-SEXP GridData__new(SEXP x_, SEXP t_);
-RcppExport SEXP _rts2_GridData__new(SEXP x_SEXP, SEXP t_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type x_(x_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
-    rcpp_result_gen = Rcpp::wrap(GridData__new(x_, t_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// GridData_nn__new
-SEXP GridData_nn__new(SEXP x_, SEXP t_, SEXP m_);
-RcppExport SEXP _rts2_GridData_nn__new(SEXP x_SEXP, SEXP t_SEXP, SEXP m_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type x_(x_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
-    rcpp_result_gen = Rcpp::wrap(GridData_nn__new(x_, t_, m_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// RegionData__new
-SEXP RegionData__new(SEXP n_cell_, SEXP cell_id_, SEXP q_weights_, SEXP N_, SEXP T_);
-RcppExport SEXP _rts2_RegionData__new(SEXP n_cell_SEXP, SEXP cell_id_SEXP, SEXP q_weights_SEXP, SEXP N_SEXP, SEXP T_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type n_cell_(n_cell_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type cell_id_(cell_id_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type q_weights_(q_weights_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type N_(N_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type T_(T_SEXP);
-    rcpp_result_gen = Rcpp::wrap(RegionData__new(n_cell_, cell_id_, q_weights_, N_, T_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_ar_lp__new
-SEXP Model_ar_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T);
-RcppExport SEXP _rts2_Model_ar_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_lp__new
-SEXP Model_nngp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP gptr_);
-RcppExport SEXP _rts2_Model_nngp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP gptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, gptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_lp__new
-SEXP Model_hsgp_lp__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_lp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_lp__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, L_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_ar_region_grid__new
-SEXP Model_ar_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, int T);
-RcppExport SEXP _rts2_Model_ar_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP TSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_region_grid__new
-SEXP Model_nngp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, SEXP gptr_, int T, int m);
-RcppExport SEXP _rts2_Model_nngp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP gptr_SEXP, SEXP TSEXP, SEXP mSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, gptr_, T, m));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_region_grid__new
-SEXP Model_hsgp_region_grid__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP beta_, SEXP theta_, SEXP rptr_, int T, int m, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_region_grid__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP rptr_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region_grid__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, beta_, theta_, rptr_, T, m, L_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_region_lp__new
-SEXP Model_region_lp__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP rptr_);
-RcppExport SEXP _rts2_Model_region_lp__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP rptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_region_lp__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_region_lp__P
-SEXP Model_region_lp__P(SEXP ptr_);
-RcppExport SEXP _rts2_Model_region_lp__P(SEXP ptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_region_lp__P(ptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_region_grid_bits__new
-SEXP Model_hsgp_region_grid_bits__new(SEXP formula_region_, SEXP formula_grid_, SEXP data_region_, SEXP data_grid_, SEXP colnames_region_, SEXP colnames_grid_, SEXP rptr_, int T, int m, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_region_grid_bits__new(SEXP formula_region_SEXP, SEXP formula_grid_SEXP, SEXP data_region_SEXP, SEXP data_grid_SEXP, SEXP colnames_region_SEXP, SEXP colnames_grid_SEXP, SEXP rptr_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_region_(formula_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type formula_grid_(formula_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_region_(data_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_grid_(data_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_region_(colnames_region_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_grid_(colnames_grid_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region_grid_bits__new(formula_region_, formula_grid_, data_region_, data_grid_, colnames_region_, colnames_grid_, rptr_, T, m, L_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_region_lp__xb
-SEXP Model_region_lp__xb(SEXP ptr_, bool grid);
-RcppExport SEXP _rts2_Model_region_lp__xb(SEXP ptr_SEXP, SEXP gridSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
-    Rcpp::traits::input_parameter< bool >::type grid(gridSEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_region_lp__xb(ptr_, grid));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_ar_region__new
-SEXP Model_ar_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, SEXP rptr_);
-RcppExport SEXP _rts2_Model_ar_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP rptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_ar_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, rptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_nngp_region__new
-SEXP Model_nngp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP rptr_, SEXP gptr_);
-RcppExport SEXP _rts2_Model_nngp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP rptr_SEXP, SEXP gptr_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type gptr_(gptr_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_nngp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, rptr_, gptr_));
-    return rcpp_result_gen;
-END_RCPP
-}
-// Model_hsgp_region__new
-SEXP Model_hsgp_region__new(SEXP formula_, SEXP data_, SEXP grid_data_, SEXP colnames_, SEXP beta_, SEXP theta_, int T, int m, SEXP rptr_, SEXP L_);
-RcppExport SEXP _rts2_Model_hsgp_region__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP grid_data_SEXP, SEXP colnames_SEXP, SEXP beta_SEXP, SEXP theta_SEXP, SEXP TSEXP, SEXP mSEXP, SEXP rptr_SEXP, SEXP L_SEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type formula_(formula_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type data_(data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type grid_data_(grid_data_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type colnames_(colnames_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type beta_(beta_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type theta_(theta_SEXP);
-    Rcpp::traits::input_parameter< int >::type T(TSEXP);
-    Rcpp::traits::input_parameter< int >::type m(mSEXP);
-    Rcpp::traits::input_parameter< SEXP >::type rptr_(rptr_SEXP);
-    Rcpp::traits::input_parameter< SEXP >::type L_(L_SEXP);
-    rcpp_result_gen = Rcpp::wrap(Model_hsgp_region__new(formula_, data_, grid_data_, colnames_, beta_, theta_, T, m, rptr_, L_));
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__get_theta(xp, type));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -1121,97 +210,65 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// GridData__NN
+SEXP GridData__NN(SEXP ptr_);
+RcppExport SEXP _rts2_GridData__NN(SEXP ptr_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    rcpp_result_gen = Rcpp::wrap(GridData__NN(ptr_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// GridData__gen_NN
+void GridData__gen_NN(SEXP ptr_, SEXP m_);
+RcppExport SEXP _rts2_GridData__gen_NN(SEXP ptr_SEXP, SEXP m_SEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type ptr_(ptr_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type m_(m_SEXP);
+    GridData__gen_NN(ptr_, m_);
+    return R_NilValue;
+END_RCPP
+}
+// GridData__new
+SEXP GridData__new(SEXP x_, SEXP t_);
+RcppExport SEXP _rts2_GridData__new(SEXP x_SEXP, SEXP t_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type x_(x_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type t_(t_SEXP);
+    rcpp_result_gen = Rcpp::wrap(GridData__new(x_, t_));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 RcppExport SEXP _rcpp_module_boot_stan_fit4rtsbayes_mod();
 RcppExport SEXP _rcpp_module_boot_stan_fit4rtslgcp_region_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4rtsmcml_poisson_mod();
-RcppExport SEXP _rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod();
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},
-    {"_rts2_GridData__gen_NN", (DL_FUNC) &_rts2_GridData__gen_NN, 2},
-    {"_rts2_rtsModel__set_y", (DL_FUNC) &_rts2_rtsModel__set_y, 4},
-    {"_rts2_rtsModel__set_offset", (DL_FUNC) &_rts2_rtsModel__set_offset, 4},
-    {"_rts2_rtsModel__set_weights", (DL_FUNC) &_rts2_rtsModel__set_weights, 4},
-    {"_rts2_rtsModel__update_beta", (DL_FUNC) &_rts2_rtsModel__update_beta, 4},
-    {"_rts2_rtsModel__update_rho", (DL_FUNC) &_rts2_rtsModel__update_rho, 4},
-    {"_rts2_rtsModel__update_theta", (DL_FUNC) &_rts2_rtsModel__update_theta, 4},
-    {"_rts2_rtsModel__update_u", (DL_FUNC) &_rts2_rtsModel__update_u, 5},
-    {"_rts2_rtsModel__use_attenuation", (DL_FUNC) &_rts2_rtsModel__use_attenuation, 4},
-    {"_rts2_rtsModel__get_W", (DL_FUNC) &_rts2_rtsModel__get_W, 3},
-    {"_rts2_rtsModel__Sigma", (DL_FUNC) &_rts2_rtsModel__Sigma, 4},
-    {"_rts2_rtsModel__u", (DL_FUNC) &_rts2_rtsModel__u, 3},
-    {"_rts2_rtsModel__uraw", (DL_FUNC) &_rts2_rtsModel__uraw, 3},
-    {"_rts2_rtsModel__X", (DL_FUNC) &_rts2_rtsModel__X, 3},
-    {"_rts2_rtsModel__ar_chol", (DL_FUNC) &_rts2_rtsModel__ar_chol, 3},
-    {"_rts2_rtsModel__set_trace", (DL_FUNC) &_rts2_rtsModel__set_trace, 4},
-    {"_rts2_rtsModel__get_beta", (DL_FUNC) &_rts2_rtsModel__get_beta, 3},
-    {"_rts2_rtsModel__get_rho", (DL_FUNC) &_rts2_rtsModel__get_rho, 3},
-    {"_rts2_rtsModel__get_theta", (DL_FUNC) &_rts2_rtsModel__get_theta, 3},
-    {"_rts2_rtsModel__ZL", (DL_FUNC) &_rts2_rtsModel__ZL, 3},
-    {"_rts2_rtsModel__L", (DL_FUNC) &_rts2_rtsModel__L, 3},
-    {"_rts2_rtsModel__D", (DL_FUNC) &_rts2_rtsModel__D, 3},
-    {"_rts2_rtsModel__xb", (DL_FUNC) &_rts2_rtsModel__xb, 3},
-    {"_rts2_rtsModel__P", (DL_FUNC) &_rts2_rtsModel__P, 3},
-    {"_rts2_rtsModel__ml_theta", (DL_FUNC) &_rts2_rtsModel__ml_theta, 4},
-    {"_rts2_rtsModel__ml_beta", (DL_FUNC) &_rts2_rtsModel__ml_beta, 4},
-    {"_rts2_rtsModel__ml_beta_theta", (DL_FUNC) &_rts2_rtsModel__ml_beta_theta, 4},
-    {"_rts2_rtsModel__ml_rho", (DL_FUNC) &_rts2_rtsModel__ml_rho, 4},
-    {"_rts2_rtsModel__nr_beta", (DL_FUNC) &_rts2_rtsModel__nr_beta, 3},
-    {"_rts2_rtsModel__laplace_nr_beta_u", (DL_FUNC) &_rts2_rtsModel__laplace_nr_beta_u, 3},
-    {"_rts2_rtsModel__laplace_ml_theta", (DL_FUNC) &_rts2_rtsModel__laplace_ml_theta, 3},
-    {"_rts2_rtsModel__laplace_ml_rho", (DL_FUNC) &_rts2_rtsModel__laplace_ml_rho, 3},
-    {"_rts2_rtsModel__information_matrix", (DL_FUNC) &_rts2_rtsModel__information_matrix, 3},
-    {"_rts2_rtsModel__log_likelihood", (DL_FUNC) &_rts2_rtsModel__log_likelihood, 3},
-    {"_rts2_rtsModel__information_matrix_region", (DL_FUNC) &_rts2_rtsModel__information_matrix_region, 3},
-    {"_rts2_rtsModel__get_log_likelihood_values", (DL_FUNC) &_rts2_rtsModel__get_log_likelihood_values, 3},
-    {"_rts2_rtsModel__u_diagnostic", (DL_FUNC) &_rts2_rtsModel__u_diagnostic, 3},
-    {"_rts2_rtsModel__saem", (DL_FUNC) &_rts2_rtsModel__saem, 7},
-    {"_rts2_rtsModel__ll_diff_variance", (DL_FUNC) &_rts2_rtsModel__ll_diff_variance, 5},
-    {"_rts2_rtsModel__set_bobyqa_control", (DL_FUNC) &_rts2_rtsModel__set_bobyqa_control, 6},
-    {"_rts2_rtsModel__set_bound", (DL_FUNC) &_rts2_rtsModel__set_bound, 5},
-    {"_rts2_rtsModel_nngp__A", (DL_FUNC) &_rts2_rtsModel_nngp__A, 2},
-    {"_rts2_rtsModel_nngp__D", (DL_FUNC) &_rts2_rtsModel_nngp__D, 2},
-    {"_rts2_rtsModel_nngp__submatrix", (DL_FUNC) &_rts2_rtsModel_nngp__submatrix, 3},
-    {"_rts2_rtsModel_hsgp__Phi", (DL_FUNC) &_rts2_rtsModel_hsgp__Phi, 4},
-    {"_rts2_rtsModel_hsgp__Lambda", (DL_FUNC) &_rts2_rtsModel_hsgp__Lambda, 2},
-    {"_rts2_rtsModel_hsgp__set_function", (DL_FUNC) &_rts2_rtsModel_hsgp__set_function, 3},
-    {"_rts2_rtsModel_cov__log_likelihood", (DL_FUNC) &_rts2_rtsModel_cov__log_likelihood, 4},
-    {"_rts2_rtsModel_cov__set_sparse", (DL_FUNC) &_rts2_rtsModel_cov__set_sparse, 3},
-    {"_rts2_rtsModel__aic", (DL_FUNC) &_rts2_rtsModel__aic, 3},
-    {"_rts2_rtsModel__beta_parameter_names", (DL_FUNC) &_rts2_rtsModel__beta_parameter_names, 3},
-    {"_rts2_rtsModel__theta_parameter_names", (DL_FUNC) &_rts2_rtsModel__theta_parameter_names, 3},
-    {"_rts2_rtsModel__infomat_theta", (DL_FUNC) &_rts2_rtsModel__infomat_theta, 3},
-    {"_rts2_rtsModel__region_intensity", (DL_FUNC) &_rts2_rtsModel__region_intensity, 3},
-    {"_rts2_rtsModel__y_pred", (DL_FUNC) &_rts2_rtsModel__y_pred, 3},
-    {"_rts2_rtsModel__grid_to_region_multiplier_matrix", (DL_FUNC) &_rts2_rtsModel__grid_to_region_multiplier_matrix, 3},
-    {"_rts2_rtsModel__region_grid_xb", (DL_FUNC) &_rts2_rtsModel__region_grid_xb, 2},
-    {"_rts2_rtsModel__grid_to_region", (DL_FUNC) &_rts2_rtsModel__grid_to_region, 2},
-    {"_rts2_rtsModel__predict", (DL_FUNC) &_rts2_rtsModel__predict, 6},
-    {"_rts2_rtsModel_predictor", (DL_FUNC) &_rts2_rtsModel_predictor, 1},
-    {"_rts2_nngpCovariance__new", (DL_FUNC) &_rts2_nngpCovariance__new, 6},
-    {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
-    {"_rts2_GridData_nn__new", (DL_FUNC) &_rts2_GridData_nn__new, 3},
-    {"_rts2_RegionData__new", (DL_FUNC) &_rts2_RegionData__new, 5},
-    {"_rts2_Model_ar_lp__new", (DL_FUNC) &_rts2_Model_ar_lp__new, 7},
-    {"_rts2_Model_nngp_lp__new", (DL_FUNC) &_rts2_Model_nngp_lp__new, 9},
-    {"_rts2_Model_hsgp_lp__new", (DL_FUNC) &_rts2_Model_hsgp_lp__new, 9},
-    {"_rts2_Model_ar_region_grid__new", (DL_FUNC) &_rts2_Model_ar_region_grid__new, 10},
-    {"_rts2_Model_nngp_region_grid__new", (DL_FUNC) &_rts2_Model_nngp_region_grid__new, 12},
-    {"_rts2_Model_hsgp_region_grid__new", (DL_FUNC) &_rts2_Model_hsgp_region_grid__new, 12},
-    {"_rts2_Model_region_lp__new", (DL_FUNC) &_rts2_Model_region_lp__new, 7},
-    {"_rts2_Model_region_lp__P", (DL_FUNC) &_rts2_Model_region_lp__P, 1},
-    {"_rts2_Model_hsgp_region_grid_bits__new", (DL_FUNC) &_rts2_Model_hsgp_region_grid_bits__new, 10},
-    {"_rts2_Model_region_lp__xb", (DL_FUNC) &_rts2_Model_region_lp__xb, 2},
-    {"_rts2_Model_ar_region__new", (DL_FUNC) &_rts2_Model_ar_region__new, 8},
-    {"_rts2_Model_nngp_region__new", (DL_FUNC) &_rts2_Model_nngp_region__new, 10},
-    {"_rts2_Model_hsgp_region__new", (DL_FUNC) &_rts2_Model_hsgp_region__new, 10},
+    {"_rts2_regionModel__new", (DL_FUNC) &_rts2_regionModel__new, 7},
+    {"_rts2_regionModel_ar__new", (DL_FUNC) &_rts2_regionModel_ar__new, 7},
+    {"_rts2_regionModel__set_weights", (DL_FUNC) &_rts2_regionModel__set_weights, 7},
+    {"_rts2_regionModel__set_theta", (DL_FUNC) &_rts2_regionModel__set_theta, 3},
+    {"_rts2_regionModel__set_offset", (DL_FUNC) &_rts2_regionModel__set_offset, 3},
+    {"_rts2_regionModel__fit", (DL_FUNC) &_rts2_regionModel__fit, 6},
+    {"_rts2_regionModel__information_matrix", (DL_FUNC) &_rts2_regionModel__information_matrix, 2},
+    {"_rts2_regionModel__information_matrix_theta", (DL_FUNC) &_rts2_regionModel__information_matrix_theta, 2},
+    {"_rts2_regionModel__u", (DL_FUNC) &_rts2_regionModel__u, 2},
+    {"_rts2_regionModel__get_beta", (DL_FUNC) &_rts2_regionModel__get_beta, 2},
+    {"_rts2_regionModel__get_weights", (DL_FUNC) &_rts2_regionModel__get_weights, 2},
+    {"_rts2_regionModel__log_likelihood", (DL_FUNC) &_rts2_regionModel__log_likelihood, 2},
+    {"_rts2_regionModel__get_theta", (DL_FUNC) &_rts2_regionModel__get_theta, 2},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
     {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 5},
+    {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},
+    {"_rts2_GridData__gen_NN", (DL_FUNC) &_rts2_GridData__gen_NN, 2},
+    {"_rts2_GridData__new", (DL_FUNC) &_rts2_GridData__new, 2},
     {"_rcpp_module_boot_stan_fit4rtsbayes_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsbayes_mod, 0},
     {"_rcpp_module_boot_stan_fit4rtslgcp_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtslgcp_region_mod, 0},
-    {"_rcpp_module_boot_stan_fit4rtsmcml_poisson_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsmcml_poisson_mod, 0},
-    {"_rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod", (DL_FUNC) &_rcpp_module_boot_stan_fit4rtsmcml_poisson_region_mod, 0},
     {NULL, NULL, 0}
 };
 

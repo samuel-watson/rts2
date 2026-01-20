@@ -1,7 +1,7 @@
 Package: rts2
 Title: Real-Time Disease Surveillance
-Version: 0.9.2
-Date: 2025-10-04
+Version: 0.10.1
+Date: 2026-01-20
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -14,7 +14,7 @@ Description: Supports modelling real-time case data to facilitate the real-time
     and predictions and visualisation. Both Bayesian and maximum likelihood methods are provided. Log-Gaussian Cox Processes are described by 
     Diggle et al. (2013) <doi:10.1214/13-STS441> and we provide both the low-rank approximation for Gaussian processes 
     described by Solin and Särkkä (2020) <doi:10.1007/s11222-019-09886-w> and Riutort-Mayol et al (2023) <doi:10.1007/s11222-022-10167-2> and the
-    nearest neighbour Gaussian process described by Datta et al (2016) <doi:10.1080/01621459.2015.1044091>. 'cmdstanr' can be downloaded at <https://mc-stan.org/cmdstanr/>.
+    nearest neighbour Gaussian process described by Datta et al (2016) <doi:10.1080/01621459.2015.1044091>. 
 License: CC BY-SA 4.0 
 Encoding: UTF-8
 LazyData: true
@@ -33,10 +33,10 @@ Imports:
     rstantools (>= 2.1.1),
     lubridate (>= 1.9.0),
     stars (>= 0.6-1),
-    raster (>= 3.6-1)
-Suggests:
-    cmdstanr (>= 0.4.0),
-    testthat
+    raster (>= 3.6-1),
+    glmmrBase (>= 1.1.0),
+    quadprog,
+    spdep
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),
@@ -44,6 +44,6 @@ LinkingTo:
     RcppParallel (>= 5.0.1),
     rstan (>= 2.30.0),
     StanHeaders (>= 2.32.0),
-    glmmrBase (>= 0.7.1),
-    SparseChol (>= 0.2.2)
+    glmmrBase (>= 1.1.0),
+    SparseChol (>= 0.3.2)
 SystemRequirements: GNU make

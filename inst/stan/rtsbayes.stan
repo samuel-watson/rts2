@@ -385,7 +385,7 @@ model{
 generated quantities{
   vector[Nsample*nT] y_grid_predict;
   vector[is_region ? n_region*nT : 0] region_predict;
-  vector[Nsample*nT] region_mean_predict;
+  vector[is_region ? Nsample*nT: 0] region_mean_predict;
   
   if(!is_region){
     for(i in 1:(Nsample*nT)){

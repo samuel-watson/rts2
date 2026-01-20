@@ -1,3 +1,4 @@
+#include <glmmr/general.h>
 #include <glmmr/griddata.hpp>
 #include "region_model.h"
 
@@ -213,10 +214,9 @@ void rts::regionModel<cov>::usample(const int niter_){
   }
 #else
   // Standard spatial case
-  
   while(diff > 1e-6 && itero < 10) {
     
-    VectorXd Zu = ZL * b;
+    VectorXd Zu = covariance.Lu(b);
     eta_s = xb + Zu.array();
     ArrayXd lambda_s = eta_s.exp();
     VectorXd lambda_r = weights * lambda_s.matrix();
@@ -235,7 +235,6 @@ void rts::regionModel<cov>::usample(const int niter_){
     
     VectorXd Cb = C * b;
     yb = C.transpose() * Cb + ZLt_score;
-    
     VectorXd Cyb = C * yb;
     VectorXd tmp = llt_CCt.solve(Cyb);
     bnew = yb - C.transpose() * tmp;
@@ -561,7 +560,7 @@ void rts::regionModel<cov>::nr_theta(){
   covariance.nr_step(scaled_u_, u_solve_, tmp, gradients, u_weight_);
   ll_theta = tmp.mean();
 #else
-  Rcpp::Rcout << "If you're seeing this message you need to update glmmrBase to >=1.2.0" << std::endl;
+  Rcpp::Rcout << "If you're seeing this message you need to recompile against glmmrBase >=1.2.0\nThe covariance parameters are NOT updated" << std::endl;
   ll_theta = 0;
 #endif
   
@@ -761,6 +760,9 @@ void regionModel__set_theta(SEXP xp, std::vector<double> theta, int type = 0) {
     theta.pop_back();
     ptr->covariance.update_parameters_extern(theta);
     ptr->covariance.update_rho(rho);
+#else 
+    Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+    ptr->covariance.update_parameters(theta);
 #endif
   }
 }

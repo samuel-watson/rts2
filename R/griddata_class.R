@@ -728,7 +728,6 @@ grid <- R6::R6Class("grid",
                                  } 
                                }
                              }
-                             dat <<- datlist
                              if(!verbose){
                                if(!vb){
                                  capture.output(suppressWarnings( res <- rstan::sampling(stanmodels$rtsbayes,
@@ -893,12 +892,16 @@ grid <- R6::R6Class("grid",
                            #' g1$plot("rr")
                            #' g1$hotspots(threshold = 2, stat = "rr")
                            #' 
-                           #' # this example uses real aggregated data but will take a relatively long time to run
+                           #' # this example uses real aggregated spatial data
+                           #' # note that the full dataset has 12 time periods
+                           #' # and can be used as a spatio-temporal example by removing
+                           #' # the lines marked # spatial 
                            #'  data("birmingham_crime")
-                           #'  example_data <- birmingham_crime[,c(1:8,21)]
-                           #'  example_data$y <- birmingham_crime$t12
-                           #'  g2 <- grid$new(example_data,cellsize=1000)
-                           #'  g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
+                           #'  example_data <- birmingham_crime[,c(1:8,21)] # spatial
+                           #'  example_data$y <- birmingham_crime$t12 # spatial
+                           #'  example_data <- sf::st_transform(example_data, crs = 4326)
+                           #'  g2 <- grid$new(example_data,cellsize=0.006)
+                           #'  g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
                            #'  g2$model_fit()
                            #'  g2$extract_preds("rr")
                            #'  g2$plot("rr")
@@ -942,14 +945,20 @@ grid <- R6::R6Class("grid",
                                }
                              }
                              
-                             if(data$nT > 1){
-                               if(is.null(self$region_data)){
-                                 form <- paste0(form,"(1|ar","_",model,"log(x,y,t=",data$nT,"))")
+                             if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                               if(data$nT > 1){
+                                 if(is.null(self$region_data)){
+                                   form <- paste0(form,"(1|ar","_",model,"log(x,y,t=",data$nT,"))")
+                                 } else {
+                                   form <- paste0(form,"(1|",model,"log(x,y))")
+                                 }
                                } else {
                                  form <- paste0(form,"(1|",model,"log(x,y))")
                                }
                              } else {
-                               form <- paste0(form,"(1|",model,"log(x,y))")
+                               form <- paste0(form,"(1|",model,"(x,y))")
+                               print(form)
+                               cat("If you're seeing this message then you need to update glmmrBase\n")
                              }
                             
                              
@@ -964,31 +973,37 @@ grid <- R6::R6Class("grid",
                                  data = dat,
                                  family = poisson(),
                                  offset = log(data$popdens)
-                               )$set_trace(trace)
+                               )$set_trace(1)
                                if(is.null(start_theta)){
                                  start_cov = log(runif(2+I(data$nT>1)*1))
                                } else {
                                  start_cov = start_theta
                                }
-                               mod$update_parameters(cov.pars = start_cov)
+                               
                                mod$update_y(data$y)
                                if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                                 mod$update_parameters(cov.pars = start_cov)
                                  fit <- mod$fit(niter = iter_sampling,
                                                 max_iter = max_iter, 
                                                 tol = tol, 
                                                 hist = hist, 
                                                 k0 = k0)
+                                 ll <- mod$log_likelihood()
+                                 X <- mod$mean$X
+                                 n_cov_pars <- ifelse(data$nT > 1, 3, 2)
+                                 cov_par_names <- c("tau_sq (log)","lambda (log)")
+                                 if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
+                                 fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                } else {
-                                 fit <- mod$MCML(method = "mcnr",
-                                                 se.theta = FALSE)
+                                 mod$update_parameters(cov.pars = exp(start_cov))
+                                 fit <- mod$MCML(method = "mcnr")
+                                 ll <- mod$log_likelihood()
+                                 X <- mod$mean$X
+                                 n_cov_pars <- 2
+                                 cov_par_names <- c("tau_sq","lambda")
+                                 if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
+                                 fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                }
-                               
-                               ll <- mod$log_likelihood()
-                               X <- mod$mean$X
-                               n_cov_pars <- ifelse(data$nT > 1, 3, 2)
-                               cov_par_names <- c("tau_sq (log)","lambda (log)")
-                               if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
-                               fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                popd <- private$stack_variable(popdens)
                                u <- mod$u(scaled = TRUE)  # n x K matrix
                                if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
@@ -1085,8 +1100,11 @@ grid <- R6::R6Class("grid",
                                  }
                                  
                                }
-                               
-                               regionModel__set_theta(ptr, theta_start, type)
+                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                                  regionModel__set_theta(ptr, theta_start, type)
+                               } else {
+                                 regionModel__set_theta(ptr, exp(theta_start), type)
+                               }
                                regionModel__set_weights(ptr, W@i, W@p, W@x, nrow(W), ncol(W), type)
                                if(add_offset){
                                  regionModel__set_offset(ptr, log(data$popd), type)

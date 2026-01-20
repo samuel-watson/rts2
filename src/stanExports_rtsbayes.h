@@ -44,7 +44,7 @@ static constexpr std::array<const char*, 396> locations_array__ =
   " (in 'string', line 257, column 2 to column 62)",
   " (in 'string', line 380, column 2 to column 36)",
   " (in 'string', line 381, column 2 to column 53)",
-  " (in 'string', line 382, column 2 to column 41)",
+  " (in 'string', line 382, column 2 to column 56)",
   " (in 'string', line 265, column 4 to column 27)",
   " (in 'string', line 266, column 4 to column 23)",
   " (in 'string', line 269, column 8 to column 91)",
@@ -277,7 +277,7 @@ static constexpr std::array<const char*, 396> locations_array__ =
   " (in 'string', line 257, column 32 to column 57)",
   " (in 'string', line 380, column 9 to column 19)",
   " (in 'string', line 381, column 9 to column 36)",
-  " (in 'string', line 382, column 9 to column 19)",
+  " (in 'string', line 382, column 9 to column 34)",
   " (in 'string', line 3, column 11 to column 12)",
   " (in 'string', line 3, column 13 to column 14)",
   " (in 'string', line 3, column 4 to column 38)",
@@ -1747,10 +1747,10 @@ public:
       current_statement__ = 249;
       region_mean_predict_1dim__ = std::numeric_limits<int>::min();
       current_statement__ = 249;
-      region_mean_predict_1dim__ = (Nsample * nT);
+      region_mean_predict_1dim__ = (is_region ? (Nsample * nT) : 0);
       current_statement__ = 249;
       stan::math::validate_non_negative_index("region_mean_predict",
-        "Nsample * nT", region_mean_predict_1dim__);
+        "is_region ? Nsample * nT : 0", region_mean_predict_1dim__);
     } catch (const std::exception& e) {
       stan::lang::rethrow_located(e, locations_array__[current_statement__]);
     }

@@ -342,12 +342,16 @@ g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(threshold = 2, stat = "rr")
 
-# this example uses real aggregated data but will take a relatively long time to run
+# this example uses real aggregated spatial data
+# note that the full dataset has 12 time periods
+# and can be used as a spatio-temporal example by removing
+# the lines marked # spatial 
  data("birmingham_crime")
- example_data <- birmingham_crime[,c(1:8,21)]
- example_data$y <- birmingham_crime$t12
- g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
+ example_data <- birmingham_crime[,c(1:8,21)] # spatial
+ example_data$y <- birmingham_crime$t12 # spatial
+ example_data <- sf::st_transform(example_data, crs = 4326)
+ g2 <- grid$new(example_data,cellsize=0.006)
+ g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")
@@ -969,12 +973,16 @@ g1$extract_preds("rr")
 g1$plot("rr")
 g1$hotspots(threshold = 2, stat = "rr")
 
-# this example uses real aggregated data but will take a relatively long time to run
+# this example uses real aggregated spatial data
+# note that the full dataset has 12 time periods
+# and can be used as a spatio-temporal example by removing
+# the lines marked # spatial 
  data("birmingham_crime")
- example_data <- birmingham_crime[,c(1:8,21)]
- example_data$y <- birmingham_crime$t12
- g2 <- grid$new(example_data,cellsize=1000)
- g2$lgcp_ml(popdens = "pop",iter_warmup = 100, iter_sampling = 50)
+ example_data <- birmingham_crime[,c(1:8,21)] # spatial
+ example_data$y <- birmingham_crime$t12 # spatial
+ example_data <- sf::st_transform(example_data, crs = 4326)
+ g2 <- grid$new(example_data,cellsize=0.006)
+ g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
  g2$model_fit()
  g2$extract_preds("rr")
  g2$plot("rr")

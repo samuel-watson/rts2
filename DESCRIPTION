@@ -34,6 +34,7 @@ Imports:
     lubridate (>= 1.9.0),
     stars (>= 0.6-1),
     raster (>= 3.6-1),
+    glmmrBase (>= 1.1.0),
     quadprog,
     spdep
 LinkingTo: 

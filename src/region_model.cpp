@@ -2,7 +2,6 @@
 #include <glmmr/griddata.hpp>
 #include "region_model.h"
 
-
 template<typename cov>
 MatrixXd rts::regionModel<cov>::u() const
 {

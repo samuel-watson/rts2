@@ -104,9 +104,9 @@ grid <- R6::R6Class("grid",
                                n_Q <- nrow(tmp)
                                rID <- poly$region_id
                                tmp$area <- as.numeric(sf::st_area(tmp))
-                               a1 <-rep(aggregate(tmp$area,list(tmp$region_id),sum)$x,unname(table(tmp$region_id)))
-                               #cellsize <- sf::st_area(self$grid_data[1,])
-                               tmp$w <- tmp$area/a1
+                               #a1 <-rep(aggregate(tmp$area,list(tmp$region_id),sum)$x,unname(table(tmp$region_id)))
+                               cellsize <- sf::st_area(self$grid_data[1,])
+                               tmp$w <- tmp$area/cellsize
                                self$region_data <- poly
                                private$intersection_data <- tmp
                              }
@@ -432,7 +432,7 @@ grid <- R6::R6Class("grid",
                                tmp$w <- tmp$area/a1
                                ncell <- unname(table(tmp$region_id))
                                ncell <- c(1, cumsum(ncell)+1)
-                               W <- as.matrix(Matrix::sparseMatrix(j = tmp$grid_id, p = ncell-1, x = tmp$w))
+                               W <- as.matrix(Matrix::sparseMatrix(j = tmp$grid_id, p = ncell-1, x = as.vector(tmp$w)))
                                if(flat){
                                  for(j in 1:length(zcols)){
                                    out <- flat_disaggregate(as.data.frame(cov_data[unique(tmp$region_id),zcols[j]])[,1], W)
@@ -714,7 +714,7 @@ grid <- R6::R6Class("grid",
                              if(!is.null(self$region_data)){
                                ## now do regional model variant
                                W1 <- self$get_region_data()
-                               W <- Matrix::sparseMatrix(j = W1$cell_id, p = W1$n_cell-1, x = W1$q_weights)
+                               W <- Matrix::sparseMatrix(j = W1$cell_id, p = W1$n_cell-1, x = as.vector(W1$q_weights))
                                add_offset <- FALSE
                                if(!is.null(popdens)){
                                  if(popdens %in% colnames(self$grid_data)){
@@ -1051,7 +1051,7 @@ grid <- R6::R6Class("grid",
                              } else {
                                ## now do regional model variant
                                W1 <- self$get_region_data()
-                               W <- Matrix::sparseMatrix(j = W1$cell_id, p = W1$n_cell-1, x = W1$q_weights)
+                               W <- Matrix::sparseMatrix(j = W1$cell_id, p = W1$n_cell-1, x = as.vector(W1$q_weights))
                                add_offset <- FALSE
                                if(!is.null(popdens)){
                                  if(popdens %in% colnames(self$grid_data)){
@@ -1624,7 +1624,8 @@ grid <- R6::R6Class("grid",
                                n_Q = nrow(private$intersection_data),
                                n_cell = ncell,
                                cell_id = private$intersection_data$grid_id,
-                               q_weights = private$intersection_data$w
+                               q_weights = private$intersection_data$w,
+                               W = Matrix::sparseMatrix(j = private$intersection_data$grid_id, p = ncell-1, x = as.vector(private$intersection_data$w))
                              )
                              return(datlist)
                            },

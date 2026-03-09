@@ -1050,8 +1050,7 @@ grid <- R6::R6Class("grid",
                                SE_rr <- sqrt(var_rr)
                              } else {
                                ## now do regional model variant
-                               W1 <- self$get_region_data()
-                               W <- Matrix::sparseMatrix(j = W1$cell_id, p = W1$n_cell-1, x = as.vector(W1$q_weights))
+                               W <- self$get_region_data()$W
                                add_offset <- FALSE
                                if(!is.null(popdens)){
                                  if(popdens %in% colnames(self$grid_data)){
@@ -1067,7 +1066,6 @@ grid <- R6::R6Class("grid",
                                
                                type <- I(data$nT > 1)*1
                                form <- gsub("~","",form)
-                               print(form)
                                if(data$nT == 1){
                                  ptr <- regionModel__new(
                                    form,

@@ -1104,6 +1104,7 @@ SEXP regionModel_hsgp__new(const std::string& formula_,
   );
   if(data_.cols() == 3){
     ptr->covariance.set_anisotropic(true);
+    ptr->gradients = ArrayXd::Zero(ptr->X.cols() + ptr->covariance.npar());
     Rcpp::Rcout << "\nUsing anisotropic HSGP model";
   }
   return ptr;

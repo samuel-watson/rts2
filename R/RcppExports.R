@@ -9,6 +9,10 @@ regionModel_ar__new <- function(formula_, data_, colnames_, X_, y_, niter_, T_) 
     .Call(`_rts2_regionModel_ar__new`, formula_, data_, colnames_, X_, y_, niter_, T_)
 }
 
+regionModel_hsgp__new <- function(formula_, data_, colnames_, X_, y_, niter_, m_, L_boundary_) {
+    .Call(`_rts2_regionModel_hsgp__new`, formula_, data_, colnames_, X_, y_, niter_, m_, L_boundary_)
+}
+
 regionModel__set_weights <- function(xp, i, p, x, nrow, ncol, type = 0L) {
     invisible(.Call(`_rts2_regionModel__set_weights`, xp, i, p, x, nrow, ncol, type))
 }

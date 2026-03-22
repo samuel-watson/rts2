@@ -855,7 +855,7 @@ grid <- R6::R6Class("grid",
                            #' include. For temporally-varying covariates only the stem is required and not
                            #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
                            #' `dayMon2`, etc.) For regional models, covariates should be mapped to the grid currently (see add_covariates)
-                           #' @param model Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Other functions 
+                           #' @param model Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Add `hsgp_` for hsgp approximation. Other functions 
                            #' from glmmrBase will work, but may be less relevant to spatial models.
                            #' @param iter_sampling integer. Number of random effects samples to draw on each iteration.
                            #' @param max_iter Integer. Maximum number of iterations.
@@ -865,6 +865,8 @@ grid <- R6::R6Class("grid",
                            #' @param trace Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.
                            #' @param start_theta Optional. Starting values for the covariance parameters (log(tau sq), log(lambda), rho), with rho only 
                            #' required if more than one time period.
+                           #' @param m Number of basis functions per dimension for HSGP approximation. If spatio-temporal model then three values are required.
+                           #' @param L Multiplicative boundary extension for HSGP approximation.
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
@@ -917,6 +919,8 @@ grid <- R6::R6Class("grid",
                                               hist = 5, 
                                               k0 = 10,
                                               start_theta = NULL,
+                                              m = c(10,10),
+                                              L = 1.5,
                                               trace = 1){
                              # some checks at the beginning
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
@@ -944,9 +948,9 @@ grid <- R6::R6Class("grid",
                                  form <- paste0(form,covs[i],"+")
                                }
                              }
-                             
+                             is_hsgp <- grepl("hsgp",model)
                              if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
-                               if(data$nT > 1){
+                               if(data$nT > 1 & !is_hsgp){
                                  if(is.null(self$region_data)){
                                    form <- paste0(form,"(1|ar","_",model,"log(x,y,t=",data$nT,"))")
                                  } else {
@@ -960,7 +964,7 @@ grid <- R6::R6Class("grid",
                                print(form)
                                cat("If you're seeing this message then you need to update glmmrBase\n")
                              }
-                            
+                             
                              
                              if(is.null(self$region_data)){
                                dat <- as.data.frame(data$X)
@@ -968,6 +972,11 @@ grid <- R6::R6Class("grid",
                                dat <- dat[,2:ncol(dat)]
                                rownames(dat) <- 1:nrow(dat)
                                colnames(dat) <- c(covs,"x","y")
+                               if(is_hsgp & data$nT > 1){
+                                 dat <- cbind(dat, rep(1:data$nT, each = nrow(data$x_grid)))
+                                 colnames(dat) <- c(covs,"x","y","t")
+                                 form <- gsub("\\)", ",t)", form)
+                               }
                                mod <- glmmrBase::Model$new(
                                  formula = as.formula(form),
                                  data = dat,
@@ -975,7 +984,11 @@ grid <- R6::R6Class("grid",
                                  offset = log(data$popdens)
                                )$set_trace(1)
                                if(is.null(start_theta)){
-                                 start_cov = log(runif(2+I(data$nT>1)*1))
+                                 if(is_hsgp & data$nT > 1){
+                                   start_cov = log(runif(4))
+                                 } else {
+                                   start_cov = log(runif(2+I(data$nT>1)*1))
+                                 }
                                } else {
                                  start_cov = start_theta
                                }
@@ -992,7 +1005,8 @@ grid <- R6::R6Class("grid",
                                  X <- mod$mean$X
                                  n_cov_pars <- ifelse(data$nT > 1, 3, 2)
                                  cov_par_names <- c("tau_sq (log)","lambda (log)")
-                                 if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
+                                 if(data$nT > 1 & !is_hsgp)cov_par_names <- c(cov_par_names, "rho")
+                                 if(data$nT > 1 & is_hsgp)cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
                                  fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
                                } else {
                                  mod$update_parameters(cov.pars = exp(start_cov))
@@ -1063,46 +1077,95 @@ grid <- R6::R6Class("grid",
                                    stop("popdens not in grid or region, or is time varying and should be mapped to the grid.")
                                  }
                                }
+                               # parse HSGP models
                                
-                               type <- I(data$nT > 1)*1
+                               if(is_hsgp) form <- gsub("hsgp_","",form)
+                               if(is_hsgp){
+                                 type <- 2L
+                               } else {
+                                 type <- I(data$nT > 1)*1
+                               }
                                form <- gsub("~","",form)
-                               if(data$nT == 1){
-                                 ptr <- regionModel__new(
-                                   form,
-                                   as.matrix(data$x_grid),
-                                   c('x','y'),
-                                   data$X,
-                                   data$y,
-                                   iter_sampling,
-                                   0
-                                 )
-                                 if(is.null(start_theta)){
-                                   theta_start <- c(log(runif(2,0,0.3)))
+                               if(is_hsgp){
+                                 if(data$nT == 1){
+                                   ptr <- regionModel_hsgp__new(
+                                     form,
+                                     as.matrix(data$x_grid),
+                                     c('x','y'),
+                                     data$X,
+                                     data$y,
+                                     iter_sampling,
+                                     m,
+                                     L
+                                   )
+                                   if(is.null(start_theta)){
+                                     theta_start <- c(log(runif(2,0,0.3)))
+                                   } else {
+                                     theta_start <- start_theta
+                                   }
                                  } else {
-                                   theta_start <- start_theta
+                                   form <- gsub("\\)", ",t)", form)
+                                   gcsize <- nrow(data$x_grid)
+                                   gcmat <- data$x_grid
+                                   for(t in 1:(data$nT-1)) gcmat <- rbind(gcmat,data$x_grid)
+                                   gcmat <- cbind(gcmat, data.frame(t = rep(1:data$nT, each = gcsize)))
+                                   ptr <- regionModel_hsgp__new(
+                                     form,
+                                     as.matrix(gcmat),
+                                     c('x','y','t'),
+                                     data$X,
+                                     data$y,
+                                     iter_sampling,
+                                     m,
+                                     L
+                                   )
+                                   if(is.null(start_theta)){
+                                     theta_start <- c(log(runif(4,0,0.3)))
+                                   } else {
+                                     theta_start <- start_theta
+                                   }
                                  }
                                } else {
-                                 ptr <- regionModel_ar__new(
-                                   form,
-                                   as.matrix(data$x_grid),
-                                   c('x','y'),
-                                   data$X,
-                                   data$y,
-                                   iter_sampling,
-                                   data$nT
-                                 )
-                                 if(is.null(start_theta)){
-                                   theta_start <- c(log(runif(2,0,0.3)),0.3)
+                                 if(data$nT == 1){
+                                   ptr <- regionModel__new(
+                                     form,
+                                     as.matrix(data$x_grid),
+                                     c('x','y'),
+                                     data$X,
+                                     data$y,
+                                     iter_sampling,
+                                     0
+                                   )
+                                   if(is.null(start_theta)){
+                                     theta_start <- c(log(runif(2,0,0.3)))
+                                   } else {
+                                     theta_start <- start_theta
+                                   }
                                  } else {
-                                   theta_start <- start_theta
+                                   ptr <- regionModel_ar__new(
+                                     form,
+                                     as.matrix(data$x_grid),
+                                     c('x','y'),
+                                     data$X,
+                                     data$y,
+                                     iter_sampling,
+                                     data$nT
+                                   )
+                                   if(is.null(start_theta)){
+                                     theta_start <- c(log(runif(2,0,0.3)),0.3)
+                                   } else {
+                                     theta_start <- start_theta
+                                   }
+                                   
                                  }
-                                 
                                }
+                               
                                if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
                                   regionModel__set_theta(ptr, theta_start, type)
                                } else {
                                  regionModel__set_theta(ptr, exp(theta_start), type)
                                }
+                               
                                regionModel__set_weights(ptr, W@i, W@p, W@x, nrow(W), ncol(W), type)
                                if(add_offset){
                                  regionModel__set_offset(ptr, log(data$popd), type)
@@ -1110,6 +1173,7 @@ grid <- R6::R6Class("grid",
                                } else {
                                  offset <- rep(0, nrow(data$X))
                                }
+                               
                                regionModel__fit(ptr, tol, max_iter, hist, k0, type)
                                
                                # Information matrix for beta (already computed in nr_beta)
@@ -1123,7 +1187,8 @@ grid <- R6::R6Class("grid",
                                beta <- regionModel__get_beta(ptr, type)
                                theta <- regionModel__get_theta(ptr, type)
                                cov_par_names <- c("tau_sq (log)","lambda (log)")
-                               if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
+                               if(data$nT > 1 & !is_hsgp)cov_par_names <- c(cov_par_names, "rho")
+                               if(data$nT > 1 & is_hsgp)cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
                                res <- data.frame(par = c(paste0("beta",1:length(beta)),cov_par_names,paste0("d",1:nrow(u))),
                                                  est = c(beta,theta,rowMeans(u)),
                                                  SE=c(sqrt(diag(V_beta)),sqrt(diag(V_theta)),rep(NA,nrow(u))),

@@ -45,6 +45,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// regionModel_hsgp__new
+SEXP regionModel_hsgp__new(const std::string& formula_, const Eigen::ArrayXXd& data_, const std::vector<std::string>& colnames_, const Eigen::MatrixXd& X_, const Eigen::ArrayXd& y_, const int niter_, const std::vector<int>& m_, const double L_boundary_);
+RcppExport SEXP _rts2_regionModel_hsgp__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP X_SEXP, SEXP y_SEXP, SEXP niter_SEXP, SEXP m_SEXP, SEXP L_boundary_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string& >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y_(y_SEXP);
+    Rcpp::traits::input_parameter< const int >::type niter_(niter_SEXP);
+    Rcpp::traits::input_parameter< const std::vector<int>& >::type m_(m_SEXP);
+    Rcpp::traits::input_parameter< const double >::type L_boundary_(L_boundary_SEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel_hsgp__new(formula_, data_, colnames_, X_, y_, niter_, m_, L_boundary_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // regionModel__set_weights
 void regionModel__set_weights(SEXP xp, Rcpp::IntegerVector i, Rcpp::IntegerVector p, Rcpp::NumericVector x, int nrow, int ncol, int type);
 RcppExport SEXP _rts2_regionModel__set_weights(SEXP xpSEXP, SEXP iSEXP, SEXP pSEXP, SEXP xSEXP, SEXP nrowSEXP, SEXP ncolSEXP, SEXP typeSEXP) {
@@ -251,6 +269,7 @@ RcppExport SEXP _rcpp_module_boot_stan_fit4rtslgcp_region_mod();
 static const R_CallMethodDef CallEntries[] = {
     {"_rts2_regionModel__new", (DL_FUNC) &_rts2_regionModel__new, 7},
     {"_rts2_regionModel_ar__new", (DL_FUNC) &_rts2_regionModel_ar__new, 7},
+    {"_rts2_regionModel_hsgp__new", (DL_FUNC) &_rts2_regionModel_hsgp__new, 8},
     {"_rts2_regionModel__set_weights", (DL_FUNC) &_rts2_regionModel__set_weights, 7},
     {"_rts2_regionModel__set_theta", (DL_FUNC) &_rts2_regionModel__set_theta, 3},
     {"_rts2_regionModel__set_offset", (DL_FUNC) &_rts2_regionModel__set_offset, 3},

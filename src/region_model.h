@@ -63,6 +63,37 @@ public:
               offset(VectorXd::Zero(X_.rows())) {};
 #endif
   
+  template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::hsgpCovariance> > >
+  regionModel(const std::string& formula_,
+              const ArrayXXd& data_,
+              const strvec& colnames_,
+              const MatrixXd& X_,
+              const ArrayXd& y_,
+              const int niter_,
+              const intvec& m_,
+              const double L_boundary_) : formula(formula_), 
+              covariance(formula_,data_,colnames_),
+              X(X_), y(y_), Q(0), niter(niter_), fam("poisson","log"), 
+              beta(VectorXd::Zero(X_.cols())), 
+              u_(MatrixXd::Zero(1, niter_)),
+              scaled_u_(MatrixXd::Zero(1, niter_)), 
+              u_mean_(VectorXd::Zero(1)), 
+              u_solve_(MatrixXd::Zero(1, niter_)), 
+              u_weight_(ArrayXd::Zero(niter_)), 
+              u_loglik_(VectorXd::Zero(niter_)),
+              gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), 
+              M(MatrixXd::Zero(X_.cols(),X_.cols())),
+              offset(VectorXd::Zero(X_.rows())) 
+  {
+    covariance.update_approx_parameters(m_, L_boundary_);
+    Q = covariance.Q();
+    // Resize to correct spectral dimension
+    u_.resize(Q, niter_);         u_.setZero();
+    scaled_u_.resize(X_.rows(), niter_); scaled_u_.setZero();
+    u_mean_.resize(Q);            u_mean_.setZero();
+    u_solve_.resize(Q, niter_);   u_solve_.setZero();
+  };
+  
   void              init_beta();
   void              usample(const int niter);
   MatrixXd          lambda_r();

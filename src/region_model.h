@@ -119,7 +119,9 @@ private:
   dblvec      logliks;
   double      ll_beta;
   double      ll_theta;
+public:
   ArrayXd                           gradients;
+private:
   std::deque<double>                gradient_history;
   dblvec                            converge_z;
   dblvec                            converge_bf;

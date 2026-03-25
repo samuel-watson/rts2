@@ -108,6 +108,7 @@ grid <- R6::R6Class("grid",
                                cellsize <- sf::st_area(self$grid_data[1,])
                                tmp$w <- tmp$area/cellsize
                                self$region_data <- poly
+                               tmp <- tmp[order(tmp$region_id),]
                                private$intersection_data <- tmp
                              }
                              if(verbose){
@@ -1295,6 +1296,7 @@ grid <- R6::R6Class("grid",
                                          P = ncol(X),
                                          var_par_family = FALSE,
                                          y=data$y,
+                                         X = X,
                                          y_predicted  = ypred,
                                          mu_predicted = mupred,
                                          rr = rr_mean,
@@ -1347,127 +1349,278 @@ grid <- R6::R6Class("grid",
                            #' @examples
                            #' # See examples for lgcp_bayes() and lgcp_ml()
                            #' @importFrom stats sd
-                           extract_preds = function(type=c("pred","rr","irr"),
-                                                    irr.lag=NULL,
-                                                    t.lag=0,
-                                                    popdens=NULL){
-                             if("irr"%in%type&is.null(irr.lag))stop("For irr set irr.lag")
-                             if(is.null(self$region_data) & "pred"%in%type&is.null(popdens))popdens <- "intercept"
-                             nCells <- nrow(self$grid_data)
-                             nRegion <- ifelse(is.null(self$region_data),0,nrow(self$region_data))
-                             nT <- nrow(private$last_model_fit$re.samps)/nCells
-                             if(nT>1){
-                               if("pred"%in%type){
-                                 if(is.null(self$region_data)){
-                                   popd <- as.data.frame(self$grid_data)[,popdens]
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/popd
-                                     self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,mean)
-                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,sd)
-                                     self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
-                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                           extract_preds = function(type = c("pred","rr","irr"),
+                                                    irr.lag = NULL,
+                                                    t.lag = 0,
+                                                    popdens = NULL,
+                                                    level = 0.95){
+                             if ("irr" %in% type & is.null(irr.lag)) stop("For irr set irr.lag")
+                             if (is.null(self$region_data) & "pred" %in% type & is.null(popdens)) popdens <- "intercept"
+                             
+                             nCells  <- nrow(self$grid_data)
+                             nRegion <- ifelse(is.null(self$region_data), 0, nrow(self$region_data))
+                             nT      <- nrow(private$last_model_fit$re.samps) / nCells
+                             alpha   <- 1 - level
+                             z_crit  <- qnorm(1 - alpha / 2)
+                             
+                             is_sampler <- private$last_model_fit$method %in% c("vb", "mcmc")
+                             
+                             # --- Time-slice index helper ---
+                             cell_idx <- function(t.offset = 0){
+                               t_pos <- nT - t.offset
+                               ((t_pos - 1) * nCells + 1):(t_pos * nCells)
+                             }
+                             region_idx <- function(t.offset = 0){
+                               t_pos <- nT - t.offset
+                               ((t_pos - 1) * nRegion + 1):(t_pos * nRegion)
+                             }
+                             
+                             # --- Weighted summary helper (for non-vb/mcmc) ---
+                             wsummary <- function(samps, w){
+                               mu  <- drop(samps %*% w)
+                               res <- samps - mu
+                               sd  <- sqrt(drop(res^2 %*% w))
+                               list(mean = mu, sd = sd)
+                             }
+                             
+                             # --- Set up joint samples for non-vb/mcmc ---
+                             if (!is_sampler) {
+                               w      <- private$last_model_fit$weights
+                               n_samp <- ncol(private$last_model_fit$re.samps)
+                               X      <- private$last_model_fit$X
+                               p      <- ncol(X)
+                               beta_hat   <- private$last_model_fit$coefficients$est[1:p]
+                               Sigma_beta <- solve(private$last_model_fit$vcov)
+                               beta_samps <- MASS::mvrnorm(n_samp, mu = beta_hat, Sigma = Sigma_beta)
+                               
+                               u_all  <- private$last_model_fit$re.samps
+                               # Centered for RR only
+                               zu_all <- sweep(u_all, 2, colMeans(u_all))
+                               # Full linear predictor for pred/IRR (uncentered u + resampled beta)
+                               eta_all <- X %*% t(beta_samps) + u_all
+                             }
+                             
+                             # ================================================================
+                             # nT > 1
+                             # ================================================================
+                             if (nT > 1) {
+                               
+                               ci <- cell_idx(t.lag)
+                               ri <- region_idx(t.lag)
+                               
+                               # ---------- pred ----------
+                               if ("pred" %in% type) {
+                                 if (is.null(self$region_data)) {
+                                   popd <- as.data.frame(self$grid_data)[, popdens]
+                                   if (is_sampler) {
+                                     y_samps <- private$last_model_fit$y_predicted[ci, , drop = FALSE]
+                                     fmu     <- y_samps / popd
+                                     self$grid_data$pred_mean_total    <- apply(y_samps, 1, mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(y_samps, 1, sd)
+                                     self$grid_data$pred_mean_total_lower <- apply(y_samps, 1, quantile, probs = alpha/2)
+                                     self$grid_data$pred_mean_total_upper <- apply(y_samps, 1, quantile, probs = 1 - alpha/2)
+                                     self$grid_data$pred_mean_pp      <- apply(fmu, 1, mean)
+                                     self$grid_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
+                                     self$grid_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
+                                     self$grid_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
                                    } else {
-                                     self$grid_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                     self$grid_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
+                                     s <- wsummary(eta_all[ci, ], w)
+                                     mu_samps <- exp(eta_all[ci, ])
+                                     y_samps  <- mu_samps * popd
+                                     
+                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
+                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
+                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
+                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
+                                     
+                                     ys <- wsummary(y_samps, w)
+                                     self$grid_data$pred_mean_total       <- ys$mean
+                                     self$grid_data$pred_mean_total_se    <- ys$sd
+                                     self$grid_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
+                                     self$grid_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
                                    }
                                  } else {
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     popd <- as.data.frame(self$region_data)[,popdens]
-                                     fmu <- private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/popd
-                                     self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,mean)
-                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE],1,sd)
-                                     self$region_data$pred_mean_pp <- apply(fmu,1,mean)
-                                     self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   # Region-level predictions
+                                   if (is_sampler) {
+                                     popd    <- as.data.frame(self$region_data)[, popdens]
+                                     y_samps <- private$last_model_fit$y_predicted[ri, , drop = FALSE]
+                                     fmu     <- y_samps / popd
+                                     self$region_data$pred_mean_total    <- apply(y_samps, 1, mean)
+                                     self$region_data$pred_mean_total_sd <- apply(y_samps, 1, sd)
+                                     self$region_data$pred_mean_total_lower <- apply(y_samps, 1, quantile, probs = alpha/2)
+                                     self$region_data$pred_mean_total_upper <- apply(y_samps, 1, quantile, probs = 1 - alpha/2)
+                                     self$region_data$pred_mean_pp      <- apply(fmu, 1, mean)
+                                     self$region_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
+                                     self$region_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
+                                     self$region_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
                                    } else {
-                                     self$region_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]
-                                     self$region_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]
-                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
+                                     # Grid-level eta, then aggregate to regions via W
+                                     mu_samps  <- exp(eta_all)
+                                     
+                                     # Grid-level rate
+                                     s <- wsummary(eta_all, w)
+                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
+                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
+                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
+                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
+                                     
+                                     # Aggregate to region
+                                     W_mat <- self$get_region_data()$W
+                                     region_y_samps <- W_mat %*% mu_samps
+                                     ys <- wsummary(region_y_samps, w)
+                                     self$region_data$pred_mean_total       <- ys$mean
+                                     self$region_data$pred_mean_total_se    <- ys$sd
+                                     self$region_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
+                                     self$region_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
                                    }
                                  }
                                }
-                               if("rr"%in%type){
-                                 if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                   self$grid_data$rr <- exp(apply(private$last_model_fit$re.samps[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,mean))
-                                   self$grid_data$rr_sd <- exp(apply(private$last_model_fit$re.samps[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE],1,sd))
+                               
+                               # ---------- rr ----------
+                               if ("rr" %in% type) {
+                                 if (is_sampler) {
+                                   re_samps <- private$last_model_fit$re.samps[ci, , drop = FALSE]
+                                   self$grid_data$rr    <- exp(apply(re_samps, 1, mean))
+                                   self$grid_data$rr_sd <- exp(apply(re_samps, 1, sd))
+                                   self$grid_data$rr_lower <- apply(exp(re_samps), 1, quantile, probs = alpha/2)
+                                   self$grid_data$rr_upper <- apply(exp(re_samps), 1, quantile, probs = 1 - alpha/2)
                                  } else {
-                                   self$grid_data$rr <- drop(private$last_model_fit$rr)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                   self$grid_data$rr_se <- private$last_model_fit$se_pred$rr[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]
-                                 }
-                                
-                               }
-                               if("irr"%in%type){
-                                 if(is.null(self$region_data)){
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     self$grid_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
-                                                                   private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,mean)
-                                     self$grid_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells),,drop=FALSE]/
-                                                                      private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells),,drop=FALSE],1,sd)
-                                   } else {
-                                     self$grid_data$irr <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]/
-                                                                   drop(private$last_model_fit$y_predicted)[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)]
-                                     self$grid_data$log_irr_se <- sqrt(private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nCells+1):((nT-t.lag)*nCells)]^2 + 
-                                                                      private$last_model_fit$se_pred$pp[((nT-irr.lag-t.lag)*nCells+1):(((nT-t.lag)-irr.lag+1)*nCells)]^2)
-                                   }
-                                   
-                                 } else {
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     self$region_data$irr <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
-                                                                     private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,mean)
-                                     self$region_data$irr_sd <- apply(private$last_model_fit$y_predicted[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion),,drop=FALSE]/
-                                                                        private$last_model_fit$y_predicted[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion),,drop=FALSE],1,sd)
-                                   } else {
-                                     self$region_data$irr <- drop(private$last_model_fit$y_predicted)[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]/
-                                       drop(private$last_model_fit$y_predicted)[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion)]
-                                     self$region_data$log_irr_se <- sqrt(private$last_model_fit$se_pred$pp[((nT-1-t.lag)*nRegion+1):((nT-t.lag)*nRegion)]^2 + 
-                                       private$last_model_fit$se_pred$pp[((nT-irr.lag-t.lag)*nRegion+1):(((nT-t.lag)-irr.lag+1)*nRegion)]^2)
-                                   }
+                                   s <- wsummary(zu_all[ci, ], w)
+                                   self$grid_data$rr       <- exp(s$mean)
+                                   self$grid_data$rr_se    <- s$sd * exp(s$mean)
+                                   self$grid_data$rr_lower <- exp(s$mean - z_crit * s$sd)
+                                   self$grid_data$rr_upper <- exp(s$mean + z_crit * s$sd)
                                  }
                                }
+                               
+                               # ---------- irr ----------
+                               if ("irr" %in% type) {
+                                 ci_lag <- cell_idx(t.lag + irr.lag)
+                                 ri_lag <- region_idx(t.lag + irr.lag)
+                                 
+                                 if (is.null(self$region_data)) {
+                                   if (is_sampler) {
+                                     irr_samps <- private$last_model_fit$y_predicted[ci, , drop = FALSE] /
+                                       private$last_model_fit$y_predicted[ci_lag, , drop = FALSE]
+                                     self$grid_data$irr       <- apply(irr_samps, 1, mean)
+                                     self$grid_data$irr_sd    <- apply(irr_samps, 1, sd)
+                                     self$grid_data$irr_lower <- apply(irr_samps, 1, quantile, probs = alpha/2)
+                                     self$grid_data$irr_upper <- apply(irr_samps, 1, quantile, probs = 1 - alpha/2)
+                                   } else {
+                                     log_irr_samps <- eta_all[ci,] - eta_all[ci_lag,]
+                                     s <- wsummary(log_irr_samps, w)
+                                     self$grid_data$irr          <- exp(s$mean)
+                                     self$grid_data$log_irr_se   <- s$sd
+                                     self$grid_data$irr_lower    <- exp(s$mean - z_crit * s$sd)
+                                     self$grid_data$irr_upper    <- exp(s$mean + z_crit * s$sd)
+                                   }
+                                 } else {
+                                   if (is_sampler) {
+                                     irr_samps <- private$last_model_fit$y_predicted[ri, , drop = FALSE] /
+                                       private$last_model_fit$y_predicted[ri_lag, , drop = FALSE]
+                                     self$region_data$irr       <- apply(irr_samps, 1, mean)
+                                     self$region_data$irr_sd    <- apply(irr_samps, 1, sd)
+                                     self$region_data$irr_lower <- apply(irr_samps, 1, quantile, probs = alpha/2)
+                                     self$region_data$irr_upper <- apply(irr_samps, 1, quantile, probs = 1 - alpha/2)
+                                   } else {
+                                     # Aggregate grid-level to regions for both time points
+                                     W_mat <- self$get_region_data()$W
+                                     mu_t    <- W_mat %*% exp(eta_all[ci,])
+                                     mu_lag  <- W_mat %*% exp(eta_all[ci_lag,])
+                                     log_irr_samps <- log(mu_t) - log(mu_lag)
+                                     s <- wsummary(log_irr_samps, w)
+                                     self$region_data$irr          <- exp(s$mean)
+                                     self$region_data$log_irr_se   <- s$sd
+                                     self$region_data$irr_lower    <- exp(s$mean - z_crit * s$sd)
+                                     self$region_data$irr_upper    <- exp(s$mean + z_crit * s$sd)
+                                   }
+                                 }
+                               }
+                               
+                               # ================================================================
+                               # nT == 1
+                               # ================================================================
                              } else {
-                               if("irr"%in%type)stop("cannot estimate irr as only one time period")
-                               if("pred"%in%type){
-                                 if(is.null(self$region_data)){
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     fmu <- private$last_model_fit$y_predicted/as.data.frame(self$grid_data)[,popdens]
-                                     self$grid_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
-                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
-                                     self$grid_data$pred_mean_pp <- apply(fmu,1,mean)
-                                     self$grid_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                               if ("irr" %in% type) stop("cannot estimate irr as only one time period")
+                               
+                               if ("pred" %in% type) {
+                                 if (is.null(self$region_data)) {
+                                   popd <- as.data.frame(self$grid_data)[, popdens]
+                                   if (is_sampler) {
+                                     fmu <- private$last_model_fit$y_predicted / popd
+                                     self$grid_data$pred_mean_total    <- apply(private$last_model_fit$y_predicted, 1, mean)
+                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted, 1, sd)
+                                     self$grid_data$pred_mean_total_lower <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = alpha/2)
+                                     self$grid_data$pred_mean_total_upper <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = 1 - alpha/2)
+                                     self$grid_data$pred_mean_pp      <- apply(fmu, 1, mean)
+                                     self$grid_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
+                                     self$grid_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
+                                     self$grid_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
                                    } else {
-                                     self$grid_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
-                                     self$grid_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
-                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)
-                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp
+                                     s <- wsummary(eta_all, w)
+                                     y_samps <- exp(eta_all) * popd
+                                     
+                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
+                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
+                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
+                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
+                                     
+                                     ys <- wsummary(y_samps, w)
+                                     self$grid_data$pred_mean_total       <- ys$mean
+                                     self$grid_data$pred_mean_total_se    <- ys$sd
+                                     self$grid_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
+                                     self$grid_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
                                    }
-                                   
                                  } else {
-                                   if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                     fmu <- private$last_model_fit$y_predicted/as.data.frame(self$region_data)[,popdens]
-                                     self$region_data$pred_mean_total <- apply(private$last_model_fit$y_predicted,1,mean)
-                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted,1,sd)
-                                     self$region_data$pred_mean_pp <- apply(fmu,1,mean)
-                                     self$region_data$pred_mean_pp_sd <- apply(fmu,1,sd)
+                                   if (is_sampler) {
+                                     popd <- as.data.frame(self$region_data)[, popdens]
+                                     fmu  <- private$last_model_fit$y_predicted / popd
+                                     self$region_data$pred_mean_total    <- apply(private$last_model_fit$y_predicted, 1, mean)
+                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted, 1, sd)
+                                     self$region_data$pred_mean_total_lower <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = alpha/2)
+                                     self$region_data$pred_mean_total_upper <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = 1 - alpha/2)
+                                     self$region_data$pred_mean_pp      <- apply(fmu, 1, mean)
+                                     self$region_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
+                                     self$region_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
+                                     self$region_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
                                    } else {
-                                     self$region_data$pred_mean_total <- drop(private$last_model_fit$y_predicted)
-                                     self$region_data$pred_mean_total_se <- private$last_model_fit$se_pred$tot
-                                     self$grid_data$pred_mean_pp <- drop(private$last_model_fit$mu_predicted)
-                                     self$grid_data$pred_mean_pp_se <- private$last_model_fit$se_pred$pp
+                                     mu_samps  <- exp(eta_all)
+                                     s <- wsummary(eta_all, w)
+                                     
+                                     # Grid-level rate
+                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
+                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
+                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
+                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
+                                     
+                                     # Aggregate to region
+                                     W_mat <- self$get_region_data()$W
+                                     region_y_samps <- W_mat %*% mu_samps
+                                     ys <- wsummary(region_y_samps, w)
+                                     self$region_data$pred_mean_total       <- ys$mean
+                                     self$region_data$pred_mean_total_se    <- ys$sd
+                                     self$region_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
+                                     self$region_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
                                    }
                                  }
                                }
-                               if("rr"%in%type){
-                                 if(private$last_model_fit$method %in% c("vb","mcmc")){
-                                   self$grid_data$rr <- exp(apply(private$last_model_fit$re.samps,1,mean))
-                                   self$grid_data$rr_sd <- exp(apply(private$last_model_fit$re.samps,1,sd))
+                               
+                               if ("rr" %in% type) {
+                                 if (is_sampler) {
+                                   self$grid_data$rr    <- exp(apply(private$last_model_fit$re.samps, 1, mean))
+                                   self$grid_data$rr_sd <- exp(apply(private$last_model_fit$re.samps, 1, sd))
+                                   self$grid_data$rr_lower <- apply(exp(private$last_model_fit$re.samps), 1, quantile, probs = alpha/2)
+                                   self$grid_data$rr_upper <- apply(exp(private$last_model_fit$re.samps), 1, quantile, probs = 1 - alpha/2)
                                  } else {
-                                   self$grid_data$rr <- drop(private$last_model_fit$rr)
-                                   self$grid_data$rr_se <- private$last_model_fit$se_pred$rr
+                                   s <- wsummary(zu_all, w)
+                                   self$grid_data$rr       <- exp(s$mean)
+                                   self$grid_data$rr_se    <- s$sd * exp(s$mean)
+                                   self$grid_data$rr_lower <- exp(s$mean - z_crit * s$sd)
+                                   self$grid_data$rr_upper <- exp(s$mean + z_crit * s$sd)
                                  }
                                }
                              }
+                             
                              return(invisible(self))
                            },
                            #' @description

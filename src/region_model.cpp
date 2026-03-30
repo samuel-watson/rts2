@@ -69,6 +69,11 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_beta()
     zd.col(i) = (X * beta + offset).array() + scaled_u_.col(i).array();
   }
   
+  for(int i = 0; i < niter_; i++){
+    double zu_mean = scaled_u_.col(i).mean();
+    zd.col(i).array() -= zu_mean;
+  }
+  
   MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());
   VectorXd score = VectorXd::Zero(beta.size());
   
@@ -639,6 +644,11 @@ void rts::regionModel<cov>::nr_beta(){
   MatrixXd zd(X.rows(), niter);
   for(int i = 0; i < niter; i++){
     zd.col(i) = (X * beta + offset).array() + scaled_u_.col(i).array();
+  }
+  
+  for(int i = 0; i < niter; i++){
+    double zu_mean = scaled_u_.col(i).mean();
+    zd.col(i).array() -= zu_mean;
   }
   
   MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());

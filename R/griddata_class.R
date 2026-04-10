@@ -915,7 +915,7 @@ grid <- R6::R6Class("grid",
                                               k0 = 10,
                                               start_theta = NULL,
                                               m = c(10,10),
-                                              L = 1.5,
+                                              L = 1.2,
                                               trace = 1){
                              # some checks at the beginning
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")

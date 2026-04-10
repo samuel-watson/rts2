@@ -318,10 +318,6 @@ g2$hotspots(threshold = 2, stat = "rr")
 ## Method `grid$lgcp_ml`
 ## ------------------------------------------------
 
-# note: these examples are spatial only in 0.10.0 to prevent an error 
-# with the reverse dependency check when updating the base package.
-# If you're seeing this note, then an updated package will be available
-# imminently.
 # a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
@@ -333,7 +329,7 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov")
 g1$points_to_grid(dp)
 
-# an example 
+# an example using real data
 
 \donttest{
 g1$lgcp_ml(popdens="cov",iter_sampling = 50)
@@ -351,11 +347,9 @@ g1$hotspots(threshold = 2, stat = "rr")
  example_data$y <- birmingham_crime$t12 # spatial
  example_data <- sf::st_transform(example_data, crs = 4326)
  g2 <- grid$new(example_data,cellsize=0.006)
- g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
- g2$model_fit()
+ g2$lgcp_ml(popdens = "pop", model = "hsgp_matern1", L = 1.5, m = c(15,15))
  g2$extract_preds("rr")
  g2$plot("rr")
- g2$hotspots(threshold = 2, stat = "rr") 
 }
 
 
@@ -910,6 +904,8 @@ Fit an (approximate) log-Gaussian Cox Process model using Maximum Likelihood
   hist = 5,
   k0 = 10,
   start_theta = NULL,
+  m = c(10, 10),
+  L = 1.5,
   trace = 1
 )}\if{html}{\out{</div>}}
 }
@@ -924,7 +920,7 @@ include. For temporally-varying covariates only the stem is required and not
 the individual column names for each time period (e.g. \code{dayMon} and not \code{dayMon1},
 \code{dayMon2}, etc.) For regional models, covariates should be mapped to the grid currently (see add_covariates)}
 
-\item{\code{model}}{Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Other functions
+\item{\code{model}}{Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Add \code{hsgp_} for hsgp approximation. Other functions
 from glmmrBase will work, but may be less relevant to spatial models.}
 
 \item{\code{max_iter}}{Integer. Maximum number of iterations.}
@@ -940,6 +936,10 @@ from glmmrBase will work, but may be less relevant to spatial models.}
 \item{\code{start_theta}}{Optional. Starting values for the covariance parameters (log(tau sq), log(lambda), rho), with rho only
 required if more than one time period.}
 
+\item{\code{m}}{Number of basis functions per dimension for HSGP approximation. If spatio-temporal model then three values are required.}
+
+\item{\code{L}}{Multiplicative boundary extension for HSGP approximation.}
+
 \item{\code{trace}}{Integer. Level of detail of information printed to the console. 0 = none, 1 = some (default), 2 = most.}
 }
 \if{html}{\out{</div>}}
@@ -949,11 +949,7 @@ Optionally, an \code{rtsFit} model fit object. This fit is stored internally and
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
-\preformatted{# note: these examples are spatial only in 0.10.0 to prevent an error 
-# with the reverse dependency check when updating the base package.
-# If you're seeing this note, then an updated package will be available
-# imminently.
-# a simple example with completely random points
+\preformatted{# a simple example with completely random points
 b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
 g1 <- grid$new(b1,0.5)
 dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3))
@@ -964,7 +960,7 @@ g1$add_covariates(cov1$grid_data,
                   zcols="cov")
 g1$points_to_grid(dp)
 
-# an example 
+# an example using real data
 
 \donttest{
 g1$lgcp_ml(popdens="cov",iter_sampling = 50)
@@ -982,11 +978,9 @@ g1$hotspots(threshold = 2, stat = "rr")
  example_data$y <- birmingham_crime$t12 # spatial
  example_data <- sf::st_transform(example_data, crs = 4326)
  g2 <- grid$new(example_data,cellsize=0.006)
- g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
- g2$model_fit()
+ g2$lgcp_ml(popdens = "pop", model = "hsgp_matern1", L = 1.5, m = c(15,15))
  g2$extract_preds("rr")
  g2$plot("rr")
- g2$hotspots(threshold = 2, stat = "rr") 
 }
 
 }
@@ -1008,7 +1002,8 @@ Extract incidence and relative risk predictions. The predictions will be extract
   type = c("pred", "rr", "irr"),
   irr.lag = NULL,
   t.lag = 0,
-  popdens = NULL
+  popdens = NULL,
+  level = 0.95
 )}\if{html}{\out{</div>}}
 }
 

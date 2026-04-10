@@ -1152,7 +1152,7 @@ void regionModel__set_weights(SEXP xp,
     ptr->weights = W;
     ptr->init_beta();
 #endif
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     // build sparse matrix W from CSC ...
     ptr->weights = W;
@@ -1177,7 +1177,7 @@ void regionModel__set_theta(SEXP xp, std::vector<double> theta, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->covariance.update_parameters(theta);
 #endif
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     ptr->covariance.update_parameters_extern(theta);
   }
@@ -1193,7 +1193,7 @@ void regionModel__set_offset(SEXP xp, Eigen::VectorXd offset, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->set_offset(offset);
 #endif
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     ptr->set_offset(offset);
   }
@@ -1209,7 +1209,7 @@ void regionModel__fit(SEXP xp, double tol, int max_iter, int hist, int k0, int t
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
 #endif
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
   }
@@ -1224,7 +1224,7 @@ SEXP regionModel__information_matrix(SEXP xp, int type = 0){
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix());
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix());
   }
@@ -1243,7 +1243,7 @@ SEXP regionModel__information_matrix_theta(SEXP xp, int type = 0){
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
   }
@@ -1262,7 +1262,7 @@ SEXP regionModel__u(SEXP xp, int type = 0){
   else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->u());
   } 
@@ -1281,7 +1281,7 @@ SEXP regionModel__get_beta(SEXP xp, int type = 0){
   } else if (type ==1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
   }
@@ -1300,7 +1300,7 @@ SEXP regionModel__get_weights(SEXP xp, int type = 0){
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
   }
@@ -1319,7 +1319,7 @@ SEXP regionModel__log_likelihood(SEXP xp, int type = 0){
   } else if (type ==1) {
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
   }
@@ -1340,7 +1340,7 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
     std::vector<double> theta = ptr->covariance.parameters_;
     theta.push_back(ptr->covariance.rho);
     return Rcpp::wrap(theta);
-  } else if(type == 2) {
+  } else  {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.get_parameters_extern());
   }

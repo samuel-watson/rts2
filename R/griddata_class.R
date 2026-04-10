@@ -871,10 +871,6 @@ grid <- R6::R6Class("grid",
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
-                           #' # note: these examples are spatial only in 0.10.0 to prevent an error 
-                           #' # with the reverse dependency check when updating the base package.
-                           #' # If you're seeing this note, then an updated package will be available
-                           #' # imminently.
                            #' # a simple example with completely random points
                            #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
                            #' g1 <- grid$new(b1,0.5)
@@ -886,7 +882,7 @@ grid <- R6::R6Class("grid",
                            #'                   zcols="cov")
                            #' g1$points_to_grid(dp)
                            #' 
-                           #' # an example 
+                           #' # an example using real data
                            #' 
                            #' \donttest{
                            #' g1$lgcp_ml(popdens="cov",iter_sampling = 50)
@@ -904,11 +900,9 @@ grid <- R6::R6Class("grid",
                            #'  example_data$y <- birmingham_crime$t12 # spatial
                            #'  example_data <- sf::st_transform(example_data, crs = 4326)
                            #'  g2 <- grid$new(example_data,cellsize=0.006)
-                           #'  g2$lgcp_ml(popdens = "pop", start_theta = log(c(0.1, 0.05)))
-                           #'  g2$model_fit()
+                           #'  g2$lgcp_ml(popdens = "pop", model = "hsgp_matern1", L = 1.5, m = c(15,15))
                            #'  g2$extract_preds("rr")
                            #'  g2$plot("rr")
-                           #'  g2$hotspots(threshold = 2, stat = "rr") 
                            #' }
                            #' 
                            lgcp_ml = function(popdens=NULL,
@@ -1059,10 +1053,10 @@ grid <- R6::R6Class("grid",
                                SEtot <- sqrt(var_beta_tot + var_u_tot)
                                ypred <- mu_tot_mean
                                mupred <- mu_pp_mean
-                               rr_samples <- exp(u)  # n x K matrix
+                               rr_samples <- u  # n x K matrix
                                rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
                                var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                               SE_rr <- sqrt(var_rr)
+                               SE_rr <- sqrt(var_rr + XVX)
                              } else {
                                ## now do regional model variant
                                W <- self$get_region_data()$W
@@ -1268,10 +1262,10 @@ grid <- R6::R6Class("grid",
                                }
                                mupred <- rowSums(t(t(mu_samples) * w)) / sum_w
                                # Relative risk samples: RR = exp(u)
-                               rr_samples <- exp(u)  # n x K matrix
+                               rr_samples <- u  # n x K matrix
                                rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
                                var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                               SE_rr <- sqrt(var_rr)
+                               SE_rr <- sqrt(var_rr + XVX)
                                ll <- regionModel__log_likelihood(ptr, type)
                               
                              }
@@ -1365,7 +1359,6 @@ grid <- R6::R6Class("grid",
                              
                              is_sampler <- private$last_model_fit$method %in% c("vb", "mcmc")
                              
-                             # --- Time-slice index helper ---
                              cell_idx <- function(t.offset = 0){
                                t_pos <- nT - t.offset
                                ((t_pos - 1) * nCells + 1):(t_pos * nCells)
@@ -1375,36 +1368,41 @@ grid <- R6::R6Class("grid",
                                ((t_pos - 1) * nRegion + 1):(t_pos * nRegion)
                              }
                              
-                             # --- Weighted summary helper (for non-vb/mcmc) ---
-                             wsummary <- function(samps, w){
-                               mu  <- drop(samps %*% w)
-                               res <- samps - mu
-                               sd  <- sqrt(drop(res^2 %*% w))
-                               list(mean = mu, sd = sd)
+                             # Fast path: pull pre-computed point estimates and SEs from the fit
+                             fit      <- private$last_model_fit
+                             w        <- fit$weights
+                             se_pred  <- fit$se_pred
+                             
+                             # Helpers ---------------------------------------------------------------
+                             # Log-scale mean + SE -> response-scale mean and symmetric log-scale CI
+                             set_log <- function(df, prefix, log_mean, se_log) {
+                               df[[paste0(prefix)]]          <- exp(log_mean)
+                               df[[paste0(prefix, "_se")]]   <- se_log * exp(log_mean)  # delta method
+                               df[[paste0(prefix, "_lower")]] <- exp(log_mean - z_crit * se_log)
+                               df[[paste0(prefix, "_upper")]] <- exp(log_mean + z_crit * se_log)
+                               df
+                             }
+                             # Response-scale mean + SE -> symmetric Wald CI
+                             set_lin <- function(df, prefix, mu, se) {
+                               df[[paste0(prefix)]]          <- mu
+                               df[[paste0(prefix, "_se")]]   <- se
+                               df[[paste0(prefix, "_lower")]] <- mu - z_crit * se
+                               df[[paste0(prefix, "_upper")]] <- mu + z_crit * se
+                               df
                              }
                              
-                             # --- Set up joint samples for non-vb/mcmc ---
-                             if (!is_sampler) {
-                               w      <- private$last_model_fit$weights
-                               n_samp <- ncol(private$last_model_fit$re.samps)
-                               X      <- private$last_model_fit$X
-                               p      <- ncol(X)
-                               beta_hat   <- private$last_model_fit$coefficients$est[1:p]
-                               Sigma_beta <- solve(private$last_model_fit$vcov)
-                               beta_samps <- MASS::mvrnorm(n_samp, mu = beta_hat, Sigma = Sigma_beta)
-                               
-                               u_all  <- private$last_model_fit$re.samps
-                               # Centered for RR only
-                               zu_all <- sweep(u_all, 2, colMeans(u_all))
-                               # Full linear predictor for pred/IRR (uncentered u + resampled beta)
-                               eta_all <- X %*% t(beta_samps) + u_all
+                             # For the sampler case we still need to summarise draws
+                             sampler_summary <- function(mat) {
+                               list(mean  = apply(mat, 1, mean),
+                                    sd    = apply(mat, 1, sd),
+                                    lower = apply(mat, 1, quantile, probs = alpha/2),
+                                    upper = apply(mat, 1, quantile, probs = 1 - alpha/2))
                              }
                              
                              # ================================================================
                              # nT > 1
                              # ================================================================
                              if (nT > 1) {
-                               
                                ci <- cell_idx(t.lag)
                                ri <- region_idx(t.lag)
                                
@@ -1413,65 +1411,45 @@ grid <- R6::R6Class("grid",
                                  if (is.null(self$region_data)) {
                                    popd <- as.data.frame(self$grid_data)[, popdens]
                                    if (is_sampler) {
-                                     y_samps <- private$last_model_fit$y_predicted[ci, , drop = FALSE]
+                                     y_samps <- fit$y_predicted[ci, , drop = FALSE]
                                      fmu     <- y_samps / popd
-                                     self$grid_data$pred_mean_total    <- apply(y_samps, 1, mean)
-                                     self$grid_data$pred_mean_total_sd <- apply(y_samps, 1, sd)
-                                     self$grid_data$pred_mean_total_lower <- apply(y_samps, 1, quantile, probs = alpha/2)
-                                     self$grid_data$pred_mean_total_upper <- apply(y_samps, 1, quantile, probs = 1 - alpha/2)
-                                     self$grid_data$pred_mean_pp      <- apply(fmu, 1, mean)
-                                     self$grid_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
-                                     self$grid_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
-                                     self$grid_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
+                                     st <- sampler_summary(y_samps); sp <- sampler_summary(fmu)
+                                     self$grid_data$pred_mean_total       <- st$mean
+                                     self$grid_data$pred_mean_total_sd    <- st$sd
+                                     self$grid_data$pred_mean_total_lower <- st$lower
+                                     self$grid_data$pred_mean_total_upper <- st$upper
+                                     self$grid_data$pred_mean_pp          <- sp$mean
+                                     self$grid_data$pred_mean_pp_sd       <- sp$sd
+                                     self$grid_data$pred_mean_pp_lower    <- sp$lower
+                                     self$grid_data$pred_mean_pp_upper    <- sp$upper
                                    } else {
-                                     s <- wsummary(eta_all[ci, ], w)
-                                     mu_samps <- exp(eta_all[ci, ])
-                                     y_samps  <- mu_samps * popd
-                                     
-                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
-                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
-                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
-                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
-                                     
-                                     ys <- wsummary(y_samps, w)
-                                     self$grid_data$pred_mean_total       <- ys$mean
-                                     self$grid_data$pred_mean_total_se    <- ys$sd
-                                     self$grid_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
-                                     self$grid_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
+                                     # mu_predicted is the per-cell rate; log it to pair with se_pred$pp (log scale)
+                                     self$grid_data <- set_lin(self$grid_data, "pred_mean_pp",
+                                                               fit$mu_predicted[ci], se_pred$pp[ci])
+                                     self$grid_data <- set_lin(self$grid_data, "pred_mean_total",
+                                                               fit$y_predicted[ci], se_pred$tot[ci])
                                    }
                                  } else {
-                                   # Region-level predictions
                                    if (is_sampler) {
                                      popd    <- as.data.frame(self$region_data)[, popdens]
-                                     y_samps <- private$last_model_fit$y_predicted[ri, , drop = FALSE]
+                                     y_samps <- fit$y_predicted[ri, , drop = FALSE]
                                      fmu     <- y_samps / popd
-                                     self$region_data$pred_mean_total    <- apply(y_samps, 1, mean)
-                                     self$region_data$pred_mean_total_sd <- apply(y_samps, 1, sd)
-                                     self$region_data$pred_mean_total_lower <- apply(y_samps, 1, quantile, probs = alpha/2)
-                                     self$region_data$pred_mean_total_upper <- apply(y_samps, 1, quantile, probs = 1 - alpha/2)
-                                     self$region_data$pred_mean_pp      <- apply(fmu, 1, mean)
-                                     self$region_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
-                                     self$region_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
-                                     self$region_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
+                                     st <- sampler_summary(y_samps); sp <- sampler_summary(fmu)
+                                     self$region_data$pred_mean_total       <- st$mean
+                                     self$region_data$pred_mean_total_sd    <- st$sd
+                                     self$region_data$pred_mean_total_lower <- st$lower
+                                     self$region_data$pred_mean_total_upper <- st$upper
+                                     self$region_data$pred_mean_pp          <- sp$mean
+                                     self$region_data$pred_mean_pp_sd       <- sp$sd
+                                     self$region_data$pred_mean_pp_lower    <- sp$lower
+                                     self$region_data$pred_mean_pp_upper    <- sp$upper
                                    } else {
-                                     # Grid-level eta, then aggregate to regions via W
-                                     mu_samps  <- exp(eta_all)
-                                     
-                                     # Grid-level rate
-                                     s <- wsummary(eta_all, w)
-                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
-                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
-                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
-                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
-                                     
-                                     # Aggregate to region
-                                     W_mat <- self$get_region_data()$W
-                                     region_y_samps <- W_mat %*% mu_samps
-                                     ys <- wsummary(region_y_samps, w)
-                                     self$region_data$pred_mean_total       <- ys$mean
-                                     self$region_data$pred_mean_total_se    <- ys$sd
-                                     self$region_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
-                                     self$region_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
+                                     # Grid-level per-cell rate
+                                     self$grid_data <- set_lin(self$grid_data, "pred_mean_pp",
+                                                               fit$mu_predicted[ci], se_pred$pp[ci])
+                                     # Region-level totals: y_predicted / se_pred$tot are assumed region-indexed
+                                     self$region_data <- set_lin(self$region_data, "pred_mean_total",
+                                                                 fit$y_predicted[ri], se_pred$tot[ri])
                                    }
                                  }
                                }
@@ -1479,17 +1457,15 @@ grid <- R6::R6Class("grid",
                                # ---------- rr ----------
                                if ("rr" %in% type) {
                                  if (is_sampler) {
-                                   re_samps <- private$last_model_fit$re.samps[ci, , drop = FALSE]
-                                   self$grid_data$rr    <- exp(apply(re_samps, 1, mean))
-                                   self$grid_data$rr_sd <- exp(apply(re_samps, 1, sd))
+                                   re_samps <- fit$re.samps[ci, , drop = FALSE]
+                                   self$grid_data$rr       <- exp(apply(re_samps, 1, mean))
+                                   self$grid_data$rr_sd    <- exp(apply(re_samps, 1, sd))
                                    self$grid_data$rr_lower <- apply(exp(re_samps), 1, quantile, probs = alpha/2)
                                    self$grid_data$rr_upper <- apply(exp(re_samps), 1, quantile, probs = 1 - alpha/2)
                                  } else {
-                                   s <- wsummary(zu_all[ci, ], w)
-                                   self$grid_data$rr       <- exp(s$mean)
-                                   self$grid_data$rr_se    <- s$sd * exp(s$mean)
-                                   self$grid_data$rr_lower <- exp(s$mean - z_crit * s$sd)
-                                   self$grid_data$rr_upper <- exp(s$mean + z_crit * s$sd)
+                                   # fit$rr is the log RR mean, se_pred$rr is its SE (also log scale)
+                                   self$grid_data <- set_log(self$grid_data, "rr",
+                                                             fit$rr[ci], se_pred$rr[ci])
                                  }
                                }
                                
@@ -1500,39 +1476,37 @@ grid <- R6::R6Class("grid",
                                  
                                  if (is.null(self$region_data)) {
                                    if (is_sampler) {
-                                     irr_samps <- private$last_model_fit$y_predicted[ci, , drop = FALSE] /
-                                       private$last_model_fit$y_predicted[ci_lag, , drop = FALSE]
-                                     self$grid_data$irr       <- apply(irr_samps, 1, mean)
-                                     self$grid_data$irr_sd    <- apply(irr_samps, 1, sd)
-                                     self$grid_data$irr_lower <- apply(irr_samps, 1, quantile, probs = alpha/2)
-                                     self$grid_data$irr_upper <- apply(irr_samps, 1, quantile, probs = 1 - alpha/2)
+                                     irr_samps <- fit$y_predicted[ci, , drop = FALSE] /
+                                       fit$y_predicted[ci_lag, , drop = FALSE]
+                                     s <- sampler_summary(irr_samps)
+                                     self$grid_data$irr       <- s$mean
+                                     self$grid_data$irr_sd    <- s$sd
+                                     self$grid_data$irr_lower <- s$lower
+                                     self$grid_data$irr_upper <- s$upper
                                    } else {
-                                     log_irr_samps <- eta_all[ci,] - eta_all[ci_lag,]
-                                     s <- wsummary(log_irr_samps, w)
-                                     self$grid_data$irr          <- exp(s$mean)
-                                     self$grid_data$log_irr_se   <- s$sd
-                                     self$grid_data$irr_lower    <- exp(s$mean - z_crit * s$sd)
-                                     self$grid_data$irr_upper    <- exp(s$mean + z_crit * s$sd)
+                                     # No stored SE for IRR: approximate log-IRR SE from the two log-rate SEs
+                                     # (treats them as independent — conservative/approximate)
+                                     log_irr <- log(fit$mu_predicted[ci]) - log(fit$mu_predicted[ci_lag])
+                                     se_log  <- sqrt(se_pred$pp[ci]^2 + se_pred$pp[ci_lag]^2)
+                                     self$grid_data <- set_log(self$grid_data, "irr", log_irr, se_log)
                                    }
                                  } else {
                                    if (is_sampler) {
-                                     irr_samps <- private$last_model_fit$y_predicted[ri, , drop = FALSE] /
-                                       private$last_model_fit$y_predicted[ri_lag, , drop = FALSE]
-                                     self$region_data$irr       <- apply(irr_samps, 1, mean)
-                                     self$region_data$irr_sd    <- apply(irr_samps, 1, sd)
-                                     self$region_data$irr_lower <- apply(irr_samps, 1, quantile, probs = alpha/2)
-                                     self$region_data$irr_upper <- apply(irr_samps, 1, quantile, probs = 1 - alpha/2)
+                                     irr_samps <- fit$y_predicted[ri, , drop = FALSE] /
+                                       fit$y_predicted[ri_lag, , drop = FALSE]
+                                     s <- sampler_summary(irr_samps)
+                                     self$region_data$irr       <- s$mean
+                                     self$region_data$irr_sd    <- s$sd
+                                     self$region_data$irr_lower <- s$lower
+                                     self$region_data$irr_upper <- s$upper
                                    } else {
-                                     # Aggregate grid-level to regions for both time points
-                                     W_mat <- self$get_region_data()$W
-                                     mu_t    <- W_mat %*% exp(eta_all[ci,])
-                                     mu_lag  <- W_mat %*% exp(eta_all[ci_lag,])
-                                     log_irr_samps <- log(mu_t) - log(mu_lag)
-                                     s <- wsummary(log_irr_samps, w)
-                                     self$region_data$irr          <- exp(s$mean)
-                                     self$region_data$log_irr_se   <- s$sd
-                                     self$region_data$irr_lower    <- exp(s$mean - z_crit * s$sd)
-                                     self$region_data$irr_upper    <- exp(s$mean + z_crit * s$sd)
+                                     # No stored region-level log-rate SE; fall back to ratio of totals with
+                                     # a delta-method approximation using se_pred$tot
+                                     mu_t   <- fit$y_predicted[ri]
+                                     mu_l   <- fit$y_predicted[ri_lag]
+                                     log_irr <- log(mu_t) - log(mu_l)
+                                     se_log  <- sqrt((se_pred$tot[ri]/mu_t)^2 + (se_pred$tot[ri_lag]/mu_l)^2)
+                                     self$region_data <- set_log(self$region_data, "irr", log_irr, se_log)
                                    }
                                  }
                                }
@@ -1547,76 +1521,52 @@ grid <- R6::R6Class("grid",
                                  if (is.null(self$region_data)) {
                                    popd <- as.data.frame(self$grid_data)[, popdens]
                                    if (is_sampler) {
-                                     fmu <- private$last_model_fit$y_predicted / popd
-                                     self$grid_data$pred_mean_total    <- apply(private$last_model_fit$y_predicted, 1, mean)
-                                     self$grid_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted, 1, sd)
-                                     self$grid_data$pred_mean_total_lower <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = alpha/2)
-                                     self$grid_data$pred_mean_total_upper <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = 1 - alpha/2)
-                                     self$grid_data$pred_mean_pp      <- apply(fmu, 1, mean)
-                                     self$grid_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
-                                     self$grid_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
-                                     self$grid_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
+                                     fmu <- fit$y_predicted / popd
+                                     st <- sampler_summary(fit$y_predicted); sp <- sampler_summary(fmu)
+                                     self$grid_data$pred_mean_total       <- st$mean
+                                     self$grid_data$pred_mean_total_sd    <- st$sd
+                                     self$grid_data$pred_mean_total_lower <- st$lower
+                                     self$grid_data$pred_mean_total_upper <- st$upper
+                                     self$grid_data$pred_mean_pp          <- sp$mean
+                                     self$grid_data$pred_mean_pp_sd       <- sp$sd
+                                     self$grid_data$pred_mean_pp_lower    <- sp$lower
+                                     self$grid_data$pred_mean_pp_upper    <- sp$upper
                                    } else {
-                                     s <- wsummary(eta_all, w)
-                                     y_samps <- exp(eta_all) * popd
-                                     
-                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
-                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
-                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
-                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
-                                     
-                                     ys <- wsummary(y_samps, w)
-                                     self$grid_data$pred_mean_total       <- ys$mean
-                                     self$grid_data$pred_mean_total_se    <- ys$sd
-                                     self$grid_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
-                                     self$grid_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
+                                     self$grid_data <- set_lin(self$grid_data, "pred_mean_pp",
+                                                               fit$mu_predicted, se_pred$pp)
+                                     self$grid_data <- set_lin(self$grid_data, "pred_mean_total",
+                                                               fit$y_predicted, se_pred$tot)
                                    }
                                  } else {
                                    if (is_sampler) {
                                      popd <- as.data.frame(self$region_data)[, popdens]
-                                     fmu  <- private$last_model_fit$y_predicted / popd
-                                     self$region_data$pred_mean_total    <- apply(private$last_model_fit$y_predicted, 1, mean)
-                                     self$region_data$pred_mean_total_sd <- apply(private$last_model_fit$y_predicted, 1, sd)
-                                     self$region_data$pred_mean_total_lower <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = alpha/2)
-                                     self$region_data$pred_mean_total_upper <- apply(private$last_model_fit$y_predicted, 1, quantile, probs = 1 - alpha/2)
-                                     self$region_data$pred_mean_pp      <- apply(fmu, 1, mean)
-                                     self$region_data$pred_mean_pp_sd   <- apply(fmu, 1, sd)
-                                     self$region_data$pred_mean_pp_lower <- apply(fmu, 1, quantile, probs = alpha/2)
-                                     self$region_data$pred_mean_pp_upper <- apply(fmu, 1, quantile, probs = 1 - alpha/2)
+                                     fmu  <- fit$y_predicted / popd
+                                     st <- sampler_summary(fit$y_predicted); sp <- sampler_summary(fmu)
+                                     self$region_data$pred_mean_total       <- st$mean
+                                     self$region_data$pred_mean_total_sd    <- st$sd
+                                     self$region_data$pred_mean_total_lower <- st$lower
+                                     self$region_data$pred_mean_total_upper <- st$upper
+                                     self$region_data$pred_mean_pp          <- sp$mean
+                                     self$region_data$pred_mean_pp_sd       <- sp$sd
+                                     self$region_data$pred_mean_pp_lower    <- sp$lower
+                                     self$region_data$pred_mean_pp_upper    <- sp$upper
                                    } else {
-                                     mu_samps  <- exp(eta_all)
-                                     s <- wsummary(eta_all, w)
-                                     
-                                     # Grid-level rate
-                                     self$grid_data$pred_mean_pp       <- exp(s$mean)
-                                     self$grid_data$pred_mean_pp_se    <- s$sd * exp(s$mean)
-                                     self$grid_data$pred_mean_pp_lower <- exp(s$mean - z_crit * s$sd)
-                                     self$grid_data$pred_mean_pp_upper <- exp(s$mean + z_crit * s$sd)
-                                     
-                                     # Aggregate to region
-                                     W_mat <- self$get_region_data()$W
-                                     region_y_samps <- W_mat %*% mu_samps
-                                     ys <- wsummary(region_y_samps, w)
-                                     self$region_data$pred_mean_total       <- ys$mean
-                                     self$region_data$pred_mean_total_se    <- ys$sd
-                                     self$region_data$pred_mean_total_lower <- ys$mean - z_crit * ys$sd
-                                     self$region_data$pred_mean_total_upper <- ys$mean + z_crit * ys$sd
+                                     self$grid_data   <- set_lin(self$grid_data, "pred_mean_pp",
+                                                                 fit$mu_predicted, se_pred$pp)
+                                     self$region_data <- set_lin(self$region_data, "pred_mean_total",
+                                                                 fit$y_predicted, se_pred$tot)
                                    }
                                  }
                                }
                                
                                if ("rr" %in% type) {
                                  if (is_sampler) {
-                                   self$grid_data$rr    <- exp(apply(private$last_model_fit$re.samps, 1, mean))
-                                   self$grid_data$rr_sd <- exp(apply(private$last_model_fit$re.samps, 1, sd))
-                                   self$grid_data$rr_lower <- apply(exp(private$last_model_fit$re.samps), 1, quantile, probs = alpha/2)
-                                   self$grid_data$rr_upper <- apply(exp(private$last_model_fit$re.samps), 1, quantile, probs = 1 - alpha/2)
+                                   self$grid_data$rr       <- exp(apply(fit$re.samps, 1, mean))
+                                   self$grid_data$rr_sd    <- exp(apply(fit$re.samps, 1, sd))
+                                   self$grid_data$rr_lower <- apply(exp(fit$re.samps), 1, quantile, probs = alpha/2)
+                                   self$grid_data$rr_upper <- apply(exp(fit$re.samps), 1, quantile, probs = 1 - alpha/2)
                                  } else {
-                                   s <- wsummary(zu_all, w)
-                                   self$grid_data$rr       <- exp(s$mean)
-                                   self$grid_data$rr_se    <- s$sd * exp(s$mean)
-                                   self$grid_data$rr_lower <- exp(s$mean - z_crit * s$sd)
-                                   self$grid_data$rr_upper <- exp(s$mean + z_crit * s$sd)
+                                   self$grid_data <- set_log(self$grid_data, "rr", fit$rr, se_pred$rr)
                                  }
                                }
                              }

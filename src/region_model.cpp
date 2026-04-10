@@ -14,10 +14,185 @@ ArrayXd rts::regionModel<cov>::sampling_weights() const
   return u_weight_;
 }
 
-template<typename cov>
-MatrixXd rts::regionModel<cov>::information_matrix() const 
+template<>
+inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix()
 {
-  return M;
+  const int P_        = beta.size();
+  const int Mdim      = covariance.Q();           // number of HSGP basis functions
+  const int n_regions = weights.rows();
+  const int n_cells   = weights.cols();
+  const int total     = scaled_u_.rows();
+  const int T         = total / n_cells;
+  
+  // --- Evaluate at the (importance-weighted) posterior mean of u ---
+  VectorXd u_bar = VectorXd::Zero(total);
+  double wsum = 0.0;
+  for(int k = 0; k < u_.cols(); ++k){
+    u_bar += u_weight_(k) * scaled_u_.col(k);
+    wsum  += u_weight_(k);
+  }
+  u_bar /= wsum;
+  // Centre each draw's mean out the same way nr_beta does, to match the β fit
+  double zu_mean = u_bar.mean();
+  u_bar.array() -= zu_mean;
+  
+  ArrayXd eta_s     = (X * beta + offset).array() + u_bar.array();
+  ArrayXd lambda_s  = eta_s.exp();                       // n_cells*T
+  
+  // λ_r per time slice
+  VectorXd lambda_r(n_regions * T);
+  for(int t = 0; t < T; ++t){
+    lambda_r.segment(t*n_regions, n_regions)
+    = weights * lambda_s.segment(t*n_cells, n_cells).matrix();
+  }
+  
+  // Region-level working designs: tilde_X = diag(1/λ_r) * (weights * diag(λ_s) * X)
+  //                               tilde_A = diag(1/λ_r) * (weights * diag(λ_s) * Φ)
+  MatrixXd Phi = covariance.ZPhi();                // n_cells*T × M
+  MatrixXd tilde_X(n_regions * T, P_);
+  MatrixXd tilde_A(n_regions * T, Mdim);
+  
+  for(int t = 0; t < T; ++t){
+    ArrayXd  ls_t  = lambda_s.segment(t*n_cells, n_cells);
+    MatrixXd X_t   = X.middleRows(t*n_cells, n_cells);
+    MatrixXd Phi_t = Phi.middleRows(t*n_cells, n_cells);
+    
+    MatrixXd lsX   = (X_t.array().colwise()   * ls_t).matrix();
+    MatrixXd lsPhi = (Phi_t.array().colwise() * ls_t).matrix();
+    
+    MatrixXd BX = weights * lsX;                         // n_regions × P
+    MatrixXd BA = weights * lsPhi;                       // n_regions × M
+    
+    ArrayXd inv_lr = lambda_r.segment(t*n_regions, n_regions).array().inverse();
+    tilde_X.middleRows(t*n_regions, n_regions) = (BX.array().colwise() * inv_lr).matrix();
+    tilde_A.middleRows(t*n_regions, n_regions) = (BA.array().colwise() * inv_lr).matrix();
+  }
+  
+  // Region working weights: Poisson-log iterated weight at regional rate is λ_r
+  VectorXd Wr = lambda_r;
+  
+  // Weighted designs
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd WrtildeA = (tilde_A.array().colwise() * Wr.array()).matrix();
+  
+  MatrixXd XtWX = tilde_X.transpose() * WrtildeX;        // P × P
+  MatrixXd AtWA = tilde_A.transpose() * WrtildeA;        // M × M
+  MatrixXd XtWA = tilde_X.transpose() * WrtildeA;        // P × M
+  
+  // Add Λ^{-1} to AtWA
+  ArrayXd inv_lambda = 1.0 / covariance.LambdaSPD();
+  AtWA.diagonal() += inv_lambda.matrix();
+  
+  // Woodbury / Schur complement: M_β = X'WX - X'WA (A'WA + Λ^{-1})^{-1} A'WX
+  Eigen::LLT<MatrixXd> llt(AtWA);
+  MatrixXd solve_XtWA = llt.solve(XtWA.transpose());     // M × P
+  return XtWX - XtWA * solve_XtWA;
+}
+
+template<typename cov>
+MatrixXd rts::regionModel<cov>::information_matrix() 
+{
+  const int P_        = beta.size();
+  const int n_regions = weights.rows();
+  const int n_cells   = weights.cols();
+  
+  // Dimensions for ar1 vs standard
+  int T    = 1;
+  int n_A  = n_cells;
+#ifdef GLMMR13
+  if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>) {
+    T   = covariance.Q() / covariance.Covariance::Q();
+    n_A = covariance.Covariance::Q();
+  }
+#endif
+  
+  // --- 1. Evaluation point: importance-weighted mean of scaled_u_,
+  //        mean-centred per nr_beta's convention. -----------------------
+  VectorXd u_bar = VectorXd::Zero(scaled_u_.rows());
+  double wsum = 0.0;
+  for(int k = 0; k < scaled_u_.cols(); ++k){
+    u_bar += u_weight_(k) * scaled_u_.col(k);
+    wsum  += u_weight_(k);
+  }
+  u_bar /= wsum;
+  u_bar.array() -= u_bar.mean();   // matches nr_beta's per-draw centring
+  
+  ArrayXd eta_s    = (X * beta + offset).array() + u_bar.array();
+  ArrayXd lambda_s = eta_s.exp();
+  
+  // λ_r per time slice
+  VectorXd lambda_r(n_regions * T);
+  for(int t = 0; t < T; ++t){
+    lambda_r.segment(t*n_regions, n_regions)
+    = weights * lambda_s.segment(t*n_A, n_A).matrix();
+  }
+  
+  // --- 2. Build region-level working designs tilde_X, tilde_A ---------
+  //  B_X = weights * diag(λ_s) * X   (per time block)
+  //  B_A = weights * diag(λ_s) * ZL  (per time block)
+  //  tilde_X = diag(1/λ_r) * B_X
+  //  tilde_A = diag(1/λ_r) * B_A
+  MatrixXd ZL   = covariance.ZL();           // (n_A*T) × Q  in general
+  const int Q_        = ZL.cols();
+  
+  MatrixXd tilde_X(n_regions * T, P_);
+  MatrixXd tilde_A(n_regions * T, Q_);
+  
+  for(int t = 0; t < T; ++t){
+    ArrayXd  ls_t = lambda_s.segment(t*n_A, n_A);
+    MatrixXd X_t  = X.middleRows(t*n_A, n_A);
+    MatrixXd ZL_t = ZL.middleRows(t*n_A, n_A);
+    
+    MatrixXd lsX  = (X_t.array().colwise()  * ls_t).matrix();
+    MatrixXd lsZL = (ZL_t.array().colwise() * ls_t).matrix();
+    
+    MatrixXd BX = weights * lsX;    // n_regions × P
+    MatrixXd BA = weights * lsZL;   // n_regions × Q
+    
+    ArrayXd inv_lr = lambda_r.segment(t*n_regions, n_regions).array().inverse();
+    tilde_X.middleRows(t*n_regions, n_regions) = (BX.array().colwise() * inv_lr).matrix();
+    tilde_A.middleRows(t*n_regions, n_regions) = (BA.array().colwise() * inv_lr).matrix();
+  }
+  
+  // --- 3. Poisson-log regional working weight W_r = diag(λ_r) ---------
+  VectorXd Wr = lambda_r;
+  
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd WrtildeA = (tilde_A.array().colwise() * Wr.array()).matrix();
+  
+  MatrixXd XtWX = tilde_X.transpose() * WrtildeX;   // P × P
+  MatrixXd AtWA = tilde_A.transpose() * WrtildeA;   // Q × Q
+  MatrixXd XtWA = tilde_X.transpose() * WrtildeA;   // P × Q
+  
+  // Prior precision in the whitened basis is I
+  AtWA.diagonal().array() += 1.0;
+  
+  // --- 4. Schur complement: M_β = X'WX - X'WA (A'WA + I)^{-1} A'WX ----
+  // For large Q, use Woodbury on (n_regions*T) instead, mirroring usample.
+  const int n_rT = n_regions * T;
+  if (Q_ > n_rT) {
+    // Woodbury form via C on the regional dimension:
+    //   C = sqrt(W_r) * tilde_A  (n_rT × Q)
+    //   (A'WA + I)^{-1} = I - C'(I + C C')^{-1} C
+    ArrayXd sqrt_Wr = Wr.array().sqrt();
+    MatrixXd C = (tilde_A.array().colwise() * sqrt_Wr).matrix();
+    MatrixXd CCt = C * C.transpose();
+    CCt.diagonal().array() += 1.0;
+    Eigen::LLT<MatrixXd> llt_CCt(CCt);
+    
+    // X'WA * (A'WA + I)^{-1} * A'WX
+    // = XtWA * [ XtWA' - XtWA' C'(I+CC')^{-1} C · (something) ]
+    // Cleaner: work via t = (I+CC')^{-1} (C * XtWA')
+    MatrixXd Ct_XtWAt = C * XtWA.transpose();          // n_rT × P
+    MatrixXd sol      = llt_CCt.solve(Ct_XtWAt);       // n_rT × P
+    MatrixXd correction = XtWA * XtWA.transpose() - (C.transpose() * sol).transpose() * XtWA.transpose();
+    // Simpler equivalent: M_β = XtWX - XtWA * XtWA' + (C * XtWA')' (I+CC')^{-1} (C * XtWA')
+    return XtWX - XtWA * XtWA.transpose() + Ct_XtWAt.transpose() * sol;
+  } else {
+    Eigen::LLT<MatrixXd> llt(AtWA);
+    MatrixXd solve_XtWA = llt.solve(XtWA.transpose());
+    return XtWX - XtWA * solve_XtWA;
+  }
 }
 
 template<typename cov>

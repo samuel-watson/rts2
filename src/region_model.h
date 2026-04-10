@@ -103,7 +103,7 @@ public:
   void              fit(const double tol, const int max_iter, const int hist, const int k0);
   bool             check_convergence(const double tol, const int hist, const int k, const int k0);
   MatrixXd         u() const;
-  MatrixXd         information_matrix() const;
+  MatrixXd         information_matrix();
   ArrayXd          sampling_weights() const;
   double           total_log_likelihood() const;
   void             set_offset(const VectorXd& offset_);

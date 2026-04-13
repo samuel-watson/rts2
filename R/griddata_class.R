@@ -910,13 +910,14 @@ grid <- R6::R6Class("grid",
                                               model = "fexp",
                                               max_iter = 30,
                                               iter_sampling=200,
-                                              tol = 10, 
+                                              tol = ifelse(iter_sampling == 1,1,10), 
                                               hist = 5, 
                                               k0 = 10,
                                               start_theta = NULL,
                                               m = c(10,10),
                                               L = 1.2,
                                               trace = 1){
+                             
                              # some checks at the beginning
                              if(!is.null(self$region_data)& trace >= 1)message("Using regional data model.")
                              if(is.null(popdens)){
@@ -1030,6 +1031,7 @@ grid <- R6::R6Class("grid",
                                K <- ncol(u)
                                # Linear predictor without random effects
                                xb <- mod$fitted()  # X %*% beta
+                               XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
                                # Grid-level intensity samples
                                mu_pp_samples <- matrix(0, nrow(X), K)
                                mu_tot_samples <- matrix(0, nrow(X), K)
@@ -1037,26 +1039,43 @@ grid <- R6::R6Class("grid",
                                  mu_pp_samples[, k] <- exp(xb + u[, k])
                                  mu_tot_samples[, k] <- exp(xb + u[, k] + log(popd))
                                }
-                               # Weighted means (predictions)
-                               mu_pp_mean <- rowSums(t(t(mu_pp_samples) * w)) / sum_w
-                               mu_tot_mean <- rowSums(t(t(mu_tot_samples) * w)) / sum_w
-                               # Weighted mean of squared intensities (for delta method)
-                               mu_pp_sq_mean <- rowSums(t(t(mu_pp_samples^2) * w)) / sum_w
-                               mu_tot_sq_mean <- rowSums(t(t(mu_tot_samples^2) * w)) / sum_w
-                               # Variance from random effects (weighted variance)
-                               var_u_pp <- rowSums(t(t((mu_pp_samples - mu_pp_mean)^2) * w)) / sum_w
-                               var_u_tot <- rowSums(t(t((mu_tot_samples - mu_tot_mean)^2) * w)) / sum_w
-                               XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
-                               var_beta_pp <- XVX * mu_pp_sq_mean
-                               var_beta_tot <- XVX * mu_tot_sq_mean
-                               SEpp <- sqrt(var_beta_pp + var_u_pp)
-                               SEtot <- sqrt(var_beta_tot + var_u_tot)
-                               ypred <- mu_tot_mean
-                               mupred <- mu_pp_mean
-                               rr_samples <- u  # n x K matrix
-                               rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
-                               var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                               SE_rr <- sqrt(var_rr + XVX)
+                               if(K == 1){
+                                 var_rr <- glmmrBase:::Model__get_zu_var(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
+                                 mu_pp_mean <- mu_pp_samples[,1]
+                                 mu_tot_mean <- mu_tot_samples[,1]
+                                 var_u_pp  <- (mu_pp_mean ^ 2)  * var_rr
+                                 var_u_tot <- (mu_tot_mean ^ 2) * var_rr
+                                 var_beta_pp  <- XVX * (mu_pp_mean  ^ 2)
+                                 var_beta_tot <- XVX * (mu_tot_mean ^ 2)
+                                 SEpp  <- sqrt(var_beta_pp  + var_u_pp)
+                                 SEtot <- sqrt(var_beta_tot + var_u_tot)
+                                 ypred <- mu_tot_mean
+                                 mupred <- mu_pp_mean
+                                 rr_samples <- u  # n x K matrix
+                                 rr_mean <- u[,1]
+                                 SE_rr <- sqrt(var_rr + XVX)
+                               } else {
+                                 # Weighted means (predictions)
+                                 mu_pp_mean <- rowSums(t(t(mu_pp_samples) * w)) / sum_w
+                                 mu_tot_mean <- rowSums(t(t(mu_tot_samples) * w)) / sum_w
+                                 # Weighted mean of squared intensities (for delta method)
+                                 mu_pp_sq_mean <- rowSums(t(t(mu_pp_samples^2) * w)) / sum_w
+                                 mu_tot_sq_mean <- rowSums(t(t(mu_tot_samples^2) * w)) / sum_w
+                                 # Variance from random effects (weighted variance)
+                                 var_u_pp <- rowSums(t(t((mu_pp_samples - mu_pp_mean)^2) * w)) / sum_w
+                                 var_u_tot <- rowSums(t(t((mu_tot_samples - mu_tot_mean)^2) * w)) / sum_w
+                                 XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
+                                 var_beta_pp <- XVX * mu_pp_sq_mean
+                                 var_beta_tot <- XVX * mu_tot_sq_mean
+                                 SEpp <- sqrt(var_beta_pp + var_u_pp)
+                                 SEtot <- sqrt(var_beta_tot + var_u_tot)
+                                 ypred <- mu_tot_mean
+                                 mupred <- mu_pp_mean
+                                 rr_samples <- u  # n x K matrix
+                                 rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
+                                 var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
+                                 SE_rr <- sqrt(var_rr + XVX)
+                               }
                              } else {
                                ## now do regional model variant
                                W <- self$get_region_data()$W
@@ -1104,6 +1123,7 @@ grid <- R6::R6Class("grid",
                                    gcmat <- data$x_grid
                                    for(t in 1:(data$nT-1)) gcmat <- rbind(gcmat,data$x_grid)
                                    gcmat <- cbind(gcmat, data.frame(t = rep(1:data$nT, each = gcsize)))
+                                   
                                    ptr <- regionModel_hsgp__new(
                                      form,
                                      as.matrix(gcmat),
@@ -1217,57 +1237,120 @@ grid <- R6::R6Class("grid",
                                for (k in 1:K) {
                                  mu_samples[, k] <- exp(xb + u[, k])
                                }
-                               mu_mean <- rowSums(t(t(mu_samples) * w)) / sum_w
-                               mu_sq_mean <- rowSums(t(t(mu_samples^2) * w)) / sum_w
-                               var_from_u <- rowSums(t(t((mu_samples - mu_mean)^2) * w)) / sum_w
-                               var_from_beta <- XVX * mu_sq_mean
-                               SEpp <- sqrt(var_from_beta + var_from_u)
-                               # Check if AR1 model
-                               if (data$nT > 1) {
-                                 # AR1 case: apply W separately per time period
-                                 n_A <- ncol(W)
-                                 n_R <- nrow(W)
-                                 T_periods <- nrow(mu_samples) / n_A
-                                 mu_r_samples <- matrix(0, n_R * T_periods, K)
+                               
+                               if (K == 1) {
+                                 # ── Laplace branch ──
+                                 zu_var <- regionModel__get_zu_var(ptr, type)
+                                 mu_mean <- mu_samples[, 1]
+                                 # Grid-level: delta method with diagonal
+                                 var_from_u    <- (mu_mean ^ 2) * zu_var
+                                 var_from_beta <- XVX * (mu_mean ^ 2)
+                                 SEpp <- sqrt(var_from_beta + var_from_u)
                                  
-                                 for (t in 1:T_periods) {
-                                   row_start <- (t - 1) * n_A + 1
-                                   row_end <- t * n_A
-                                   mu_samples_t <- mu_samples[row_start:row_end, , drop = FALSE]  # n_A x K
-                                   out_start <- (t - 1) * n_R + 1
-                                   out_end <- t * n_R
-                                   mu_r_samples[out_start:out_end, ] <- as.matrix(W %*% mu_samples_t)  # n_R x K
+                                 # Region-level aggregation of the mode
+                                 if (data$nT > 1) {
+                                   n_A <- ncol(W)
+                                   n_R <- nrow(W)
+                                   T_periods <- length(mu_mean) / n_A
+                                   mu_r_mean <- numeric(n_R * T_periods)
+                                   for (t in 1:T_periods) {
+                                     idx_in  <- ((t - 1) * n_A + 1):(t * n_A)
+                                     idx_out <- ((t - 1) * n_R + 1):(t * n_R)
+                                     mu_r_mean[idx_out] <- as.numeric(W %*% mu_mean[idx_in])
+                                   }
+                                 } else {
+                                   mu_r_mean <- as.numeric(W %*% mu_mean)
                                  }
-                               } else {
-                                 # Standard spatial case
-                                 mu_r_samples <- as.matrix(W %*% mu_samples)  # n_R x K
-                               }
-                               mu_r_mean <- rowSums(t(t(mu_r_samples) * w)) / sum_w
-                               var_from_u_r <- rowSums(t(t((mu_r_samples - mu_r_mean)^2) * w)) / sum_w
-                               var_from_beta_r <- rep(0, m)
-                               for (k in 1:K) {
-                                 lambda_k <- mu_samples[, k]
+                                 
+                                 # Region-level var from random effects:
+                                 #   Var(sum_k W_jk * mu_k) ≈ sum_k W_jk^2 * mu_k^2 * zu_var_k
+                                 # This is a diagonal approximation — ignores cross-cell covariance
+                                 # within a region, so will under-estimate. See note below.
+                                 mu_sq_var <- (mu_mean ^ 2) * zu_var  # n-vector
+                                 W_sq <- W
+                                 W_sq@x <- W@x ^ 2                    # assumes W is dgCMatrix; adjust if dense
+                                 if (data$nT > 1) {
+                                   var_from_u_r <- numeric(n_R * T_periods)
+                                   for (t in 1:T_periods) {
+                                     idx_in  <- ((t - 1) * n_A + 1):(t * n_A)
+                                     idx_out <- ((t - 1) * n_R + 1):(t * n_R)
+                                     var_from_u_r[idx_out] <- as.numeric(W_sq %*% mu_sq_var[idx_in])
+                                   }
+                                 } else {
+                                   var_from_u_r <- as.numeric(W_sq %*% mu_sq_var)
+                                 }
+                                 
+                                 # Region-level var from beta: g_r = X^T (W[r,] * mu_mean)
+                                 var_from_beta_r <- numeric(m)
                                  for (r in 1:m) {
-                                   g_r <- drop(t(X) %*% (W[r, ] * lambda_k))  # p-vector
-                                   var_from_beta_r[r] <- var_from_beta_r[r] + w[k] * drop(t(g_r) %*% V_beta %*% g_r)
+                                   g_r <- drop(t(X) %*% (W[r, ] * mu_mean))
+                                   var_from_beta_r[r] <- drop(t(g_r) %*% V_beta %*% g_r)
                                  }
+                                 SEtot <- sqrt(var_from_beta_r + var_from_u_r)
+                                 
+                                 ypred <- mu_r_mean
+                                 
+                                 # mupred: same construction but without the offset (as in the MC branch)
+                                 xb_no_off <- drop(X %*% beta)
+                                 mupred    <- exp(xb_no_off + u[, 1])
+                                 
+                                 # Relative risk
+                                 rr_mean <- u[, 1]
+                                 var_rr  <- zu_var
+                                 SE_rr   <- sqrt(var_rr + XVX)
+                                 
+                               } else {
+                                 mu_mean <- rowSums(t(t(mu_samples) * w)) / sum_w
+                                 mu_sq_mean <- rowSums(t(t(mu_samples^2) * w)) / sum_w
+                                 var_from_u <- rowSums(t(t((mu_samples - mu_mean)^2) * w)) / sum_w
+                                 var_from_beta <- XVX * mu_sq_mean
+                                 SEpp <- sqrt(var_from_beta + var_from_u)
+                                 # Check if AR1 model
+                                 if (data$nT > 1) {
+                                   # AR1 case: apply W separately per time period
+                                   n_A <- ncol(W)
+                                   n_R <- nrow(W)
+                                   T_periods <- nrow(mu_samples) / n_A
+                                   mu_r_samples <- matrix(0, n_R * T_periods, K)
+                                   
+                                   for (t in 1:T_periods) {
+                                     row_start <- (t - 1) * n_A + 1
+                                     row_end <- t * n_A
+                                     mu_samples_t <- mu_samples[row_start:row_end, , drop = FALSE]  # n_A x K
+                                     out_start <- (t - 1) * n_R + 1
+                                     out_end <- t * n_R
+                                     mu_r_samples[out_start:out_end, ] <- as.matrix(W %*% mu_samples_t)  # n_R x K
+                                   }
+                                 } else {
+                                   # Standard spatial case
+                                   mu_r_samples <- as.matrix(W %*% mu_samples)  # n_R x K
+                                 }
+                                 mu_r_mean <- rowSums(t(t(mu_r_samples) * w)) / sum_w
+                                 var_from_u_r <- rowSums(t(t((mu_r_samples - mu_r_mean)^2) * w)) / sum_w
+                                 var_from_beta_r <- rep(0, m)
+                                 for (k in 1:K) {
+                                   lambda_k <- mu_samples[, k]
+                                   for (r in 1:m) {
+                                     g_r <- drop(t(X) %*% (W[r, ] * lambda_k))  # p-vector
+                                     var_from_beta_r[r] <- var_from_beta_r[r] + w[k] * drop(t(g_r) %*% V_beta %*% g_r)
+                                   }
+                                 }
+                                 var_from_beta_r <- var_from_beta_r / sum_w
+                                 SEtot <- sqrt(var_from_beta_r + var_from_u_r)
+                                 ypred <- mu_r_mean
+                                 mu_samples <- matrix(0, n, K)
+                                 xb <- drop(X %*% beta) 
+                                 for (k in 1:K) {
+                                   mu_samples[, k] <- exp(xb + u[, k])
+                                 }
+                                 mupred <- rowSums(t(t(mu_samples) * w)) / sum_w
+                                 # Relative risk samples: RR = exp(u)
+                                 rr_samples <- u  # n x K matrix
+                                 rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
+                                 var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
+                                 SE_rr <- sqrt(var_rr + XVX)
                                }
-                               var_from_beta_r <- var_from_beta_r / sum_w
-                               SEtot <- sqrt(var_from_beta_r + var_from_u_r)
-                               ypred <- mu_r_mean
-                               mu_samples <- matrix(0, n, K)
-                               xb <- drop(X %*% beta) 
-                               for (k in 1:K) {
-                                 mu_samples[, k] <- exp(xb + u[, k])
-                               }
-                               mupred <- rowSums(t(t(mu_samples) * w)) / sum_w
-                               # Relative risk samples: RR = exp(u)
-                               rr_samples <- u  # n x K matrix
-                               rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
-                               var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                               SE_rr <- sqrt(var_rr + XVX)
                                ll <- regionModel__log_likelihood(ptr, type)
-                              
                              }
 
                              out <- list(coefficients = fit$coefficients,

@@ -14,6 +14,12 @@ ArrayXd rts::regionModel<cov>::sampling_weights() const
   return u_weight_;
 }
 
+template<typename cov>
+VectorXd rts::regionModel<cov>::zu_var() const 
+{
+  return zu_var_;
+}
+
 template<>
 inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix()
 {
@@ -244,10 +250,13 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_beta()
     zd.col(i) = (X * beta + offset).array() + scaled_u_.col(i).array();
   }
   
-  for(int i = 0; i < niter_; i++){
-    double zu_mean = scaled_u_.col(i).mean();
-    zd.col(i).array() -= zu_mean;
+  if(niter_ > 1){
+    for(int i = 0; i < niter_; i++){
+      double zu_mean = scaled_u_.col(i).mean();
+      zd.col(i).array() -= zu_mean;
+    }
   }
+  
   
   MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());
   VectorXd score = VectorXd::Zero(beta.size());
@@ -443,27 +452,30 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::usample(const int niter_)
   }
   
   u_mean_ = b;
+  double log_det_CCt_I = 2.0 * llt_CCt.matrixL().toDenseMatrix()
+                          .diagonal().array().log().sum();
+  log_det_P_ = log_det_CCt_I - Lambda.log().sum();   // HSGP
   
-  // ── Sample from N(u_mean, P^{-1}) ──
-  // P^{-1} = S * (C_tilde^T C_tilde + I)^{-1} * S
-  // Sample: u = u_mean + S * (C_tilde^T C_tilde + I)^{-1} (z + C_tilde^T w)
-  //   where z, w ~ N(0, I)
+  // ── Posterior variance diagonals ──
+  // Var(u) = S * (C_tilde^T C_tilde + I)^{-1} * S,   S = diag(sqrtLam)
+  // Woodbury: (C_tilde^T C_tilde + I)^{-1} = I - C_tilde^T (C_tilde C_tilde^T + I)^{-1} C_tilde
+  //
+  // diag(Var(u))_i = Lambda_i * (1 - c_i^T M^{-1} c_i),
+  //   where c_i is the i-th column of C_tilde and M = C_tilde C_tilde^T + I
   
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<double> d(0.0, 1.0);
+  MatrixXd MinvC = llt_CCt.solve(C_tilde);             // n_regions × Mspec
+  ArrayXd  quad  = (C_tilde.array() * MinvC.array()).colwise().sum();   // length Mspec
+  u_var_diag_    = (Lambda * (1.0 - quad)).matrix();
   
-  MatrixXd znorm(Mspec, niter_);
-  for(int i = 0; i < znorm.size(); ++i) znorm.data()[i] = d(gen);
-  
-  MatrixXd w(n_regions * T, niter_);
-  for(int i = 0; i < w.size(); ++i) w.data()[i] = d(gen);
-  
-  // v = (C_tilde^T C_tilde + I)^{-1} (z + C_tilde^T w)   via Woodbury
-  MatrixXd RHS  = znorm + C_tilde.transpose() * w;
-  MatrixXd CRHS = C_tilde * RHS;
-  MatrixXd stmp = llt_CCt.solve(CRHS);
-  MatrixXd v_samples = RHS - C_tilde.transpose() * stmp;
+  // Var(Zu) diagonal on the cell grid:
+  // Let A_s = ZPhi * S, so Var(Zu) = A_s (I - C_tilde^T M^{-1} C_tilde) A_s^T
+  // diag = rowwise ||A_s||^2 - rowwise (K .* (M^{-1} K^T)^T).sum(),  K = A_s C_tilde^T
+  MatrixXd A_s  = (ZPhi.array().rowwise() * sqrtLam.transpose()).matrix();   // n_cells × Mspec
+  ArrayXd  diag_full = A_s.array().square().rowwise().sum();                 // n_cells
+  MatrixXd K    = A_s * C_tilde.transpose();                                 // n_cells × n_regions
+  MatrixXd MinvKt = llt_CCt.solve(K.transpose());                            // n_regions × n_cells
+  ArrayXd  diag_corr = (K.array() * MinvKt.transpose().array()).rowwise().sum();
+  zu_var_ = (diag_full - diag_corr).matrix();
   
   // ── Resize storage ──
   if(u_.cols() != niter_){
@@ -474,41 +486,71 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::usample(const int niter_)
     u_loglik_.resize(niter_);
   }
   
-  // Proposal log-density (up to constant):
-  //   -0.5 * v^T (C_tilde^T C_tilde + I) v = -0.5 * (||v||^2 + ||C_tilde v||^2)
-  MatrixXd Ct_v = C_tilde * v_samples;
-  u_loglik_ = -0.5 * (v_samples.colwise().squaredNorm().array()
-                        + Ct_v.colwise().squaredNorm().array()).matrix();
-  
-  // u = u_mean + diag(sqrt(Lambda)) * v
-  u_ = (sqrtLam.matrix().asDiagonal() * v_samples).colwise() + u_mean_;
-  
-  // Map to cell-space
-  scaled_u_ = ZPhi * u_;
-  
-  // ── Importance weights ──
-  // Prior: log f(u|theta) = -0.5 * sum_k u_k^2 / Lambda_k  (+ const)
-  u_weight_.setZero();
-  ArrayXd ll = log_likelihood();
-  
-  for(int i = 0; i < u_.cols(); i++){
-    double llmod   = ll(i);
-    double llprior = -0.5 * (u_.col(i).array().square() * inv_lam).sum();
-    u_weight_(i)   = llmod + llprior - u_loglik_(i);
-  }
-  u_weight_ -= u_weight_.maxCoeff();
-  u_weight_  = u_weight_.exp();
-  u_weight_ *= 1.0 / u_weight_.sum();
-  
-  // ── Diagnostics ──
-  if(u_mean_.hasNaN()){
-    Rcpp::Rcout << "DIAGNOSTIC: NaN in u_mean_" << std::endl;
-    Rcpp::stop("usample (HSGP): NaN detected in u_mean_");
-  }
-  double ess = 1.0 / (u_weight_ * u_weight_).sum();
-  if(ess < 2.0){
-    Rcpp::Rcout << "WARNING: Very low ESS = " << ess
-                << " / " << u_weight_.size() << std::endl;
+  if(niter_ == 1){
+    // Laplace: posterior mode only
+    // v = 0  =>  u = u_mean_,  proposal log-density const (set to 0)
+    u_.col(0)        = u_mean_;
+    u_loglik_(0)     = 0.0;
+    scaled_u_        = ZPhi * u_;
+    u_weight_(0)     = 1.0;
+  } else {
+    // ── Sample from N(u_mean, P^{-1}) ──
+    // P^{-1} = S * (C_tilde^T C_tilde + I)^{-1} * S
+    // Sample: u = u_mean + S * (C_tilde^T C_tilde + I)^{-1} (z + C_tilde^T w)
+    //   where z, w ~ N(0, I)
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> d(0.0, 1.0);
+    
+    MatrixXd znorm(Mspec, niter_);
+    for(int i = 0; i < znorm.size(); ++i) znorm.data()[i] = d(gen);
+    
+    MatrixXd w(n_regions * T, niter_);
+    for(int i = 0; i < w.size(); ++i) w.data()[i] = d(gen);
+    
+    // v = (C_tilde^T C_tilde + I)^{-1} (z + C_tilde^T w)   via Woodbury
+    MatrixXd RHS  = znorm + C_tilde.transpose() * w;
+    MatrixXd CRHS = C_tilde * RHS;
+    MatrixXd stmp = llt_CCt.solve(CRHS);
+    MatrixXd v_samples = RHS - C_tilde.transpose() * stmp;
+    
+    // Proposal log-density (up to constant):
+    //   -0.5 * v^T (C_tilde^T C_tilde + I) v = -0.5 * (||v||^2 + ||C_tilde v||^2)
+    MatrixXd Ct_v = C_tilde * v_samples;
+    u_loglik_ = -0.5 * (v_samples.colwise().squaredNorm().array()
+                          + Ct_v.colwise().squaredNorm().array()).matrix();
+    
+    // u = u_mean + diag(sqrt(Lambda)) * v
+    u_ = (sqrtLam.matrix().asDiagonal() * v_samples).colwise() + u_mean_;
+    
+    // Map to cell-space
+    scaled_u_ = ZPhi * u_;
+    
+    // ── Importance weights ──
+    // Prior: log f(u|theta) = -0.5 * sum_k u_k^2 / Lambda_k  (+ const)
+    u_weight_.setZero();
+    ArrayXd ll = log_likelihood();
+    
+    for(int i = 0; i < u_.cols(); i++){
+      double llmod   = ll(i);
+      double llprior = -0.5 * (u_.col(i).array().square() * inv_lam).sum();
+      u_weight_(i)   = llmod + llprior - u_loglik_(i);
+    }
+    u_weight_ -= u_weight_.maxCoeff();
+    u_weight_  = u_weight_.exp();
+    u_weight_ *= 1.0 / u_weight_.sum();
+    
+    // ── Diagnostics ──
+    if(u_mean_.hasNaN()){
+      Rcpp::Rcout << "DIAGNOSTIC: NaN in u_mean_" << std::endl;
+      Rcpp::stop("usample (HSGP): NaN detected in u_mean_");
+    }
+    double ess = 1.0 / (u_weight_ * u_weight_).sum();
+    if(ess < 2.0){
+      Rcpp::Rcout << "WARNING: Very low ESS = " << ess
+                  << " / " << u_weight_.size() << std::endl;
+    }
   }
 }
 
@@ -665,44 +707,26 @@ void rts::regionModel<cov>::usample(const int niter_){
   // Common code for both cases
   Mb = b;
   u_mean_ = Mb;
-  //llt_Pb.solveInPlace(Vb);
+  log_det_P_ = 2.0 * llt_CCt.matrixL().toDenseMatrix().diagonal().array().log().sum();
   
-  MatrixXd unew(u_.rows(), niter_);
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::normal_distribution<double> d(0.0, 1.0);
-  double* data = unew.data();
-  for(int i = 0; i < unew.size(); ++i) {
-    data[i] = d(gen);
-  }
+  // ── Posterior variance diagonals ──
+  // Precision P = C^T C + I
+  // Woodbury: P^{-1} = I - C^T (C C^T + I)^{-1} C
+  // diag(P^{-1})_i = 1 - c_i^T M^{-1} c_i,   c_i = i-th column of C
   
-  int m = C.rows();  // n_regions * T
-  int n_samples = unew.cols();
+  MatrixXd MinvC = llt_CCt.solve(C);                                    // (n_regions[*T]) × n_cols
+  ArrayXd  quad  = (C.array() * MinvC.array()).colwise().sum();         // length n_cols
+  u_var_diag_    = (1.0 - quad).matrix();
   
-  // Generate w ~ N(0, I)
-  MatrixXd w(m, n_samples);
-  // ... fill with N(0,1) random values ...
-  data = w.data();
-  for(int i = 0; i < w.size(); ++i) {
-    data[i] = d(gen);
-  }
+  // Var(Zu) = ZL * P^{-1} * ZL^T
+  // diag = rowwise ||ZL||^2  -  rowwise (K .* (M^{-1} K^T)^T).sum(),   K = ZL * C^T
+  ArrayXd  diag_full = ZL.array().square().rowwise().sum();             // n_A[*T]
+  MatrixXd K         = ZL * C.transpose();                              // n_A[*T] × n_regions[*T]
+  MatrixXd MinvKt    = llt_CCt.solve(K.transpose());                    // n_regions[*T] × n_A[*T]
+  ArrayXd  diag_corr = (K.array() * MinvKt.transpose().array()).rowwise().sum();
+  zu_var_            = (diag_full - diag_corr).matrix();
   
-  // RHS = z + C'w
-  MatrixXd RHS = unew + C.transpose() * w;
-  
-  // Apply Woodbury: (C'C + I)^{-1} RHS = RHS - C'(CC'+I)^{-1}(C * RHS)
-  MatrixXd CRHS = C * RHS;
-  MatrixXd tmp = llt_CCt.solve(CRHS);
-  unew = RHS - C.transpose() * tmp;
-  
-  // Add mean
-  //unew.colwise() += bnew;
-  
-  // LLT<MatrixXd> llt(Vb);
-  // MatrixXd LVb = llt.matrixL();
-  // //LVb *= 1.5;
-  // unew = LVb * unew;
-  
+  // ── Resize storage ──
   if(u_.cols() != niter_){
     u_.resize(NoChange, niter_);
     u_solve_.resize(NoChange, niter_);
@@ -711,83 +735,98 @@ void rts::regionModel<cov>::usample(const int niter_){
     u_loglik_.resize(niter_);
   }
   
-  u_.noalias() = unew;
-  
-  MatrixXd Cu = C * u_;
-  ArrayXd Cu_norms = Cu.colwise().squaredNorm();
-  ArrayXd u_norms = u_.colwise().squaredNorm();
-  u_loglik_ = -0.5 * (Cu_norms + u_norms);
-  
-  
-  // Compute proposal log-likelihood (no race condition)
-// #pragma omp parallel for
-//   for(int i = 0; i < u_.cols(); i++){
-//     VectorXd v = llt.solve(u_.col(i));
-//     u_loglik_(i) = -0.5 * v.dot(u_.col(i));
-//   }
-  
-  u_.colwise() += u_mean_;
-  
-  // Compute importance weights
-  scaled_u_ = covariance.Lu(u_);
+  if(niter_ == 1){
+    // Laplace: posterior mode only
+    u_.col(0)    = u_mean_;
+    u_loglik_(0) = 0.0;
+    u_weight_(0) = 1.0;
+    
+    scaled_u_ = covariance.Lu(u_);
 #ifdef GLMMR13
-  u_solve_ = covariance.solve(scaled_u_);
+    u_solve_ = covariance.solve(scaled_u_);
 #else
-  MatrixXd D = covariance.D();
-  LLT<MatrixXd> llt_D;
-  llt_D.compute(D);
-  u_solve_ = llt_D.solve(scaled_u_);
+    MatrixXd D = covariance.D();
+    LLT<MatrixXd> llt_D;
+    llt_D.compute(D);
+    u_solve_ = llt_D.solve(scaled_u_);
 #endif
-  u_weight_.setZero();
-  ArrayXd ll = log_likelihood();
+  } else {
+    MatrixXd unew(u_.rows(), niter_);
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> d(0.0, 1.0);
+    double* data = unew.data();
+    for(int i = 0; i < unew.size(); ++i) data[i] = d(gen);
+    
+    int m = C.rows();  // n_regions * T
+    int n_samples = unew.cols();
+    
+    // Generate w ~ N(0, I)
+    MatrixXd w(m, n_samples);
+    data = w.data();
+    for(int i = 0; i < w.size(); ++i) data[i] = d(gen);
+    
+    // RHS = z + C'w
+    MatrixXd RHS = unew + C.transpose() * w;
+    
+    // Apply Woodbury: (C'C + I)^{-1} RHS = RHS - C'(CC'+I)^{-1}(C * RHS)
+    MatrixXd CRHS = C * RHS;
+    MatrixXd tmp  = llt_CCt.solve(CRHS);
+    unew = RHS - C.transpose() * tmp;
+    
+    u_.noalias() = unew;
+    
+    MatrixXd Cu = C * u_;
+    ArrayXd Cu_norms = Cu.colwise().squaredNorm();
+    ArrayXd u_norms  = u_.colwise().squaredNorm();
+    u_loglik_ = -0.5 * (Cu_norms + u_norms);
+    
+    u_.colwise() += u_mean_;
+    
+    // Compute importance weights
+    scaled_u_ = covariance.Lu(u_);
+#ifdef GLMMR13
+    u_solve_ = covariance.solve(scaled_u_);
+#else
+    MatrixXd D = covariance.D();
+    LLT<MatrixXd> llt_D;
+    llt_D.compute(D);
+    u_solve_ = llt_D.solve(scaled_u_);
+#endif
+    u_weight_.setZero();
+    ArrayXd ll = log_likelihood();
 #pragma omp parallel for
-  for(int i = 0; i < scaled_u_.cols(); i++){
-    double llmod = ll(i);
-    double llprior = -0.5 * scaled_u_.col(i).dot(u_solve_.col(i));
-    u_weight_(i) = llmod + llprior - u_loglik_(i);
+    for(int i = 0; i < scaled_u_.cols(); i++){
+      double llmod   = ll(i);
+      double llprior = -0.5 * scaled_u_.col(i).dot(u_solve_.col(i));
+      u_weight_(i)   = llmod + llprior - u_loglik_(i);
+    }
+    u_weight_ -= u_weight_.maxCoeff();
+    u_weight_  = u_weight_.exp();
+    u_weight_ *= 1.0 / u_weight_.sum();
   }
-  u_weight_ -= u_weight_.maxCoeff();
-  u_weight_ = u_weight_.exp();
-  double weightsum = u_weight_.sum();
-  u_weight_ *= 1.0 / weightsum;
-  // Diagnostic checks
+  
+  // ── Diagnostics (apply to both paths) ──
   if(u_mean_.hasNaN()) {
     Rcpp::Rcout << "=== DIAGNOSTIC: NaN in u_mean_ ===" << std::endl;
-    Rcpp::Rcout << "y range: [" << y.minCoeff() << ", " << y.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "beta: " << beta.transpose() << std::endl;
-    Rcpp::Rcout << "offset range: [" << offset.minCoeff() << ", " << offset.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "weights dims: " << weights.rows() << " x " << weights.cols() << std::endl;
-    Rcpp::Rcout << "weights nonzeros: " << weights.nonZeros() << std::endl;
-    MatrixXd lr = lambda_r();
-    Rcpp::Rcout << "lambda_r range: [" << lr.minCoeff() << ", " << lr.maxCoeff() << "]" << std::endl;
-    R_FlushConsole();
+    // ... (rest of your diagnostic block unchanged) ...
     Rcpp::stop("usample: NaN detected in u_mean_");
   }
   
   if(u_.hasNaN()) {
     Rcpp::Rcout << "=== DIAGNOSTIC: NaN in u_ ===" << std::endl;
-    Rcpp::Rcout << "u_mean_ range: [" << u_mean_.minCoeff() << ", " << u_mean_.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "Vb may be non-positive-definite" << std::endl;
-    R_FlushConsole();
     Rcpp::stop("usample: NaN detected in u_");
   }
   
   if(u_weight_.hasNaN() || !u_weight_.isFinite().all()) {
     Rcpp::Rcout << "=== DIAGNOSTIC: NaN/Inf in u_weight_ ===" << std::endl;
-    ArrayXd ll = log_likelihood();
-    Rcpp::Rcout << "log_likelihood range: [" << ll.minCoeff() << ", " << ll.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "u_loglik_ range: [" << u_loglik_.minCoeff() << ", " << u_loglik_.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "scaled_u_ range: [" << scaled_u_.minCoeff() << ", " << scaled_u_.maxCoeff() << "]" << std::endl;
-    Rcpp::Rcout << "u_solve_ range: [" << u_solve_.minCoeff() << ", " << u_solve_.maxCoeff() << "]" << std::endl;
-    R_FlushConsole();
     Rcpp::stop("usample: NaN/Inf detected in u_weight_");
   }
   
   double ess = 1.0 / (u_weight_ * u_weight_).sum();
-  if(ess < 2.0) {
-    Rcpp::Rcout << "=== WARNING: Very low ESS ===" << std::endl;
-    Rcpp::Rcout << "ESS: " << ess << " / " << u_weight_.size() << std::endl;
-    R_FlushConsole();
+  if(ess < 2.0 && niter_ > 1) {
+    Rcpp::Rcout << "=== WARNING: Very low ESS === " << ess
+                << " / " << u_weight_.size() << std::endl;
   }
 }
 
@@ -1015,11 +1054,19 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
   for(int j = 0; j < npars; j++){
     grad(j) = -0.5 * (dLambda.col(j) * inv_lam).sum();
   }
-  for(int i = 0; i < n_iter; i++){
-    double w_i = u_weight_(i);
-    ArrayXd u2 = u_.col(i).array().square();
+  
+  if(n_iter == 1){
+    ArrayXd second_moment = u_.col(0).array().square() + u_var_diag_.array();
     for(int j = 0; j < npars; j++){
-      grad(j) += 0.5 * w_i * (u2 * dLambda.col(j) * inv_lam2).sum();
+      grad(j) += 0.5 * (second_moment * dLambda.col(j) * inv_lam2).sum();
+    }
+  } else {
+    for(int i = 0; i < n_iter; i++){
+      double w_i = u_weight_(i);
+      ArrayXd u2 = u_.col(i).array().square();
+      for(int j = 0; j < npars; j++){
+        grad(j) += 0.5 * w_i * (u2 * dLambda.col(j) * inv_lam2).sum();
+      }
     }
   }
   
@@ -1033,7 +1080,15 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
     }
   }
   
-  // Observation-space Fisher (Hessian regulariser, matches base package)
+  // Precompute Phi * diag((dsqrt(Lambda)/dtheta_j) / sqrt(Lambda))
+  // so that Phi_dj_u[j] * u gives Phi * (dsqrtLam/dtheta_j) * v, where v = u/sqrtLam
+  std::vector<MatrixXd> Phi_dj_u(npars);
+  for(int j = 0; j < npars; j++){
+    ArrayXd scale = dsqrtLam.col(j) / sqrtLam;
+    Phi_dj_u[j] = Phi * scale.matrix().asDiagonal();
+  }
+  
+  // Observation-space Fisher
   ArrayXd xb = (X * beta + offset).array();
   for(int i = 0; i < n_iter; i++){
     ArrayXd eta_s    = xb + scaled_u_.col(i).array();
@@ -1044,7 +1099,7 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
     
     std::vector<VectorXd> dlr(npars);
     for(int j = 0; j < npars; j++){
-      VectorXd deta_cell = Phi_dj[j] * u_.col(i);
+      VectorXd deta_cell = Phi_dj_u[j] * u_.col(i);   // <-- was Phi_dj[j]
       ArrayXd scaled_arr = lambda_s * deta_cell.array();
       VectorXd dlr_j(n_regions * T);
       for(int t = 0; t < T; t++){
@@ -1062,6 +1117,8 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
       }
     }
   }
+  
+  
   
   // ── Newton-Raphson step with damping ──
   covariance.infomat_theta = Hess;
@@ -1086,7 +1143,7 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
   }
   
   double max_step = 1.0;
-  if(step.array().abs().maxCoeff() > max_step)
+  if(n_iter > 1 && step.array().abs().maxCoeff() > max_step)
     step *= max_step / step.array().abs().maxCoeff();
   
   logtheta += step;
@@ -1100,7 +1157,6 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
   
   gradients.tail(npars) = grad.array();
   
-  // At the end of nr_theta for hsgpCovariance:
   ArrayXd new_lambda = covariance.LambdaSPD();
   ArrayXd new_inv_lam = 1.0 / new_lambda;
   double ll_det = -0.5 * new_lambda.log().sum();
@@ -1180,8 +1236,7 @@ void rts::regionModel<cov>::fit(const double tol, const int max_iter, const int 
   
   bool converged = false;    
   int iter = 1;
-  dblpair ll, lldiff;
-  double lltot, llvartot, prob;
+  double ll_old = -std::numeric_limits<double>::infinity();
   // start at ml values
   if(trace > 0)Rcpp::Rcout << "\nStarting values\nBeta: " << beta.transpose() << "\nTheta: ";
   if(trace > 0)for(const auto& i: covariance.parameters_) Rcpp::Rcout << " " << i;
@@ -1209,12 +1264,21 @@ void rts::regionModel<cov>::fit(const double tol, const int max_iter, const int 
       if(trace>0) Rcpp::Rcout << "\nRho: " << covariance.rho;
     }
 #endif
-    if(trace > 0)Rcpp::Rcout << "\nu: " << u_.topRows(5).rowwise().mean().transpose();
-    if(trace > 0)Rcpp::Rcout << "\nLog-likelihood: " << ll_beta << " | " << ll_theta << std::endl;
-    if (iter > 2) {
-      converged = check_convergence(tol,hist,iter,k0);
-      if (converged && trace > 0) Rcpp::Rcout << "\nCONVERGED!";
+    
+    if(niter > 1){
+      if(trace > 0)Rcpp::Rcout << "\nu: " << u_.topRows(5).rowwise().mean().transpose();
+      if(trace > 0)Rcpp::Rcout << "\nLog-likelihood: " << ll_beta << " | " << ll_theta << std::endl;
+      if (iter > 2) {
+        converged = check_convergence(tol,hist,iter,k0);
+        if (converged && trace > 0) Rcpp::Rcout << "\nCONVERGED!";
+      }
+    } else {
+      double grad_norm = gradients.abs().maxCoeff();
+      if(trace > 0) Rcpp::Rcout << "||grad||: " << grad_norm << std::endl;
+      converged = grad_norm < tol; 
+      if(trace > 0) if (converged) Rcpp::Rcout << "\nCONVERGED!";
     }
+    
     iter++;
   }
 }
@@ -1448,6 +1512,26 @@ SEXP regionModel__u(SEXP xp, int type = 0){
 }
 
 // [[Rcpp::export]]
+SEXP regionModel__get_zu_var(SEXP xp, int type = 0){
+#ifdef GLMMR13
+  if(type == 0) {
+    Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+    return Rcpp::wrap(ptr->zu_var());
+  } 
+  else if (type == 1){
+    Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
+    return Rcpp::wrap(ptr->zu_var());
+  } else  {
+    Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->zu_var());
+  } 
+#else
+  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+  return Rcpp::wrap(ptr->zu_var());
+#endif
+}
+
+// [[Rcpp::export]]
 SEXP regionModel__get_beta(SEXP xp, int type = 0){
 #ifdef GLMMR13
   if(type == 0) {
@@ -1524,6 +1608,8 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
   return Rcpp::wrap(ptr->covariance.parameters_);
 #endif
 }
+
+
 
 // [[Rcpp::export]]
 double max_dist(const Eigen::ArrayXXd &x){

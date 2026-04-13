@@ -39,6 +39,8 @@ public:
               u_solve_(MatrixXd::Zero(covariance.Q(), niter_)), 
               u_weight_(ArrayXd::Zero(niter_)), 
               u_loglik_(VectorXd::Zero(niter_)),
+              zu_var_(VectorXd::Zero(covariance.Q())),
+              u_var_diag_(VectorXd::Zero(covariance.Q())),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
   
@@ -59,6 +61,8 @@ public:
               u_solve_(MatrixXd::Zero(covariance.Q(), niter_)), 
               u_weight_(ArrayXd::Zero(niter_)), 
               u_loglik_(VectorXd::Zero(niter_)),
+              zu_var_(VectorXd::Zero(covariance.Q())),
+              u_var_diag_(VectorXd::Zero(covariance.Q())),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
 #endif
@@ -81,6 +85,8 @@ public:
               u_solve_(MatrixXd::Zero(1, niter_)), 
               u_weight_(ArrayXd::Zero(niter_)), 
               u_loglik_(VectorXd::Zero(niter_)),
+              zu_var_(VectorXd::Zero(1)),
+              u_var_diag_(VectorXd::Zero(1)),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), 
               M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) 
@@ -92,6 +98,8 @@ public:
     scaled_u_.resize(X_.rows(), niter_); scaled_u_.setZero();
     u_mean_.resize(Q);            u_mean_.setZero();
     u_solve_.resize(Q, niter_);   u_solve_.setZero();
+    zu_var_.resize(X_.rows());    zu_var_.setZero();
+    u_var_diag_.resize(Q);        u_var_diag_.setZero();
   };
   
   void              init_beta();
@@ -103,6 +111,7 @@ public:
   void              fit(const double tol, const int max_iter, const int hist, const int k0);
   bool             check_convergence(const double tol, const int hist, const int k, const int k0);
   MatrixXd         u() const;
+  VectorXd         zu_var() const;
   MatrixXd         information_matrix();
   ArrayXd          sampling_weights() const;
   double           total_log_likelihood() const;
@@ -116,6 +125,9 @@ private:
   MatrixXd    u_solve_;
   ArrayXd     u_weight_;
   VectorXd    u_loglik_;
+  VectorXd    zu_var_;
+  VectorXd    u_var_diag_;
+  double      log_det_P_;
   dblvec      logliks;
   double      ll_beta;
   double      ll_theta;

@@ -154,6 +154,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// regionModel__get_zu_var
+SEXP regionModel__get_zu_var(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__get_zu_var(SEXP xpSEXP, SEXP typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__get_zu_var(xp, type));
+    return rcpp_result_gen;
+END_RCPP
+}
 // regionModel__get_beta
 SEXP regionModel__get_beta(SEXP xp, int type);
 RcppExport SEXP _rts2_regionModel__get_beta(SEXP xpSEXP, SEXP typeSEXP) {
@@ -277,6 +289,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_regionModel__information_matrix", (DL_FUNC) &_rts2_regionModel__information_matrix, 2},
     {"_rts2_regionModel__information_matrix_theta", (DL_FUNC) &_rts2_regionModel__information_matrix_theta, 2},
     {"_rts2_regionModel__u", (DL_FUNC) &_rts2_regionModel__u, 2},
+    {"_rts2_regionModel__get_zu_var", (DL_FUNC) &_rts2_regionModel__get_zu_var, 2},
     {"_rts2_regionModel__get_beta", (DL_FUNC) &_rts2_regionModel__get_beta, 2},
     {"_rts2_regionModel__get_weights", (DL_FUNC) &_rts2_regionModel__get_weights, 2},
     {"_rts2_regionModel__log_likelihood", (DL_FUNC) &_rts2_regionModel__log_likelihood, 2},

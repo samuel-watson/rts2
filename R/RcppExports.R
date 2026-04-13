@@ -41,6 +41,10 @@ regionModel__u <- function(xp, type = 0L) {
     .Call(`_rts2_regionModel__u`, xp, type)
 }
 
+regionModel__get_zu_var <- function(xp, type = 0L) {
+    .Call(`_rts2_regionModel__get_zu_var`, xp, type)
+}
+
 regionModel__get_beta <- function(xp, type = 0L) {
     .Call(`_rts2_regionModel__get_beta`, xp, type)
 }

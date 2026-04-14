@@ -1238,10 +1238,10 @@ grid <- R6::R6Class("grid",
                                  mu_samples[, k] <- exp(xb + u[, k])
                                }
                                
-                               if (K == 1) {
+                               if (K < 200) {
                                  # ── Laplace branch ──
                                  zu_var <- regionModel__get_zu_var(ptr, type)
-                                 mu_mean <- mu_samples[, 1]
+                                 mu_mean <- rowMeans(u) #mu_samples[, 1]
                                  # Grid-level: delta method with diagonal
                                  var_from_u    <- (mu_mean ^ 2) * zu_var
                                  var_from_beta <- XVX * (mu_mean ^ 2)

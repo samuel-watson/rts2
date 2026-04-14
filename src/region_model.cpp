@@ -404,8 +404,7 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::usample(const int niter_)
   
   MatrixXd C_tilde(n_regions, Mspec);
   LLT<MatrixXd> llt_CCt;
-  
-  while(diff > 1e-6 && itero < 10){
+  while(diff > 1e-6 && itero < 20){
     ArrayXd eta_s    = xb + (ZPhi * b).array();
     ArrayXd lambda_s = eta_s.exp();
     int T = total / n_cells;
@@ -1274,8 +1273,12 @@ void rts::regionModel<cov>::fit(const double tol, const int max_iter, const int 
       }
     } else {
       double grad_norm = gradients.abs().maxCoeff();
-      if(trace > 0) Rcpp::Rcout << "||grad||: " << grad_norm << std::endl;
-      converged = grad_norm < tol; 
+      if(trace > 0) Rcpp::Rcout << "\nmax |grad|: " << grad_norm;
+      converged = grad_norm < tol;
+      double ll_new = ll_beta + ll_theta - 0.5 * log_det_P_;
+      //converged = ll_new - ll_old < tol;
+      if(trace > 0)Rcpp::Rcout << "\nLog likelihood (new | previous): " << ll_new << " | " << ll_old << " Diff: " << ll_new - ll_old << std::endl;
+      ll_old = ll_new;
       if(trace > 0) if (converged) Rcpp::Rcout << "\nCONVERGED!";
     }
     

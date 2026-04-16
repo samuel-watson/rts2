@@ -868,6 +868,7 @@ grid <- R6::R6Class("grid",
                            #' required if more than one time period.
                            #' @param m Number of basis functions per dimension for HSGP approximation. If spatio-temporal model then three values are required.
                            #' @param L Multiplicative boundary extension for HSGP approximation.
+                           #' @param se Either "average" for a Monte Carlo averaged standard error, or "point" for standard errors evaluated at the posterior mode of the random effects.
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
@@ -916,6 +917,7 @@ grid <- R6::R6Class("grid",
                                               start_theta = NULL,
                                               m = c(10,10),
                                               L = 1.2,
+                                              se = "average",
                                               trace = 1){
                              
                              # some checks at the beginning
@@ -996,7 +998,8 @@ grid <- R6::R6Class("grid",
                                                 max_iter = max_iter, 
                                                 tol = tol, 
                                                 hist = hist, 
-                                                k0 = k0)
+                                                k0 = k0,
+                                                se = se)
                                  ll <- mod$log_likelihood()
                                  X <- mod$mean$X
                                  n_cov_pars <- ifelse(data$nT > 1, 3, 2)
@@ -1192,7 +1195,7 @@ grid <- R6::R6Class("grid",
                                regionModel__fit(ptr, tol, max_iter, hist, k0, type)
                                
                                # Information matrix for beta (already computed in nr_beta)
-                               I_beta <- regionModel__information_matrix(ptr, type)
+                               I_beta <- regionModel__information_matrix(ptr, se == "average", type)
                                V_beta <- solve(I_beta)
                                M <- I_beta
                                # Information matrix for theta

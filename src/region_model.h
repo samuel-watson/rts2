@@ -112,7 +112,7 @@ public:
   bool             check_convergence(const double tol, const int hist, const int k, const int k0);
   MatrixXd         u() const;
   VectorXd         zu_var() const;
-  MatrixXd         information_matrix();
+  MatrixXd         information_matrix(bool monte_carlo = true);
   ArrayXd          sampling_weights() const;
   double           total_log_likelihood() const;
   void             set_offset(const VectorXd& offset_);

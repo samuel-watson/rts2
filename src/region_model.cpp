@@ -94,8 +94,6 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
   // Per-sample centering of Zu^(k) matches nr_beta.
   // -------------------------------------------------------------
   
-  const VectorXd& y = model.data.y;   // <-- region-level y; adjust accessor if needed
-  
   MatrixXd bread = MatrixXd::Zero(P_, P_);
   MatrixXd g_mat(P_, K);
   VectorXd g_bar = VectorXd::Zero(P_);
@@ -130,7 +128,7 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
     bread.noalias() += wk * (tilde_Xk.transpose() * WtXk);
     
     // score: g_k = tilde_Xk' (y - λ_rk)
-    VectorXd gk = tilde_Xk.transpose() * (y - lambda_rk);
+    VectorXd gk = tilde_Xk.transpose() * (y.matrix() - lambda_rk);
     g_mat.col(k) = gk;
     g_bar.noalias() += wk * gk;
   }
@@ -146,7 +144,7 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
 }
 
 template<typename cov>
-MatrixXd rts::regionModel<cov>::information_matrix()
+MatrixXd rts::regionModel<cov>::information_matrix(bool monte_carlo)
 {
   const int P_        = beta.size();
   const int n_regions = weights.rows();
@@ -233,8 +231,6 @@ MatrixXd rts::regionModel<cov>::information_matrix()
   // Per-sample centering of ZL·v^(k) matches nr_beta.
   // ---------------------------------------------------------------------
   
-  const VectorXd& y = model.data.y;   // region-level response; adjust accessor to match regionModel
-  
   MatrixXd bread = MatrixXd::Zero(P_, P_);
   MatrixXd g_mat(P_, K);
   VectorXd g_bar = VectorXd::Zero(P_);
@@ -267,7 +263,7 @@ MatrixXd rts::regionModel<cov>::information_matrix()
     MatrixXd WtXk = (tilde_Xk.array().colwise() * lambda_rk.array()).matrix();
     bread.noalias() += wk * (tilde_Xk.transpose() * WtXk);
     
-    VectorXd gk = tilde_Xk.transpose() * (y - lambda_rk);
+    VectorXd gk = tilde_Xk.transpose() * (y.matrix() - lambda_rk);
     g_mat.col(k) = gk;
     g_bar.noalias() += wk * gk;
   }

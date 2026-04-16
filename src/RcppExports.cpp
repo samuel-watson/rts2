@@ -119,14 +119,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // regionModel__information_matrix
-SEXP regionModel__information_matrix(SEXP xp, int type);
-RcppExport SEXP _rts2_regionModel__information_matrix(SEXP xpSEXP, SEXP typeSEXP) {
+SEXP regionModel__information_matrix(SEXP xp, bool mc, int type);
+RcppExport SEXP _rts2_regionModel__information_matrix(SEXP xpSEXP, SEXP mcSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< bool >::type mc(mcSEXP);
     Rcpp::traits::input_parameter< int >::type type(typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(regionModel__information_matrix(xp, type));
+    rcpp_result_gen = Rcpp::wrap(regionModel__information_matrix(xp, mc, type));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -286,7 +287,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_regionModel__set_theta", (DL_FUNC) &_rts2_regionModel__set_theta, 3},
     {"_rts2_regionModel__set_offset", (DL_FUNC) &_rts2_regionModel__set_offset, 3},
     {"_rts2_regionModel__fit", (DL_FUNC) &_rts2_regionModel__fit, 6},
-    {"_rts2_regionModel__information_matrix", (DL_FUNC) &_rts2_regionModel__information_matrix, 2},
+    {"_rts2_regionModel__information_matrix", (DL_FUNC) &_rts2_regionModel__information_matrix, 3},
     {"_rts2_regionModel__information_matrix_theta", (DL_FUNC) &_rts2_regionModel__information_matrix_theta, 2},
     {"_rts2_regionModel__u", (DL_FUNC) &_rts2_regionModel__u, 2},
     {"_rts2_regionModel__get_zu_var", (DL_FUNC) &_rts2_regionModel__get_zu_var, 2},

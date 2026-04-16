@@ -29,8 +29,8 @@ regionModel__fit <- function(xp, tol, max_iter, hist, k0, type = 0L) {
     invisible(.Call(`_rts2_regionModel__fit`, xp, tol, max_iter, hist, k0, type))
 }
 
-regionModel__information_matrix <- function(xp, type = 0L) {
-    .Call(`_rts2_regionModel__information_matrix`, xp, type)
+regionModel__information_matrix <- function(xp, mc = TRUE, type = 0L) {
+    .Call(`_rts2_regionModel__information_matrix`, xp, mc, type)
 }
 
 regionModel__information_matrix_theta <- function(xp, type = 0L) {

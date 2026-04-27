@@ -44,7 +44,6 @@ public:
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
   
-#ifdef GLMMR13
   template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::ar1Covariance> > >
   regionModel(const std::string& formula_,
               const ArrayXXd& data_,
@@ -65,7 +64,6 @@ public:
               u_var_diag_(VectorXd::Zero(covariance.Q())),
               gradients(ArrayXd::Zero(X_.cols() + covariance.npar())), M(MatrixXd::Zero(X_.cols(),X_.cols())),
               offset(VectorXd::Zero(X_.rows())) {};
-#endif
   
   template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::hsgpCovariance> > >
   regionModel(const std::string& formula_,
@@ -102,6 +100,34 @@ public:
     u_var_diag_.resize(Q);        u_var_diag_.setZero();
   };
   
+  template <typename C = cov, typename = std::enable_if_t<std::is_same_v<C, glmmr::spdeCovariance> > >
+  regionModel(const std::string& formula_,
+              const ArrayXXd& data_,
+              const strvec& colnames_,
+              const MatrixXd& X_,
+              const ArrayXd& y_,
+              const int niter_,
+              const SparseMatrix<double>& A_loc_,
+              const VectorXd& C_diag_,
+              const SparseMatrix<double>& G_)
+    : formula(formula_),
+      covariance(formula_, data_, colnames_),
+      X(X_), y(y_), Q(covariance.Q()), niter(niter_), fam("poisson","log"),
+      beta(VectorXd::Zero(X_.cols())),
+      u_(MatrixXd::Zero(covariance.Q(), niter_)),
+      scaled_u_(MatrixXd::Zero(X_.rows(), niter_)),
+      u_mean_(VectorXd::Zero(covariance.Q())),
+      u_solve_(MatrixXd::Zero(covariance.Q(), niter_)),
+      u_weight_(ArrayXd::Zero(niter_)),
+      u_loglik_(VectorXd::Zero(niter_)),
+      zu_var_(VectorXd::Zero(X_.rows())),
+      u_var_diag_(VectorXd::Zero(covariance.Q())),
+      gradients(ArrayXd::Zero(X_.cols() + covariance.npar())),
+      M(MatrixXd::Zero(X_.cols(), X_.cols())),
+      offset(VectorXd::Zero(X_.rows())) {
+    covariance.spde_data(A_loc_, C_diag_, G_);
+  };
+  
   void              init_beta();
   void              usample(const int niter);
   MatrixXd          lambda_r();
@@ -109,13 +135,16 @@ public:
   void              nr_beta();
   void              nr_theta();
   void              fit(const double tol, const int max_iter, const int hist, const int k0);
-  bool             check_convergence(const double tol, const int hist, const int k, const int k0);
-  MatrixXd         u() const;
-  VectorXd         zu_var() const;
-  MatrixXd         information_matrix(bool monte_carlo = true);
-  ArrayXd          sampling_weights() const;
-  double           total_log_likelihood() const;
-  void             set_offset(const VectorXd& offset_);
+  bool              check_convergence(const double tol, const int hist, const int k, const int k0);
+  MatrixXd          u(bool scaled = true) const;
+  VectorXd          zu_var() const;
+  MatrixXd          information_matrix(bool monte_carlo = true);
+  ArrayXd           sampling_weights() const;
+  double            total_log_likelihood() const;
+  void              set_offset(const VectorXd& offset_);
+  VectorXd          zu_variance_full();
+  VectorXd          zu_variance_full(const Eigen::SparseMatrix<double>& A_pred,
+                                   const Eigen::MatrixXd& X_pred); 
   
 private:
   

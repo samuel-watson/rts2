@@ -36,6 +36,8 @@ grid <- R6::R6Class("grid",
                          public = list(
                            #' @field grid_data sf object specifying the computational grid for the analysis
                            grid_data = NULL,
+                           #' @field point_data sf object with the event locations
+                           point_data = NULL,
                            #' @field region_data sf object specifying an irregular lattice, such as census areas, 
                            #' within which case counts are aggregated. Only used if polygon data are provided on
                            #' class initialisation.
@@ -162,6 +164,17 @@ grid <- R6::R6Class("grid",
                              cat("\n")
                            },
                            #' @description
+                          #' Reproject coordinates of spatial data in the object to a new CRS
+                          #' 
+                          #' @param crs target coordinate reference system passed to `st_transform`
+                          #' @return None, called for effects
+                           transform = function(crs){
+                             if(!is.null(self$boundary))self$boundary <- sf::st_transform(self$boundary, crs = crs)
+                             if(!is.null(self$point_data)) self$point_data <- sf::st_transform(self$point_data, crs = crs)
+                             if(!is.null(self$grid_data)) self$grid_data <- sf::st_transform(self$grid_data, crs = crs)
+                             if(!is.null(self$region_data)) self$region_data <- sf::st_transform(self$region_data, crs = crs)
+                           },
+                           #' @description
                            #' Plots the grid data
                            #'
                            #' @details
@@ -235,6 +248,7 @@ grid <- R6::R6Class("grid",
                                warning("CRS not equal. Setting st_crs(point_data)==st_crs(self$grid_data)")
                                sf::st_crs(point_data) <- sf::st_crs(self$grid_data)
                              }
+                             self$point_data <- point_data
                              if("y"%in%colnames(self$grid_data))self$grid_data <- self$grid_data[,-which(colnames(self$grid_data)=="y")]
                              nT <- sum(grepl("\\bt[0-9]",colnames(self$grid_data)))
                              if(nT > 0){
@@ -947,6 +961,7 @@ grid <- R6::R6Class("grid",
                                }
                              }
                              is_hsgp <- grepl("hsgp",model)
+                             is_spde <- grepl("spde",model)
                              if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
                                if(data$nT > 1 & !is_hsgp){
                                  if(is.null(self$region_data)){
@@ -965,394 +980,459 @@ grid <- R6::R6Class("grid",
                              
                              
                              if(is.null(self$region_data)){
+                               # ── Build the data frame (existing code, unchanged) ─────────────────────────
                                dat <- as.data.frame(data$X)
                                dat <- cbind(dat, data$x_grid)
-                               dat <- dat[,2:ncol(dat)]
+                               dat <- dat[, 2:ncol(dat)]
                                rownames(dat) <- 1:nrow(dat)
-                               colnames(dat) <- c(covs,"x","y")
-                               if(is_hsgp & data$nT > 1){
+                               colnames(dat) <- c(covs, "x", "y")
+                               if (is_hsgp & data$nT > 1) {
                                  dat <- cbind(dat, rep(1:data$nT, each = nrow(data$x_grid)))
-                                 colnames(dat) <- c(covs,"x","y","t")
+                                 colnames(dat) <- c(covs, "x", "y", "t")
                                  form <- gsub("\\)", ",t)", form)
                                }
-                               mod <- glmmrBase::Model$new(
-                                 formula = as.formula(form),
-                                 data = dat,
-                                 family = poisson(),
-                                 offset = log(data$popdens)
-                               )$set_trace(1)
-                               if(is.null(start_theta)){
-                                 if(is_hsgp & data$nT > 1){
-                                   start_cov = log(runif(4))
-                                 } else {
-                                   start_cov = log(runif(2+I(data$nT>1)*1))
+                               
+                               # ── Model construction (NEW SPDE branch + existing default) ─────────────────
+                               spde <- NULL
+                               if (is_spde) {
+                                 if (data$nT > 1) stop("Spatio-temporal SPDE not yet implemented for non-aggregated LGCP")
+                                 
+                                 events <- sf::st_coordinates(self$point_data)[, 1:2, drop = FALSE]
+                                 spde   <- self$build_spde_data()
+                                 spde0 <<- spde
+                                 n_v    <- spde$n_v
+                                 n_e    <- nrow(events)
+                                 vertex_coords <- spde$mesh$loc[, 1:2]
+                                 
+                                 aug <- data.frame(
+                                   x     = c(events[, 1], vertex_coords[, 1]),
+                                   y     = c(events[, 2], vertex_coords[, 2]),
+                                   count = c(rep(1L, n_e), rep(0L, n_v)),
+                                   log_w = c(rep(0,   n_e), log(spde$C))
+                                 )
+                                 if (!is.null(popdens)) {
+                                   pop_aug <- private$evaluate_covariates_at(aug[, c("x", "y")], covs = popdens)[, popdens]
+                                   aug$log_w <- aug$log_w + log(pop_aug)
                                  }
+                                 cov_aug <- private$evaluate_covariates_at(aug[, c("x", "y")], covs = covs)
+                                 for (cv in covs) aug[[cv]] <- cov_aug[, cv]
+                                 
+                                 if(!is.null(covs)){
+                                   spde_form <- as.formula(paste0("count ~ ", paste(covs, collapse = " + "),
+                                                                  " + (1 | spde_matern1log(x, y))"))
+                                 } else {
+                                   spde_form <- as.formula("count ~ (1 | spde_matern1log(x, y))")
+                                 }
+                                
+                                 start_cov <- if (is.null(start_theta)) log(c(1.0, 0.3)) else start_theta
+                                 
+                                 mod <- glmmrBase::Model$new(
+                                   formula    = spde_form,
+                                   data       = aug,
+                                   family     = poisson(),
+                                   mesh       = list(A_loc = spde$A_loc, C = spde$C, G = spde$G),
+                                   covariance = start_cov,
+                                   mean       = c(log(n_e / sum(spde$C)), rep(0,length(covs))),
+                                   offset     = aug$log_w
+                                 )$set_trace(1)
                                } else {
-                                 start_cov = start_theta
+                                 mod <- glmmrBase::Model$new(
+                                   formula = as.formula(form),
+                                   data    = dat,
+                                   family  = poisson(),
+                                   offset  = log(data$popdens)
+                                 )$set_trace(1)
+                                 
+                                 if (is.null(start_theta)) {
+                                   start_cov <- if (is_hsgp & data$nT > 1) log(runif(4)) else log(runif(2 + I(data$nT > 1) * 1))
+                                 } else {
+                                   start_cov <- start_theta
+                                 }
                                }
                                
-                               mod$update_y(data$y)
-                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
-                                 mod$update_parameters(cov.pars = start_cov)
-                                 fit <- mod$fit(niter = iter_sampling,
-                                                max_iter = max_iter, 
-                                                tol = tol, 
-                                                hist = hist, 
-                                                k0 = k0,
-                                                se = se)
-                                 ll <- mod$log_likelihood()
-                                 X <- mod$mean$X
-                                 n_cov_pars <- ifelse(data$nT > 1, 3, 2)
-                                 cov_par_names <- c("tau_sq (log)","lambda (log)")
-                                 if(data$nT > 1 & !is_hsgp)cov_par_names <- c(cov_par_names, "rho")
-                                 if(data$nT > 1 & is_hsgp)cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
-                                 fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
+                               # ── Fit (existing logic, with type-aware y) ─────────────────────────────────
+                               mod$update_y(if (is_spde) aug$count else data$y)
+                               
+                               mod$update_parameters(cov.pars = start_cov)
+                               fit <- mod$fit(niter = iter_sampling, max_iter = max_iter, tol = tol,
+                                              hist = hist, k0 = k0, se = se)
+                               ll <- mod$log_likelihood()
+                               X  <- mod$mean$X
+                               n_cov_pars <- 2
+                               if (data$nT > 1 && !is_hsgp && !is_spde) n_cov_pars <- 3
+                               if (data$nT > 1 &&  is_hsgp)             n_cov_pars <- 4
+                               cov_par_names <- c("tau_sq (log)", "lambda (log)")
+                               if (data$nT > 1 && !is_hsgp && !is_spde) cov_par_names <- c(cov_par_names, "rho")
+                               if (data$nT > 1 &&  is_hsgp)             cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
+                               fit$coefficients$par[(ncol(X) + 1):(ncol(X) + n_cov_pars)] <- cov_par_names
+                               
+                               # ── Common extractions ──────────────────────────────────────────────────────
+                               ptr   <- mod$.__enclos_env__$private$ptr
+                               mtype <- mod$.__enclos_env__$private$model_type()
+                               
+                               popd  <- private$stack_variable(popdens)
+                               beta  <- fit$coefficients$est[1:ncol(X)]
+                               u_obs <- mod$u(scaled = TRUE)  
+                               
+                               if (packageVersion(pkg = "glmmrBase") >= "1.2.0") {
+                                 w <- glmmrBase:::Model__get_importance_weights(ptr, mtype)
                                } else {
-                                 mod$update_parameters(cov.pars = exp(start_cov))
-                                 fit <- mod$MCML(method = "mcnr")
-                                 ll <- mod$log_likelihood()
-                                 X <- mod$mean$X
-                                 n_cov_pars <- 2
-                                 cov_par_names <- c("tau_sq","lambda")
-                                 if(data$nT > 1)cov_par_names <- c(cov_par_names, "rho")
-                                 fit$coefficients$par[(ncol(X)+1):(ncol(X)+n_cov_pars)] <- cov_par_names
+                                 w <- rep(1 / ncol(u_obs), ncol(u_obs))
                                }
-                               popd <- private$stack_variable(popdens)
-                               u <- mod$u(scaled = TRUE)  # n x K matrix
-                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
-                                 w <- glmmrBase:::Model__get_importance_weights(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
-                               } else {
-                                 w <- rep(1/ncol(u),length(ncol(u)))
-                               }
-                               sum_w <- sum(w)
-                               M <- solve(mod$information_matrix())  # V_beta
-                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
+                               sum_w <- sum(w); K <- ncol(u_obs)
+                               M <- solve(mod$information_matrix())                # V_β (marginal Schur)
+                               if (packageVersion(pkg = "glmmrBase") >= "1.2.0") {
                                  M_theta <- solve(mod$information_matrix(theta = TRUE))
                                } else {
                                  M_theta <- diag(2)
                                }
-                               K <- ncol(u)
-                               # Linear predictor without random effects
-                               xb <- mod$fitted()  # X %*% beta
-                               XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
-                               # Grid-level intensity samples
-                               mu_pp_samples <- matrix(0, nrow(X), K)
-                               mu_tot_samples <- matrix(0, nrow(X), K)
-                               for(k in 1:K){
-                                 mu_pp_samples[, k] <- exp(xb + u[, k])
-                                 mu_tot_samples[, k] <- exp(xb + u[, k] + log(popd))
-                               }
-                               if(K == 1){
-                                 var_rr <- glmmrBase:::Model__get_zu_var(mod$.__enclos_env__$private$ptr, mod$.__enclos_env__$private$model_type())
-                                 mu_pp_mean <- mu_pp_samples[,1]
-                                 mu_tot_mean <- mu_tot_samples[,1]
-                                 var_u_pp  <- (mu_pp_mean ^ 2)  * var_rr
-                                 var_u_tot <- (mu_tot_mean ^ 2) * var_rr
-                                 var_beta_pp  <- XVX * (mu_pp_mean  ^ 2)
-                                 var_beta_tot <- XVX * (mu_tot_mean ^ 2)
-                                 SEpp  <- sqrt(var_beta_pp  + var_u_pp)
-                                 SEtot <- sqrt(var_beta_tot + var_u_tot)
-                                 ypred <- mu_tot_mean
-                                 mupred <- mu_pp_mean
-                                 rr_samples <- u  # n x K matrix
-                                 rr_mean <- u[,1]
-                                 SE_rr <- sqrt(var_rr + XVX)
+                               # ── Project u and compute var_rr at the GRID ────────────────────────────────
+                               if(is_spde){
+                                 X_grid <- data$X
                                } else {
-                                 # Weighted means (predictions)
-                                 mu_pp_mean <- rowSums(t(t(mu_pp_samples) * w)) / sum_w
-                                 mu_tot_mean <- rowSums(t(t(mu_tot_samples) * w)) / sum_w
-                                 # Weighted mean of squared intensities (for delta method)
-                                 mu_pp_sq_mean <- rowSums(t(t(mu_pp_samples^2) * w)) / sum_w
-                                 mu_tot_sq_mean <- rowSums(t(t(mu_tot_samples^2) * w)) / sum_w
-                                 # Variance from random effects (weighted variance)
-                                 var_u_pp <- rowSums(t(t((mu_pp_samples - mu_pp_mean)^2) * w)) / sum_w
-                                 var_u_tot <- rowSums(t(t((mu_tot_samples - mu_tot_mean)^2) * w)) / sum_w
-                                 XVX <- rowSums((X %*% M) * X)  # diag(X V_beta X^T)
-                                 var_beta_pp <- XVX * mu_pp_sq_mean
-                                 var_beta_tot <- XVX * mu_tot_sq_mean
-                                 SEpp <- sqrt(var_beta_pp + var_u_pp)
-                                 SEtot <- sqrt(var_beta_tot + var_u_tot)
-                                 ypred <- mu_tot_mean
-                                 mupred <- mu_pp_mean
-                                 rr_samples <- u  # n x K matrix
-                                 rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
-                                 var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                                 SE_rr <- sqrt(var_rr + XVX)
+                                 X_grid <- mod$mean$X                                     
                                }
+                               n_grid <- nrow(X_grid)
+                               XVX <- rowSums((X_grid %*% M) * X_grid)
+                               
+                               if (is_spde) {
+                                 
+                                 u_obs <- mod$covariance$Z %*% u_obs
+                                 u_v     <- u_obs[(n_e + 1):(n_e + n_v), , drop = FALSE]   # subset to vertices
+                                 u_grid  <- as.matrix(spde$A_pred %*% u_v)     
+                                 var_rr  <- tryCatch(glmmrBase:::Model_spde__re_var_at(ptr, spde$A_pred),
+                                  error = function(e){
+                                    print(e)
+                                    return(rep(1,nrow(spde$A_pred)))
+                                  })
+                                 u <-  u_grid  <- as.matrix(spde$A_pred %*% mod$u(FALSE))
+                               } else if (is_hsgp) {
+                                 u_grid  <- u_obs                                           # obs = grid
+                                 var_rr  <- glmmrBase:::Model_hsgp__re_var(ptr)             # or dense equivalent
+                                 u       <- u_grid
+                               } else {
+                                 u_grid  <- u_obs     
+                                 Mv <- mod$information_matrix(include.re = TRUE)
+                                 var_rr <- diag(solve(Mv)[(ncol(X)+1):nrow(Mv),(ncol(X)+1):nrow(Mv)])
+                                 u      <- u_grid
+                               }
+                               
+                               # ── Grid-level intensity samples and posterior summaries ────────────────────
+                               xb  <- drop(X_grid %*% beta)                         # X β only (no offset)
+                               
+                               mu_pp_samples  <- matrix(0, n_grid, K)
+                               mu_tot_samples <- matrix(0, n_grid, K)
+                               for (k in 1:K) {
+                                 mu_pp_samples[, k]  <- exp(xb + u_grid[, k])
+                                 mu_tot_samples[, k] <- exp(xb + u_grid[, k] + log(data$popdens))
+                               }
+                               
+                               if (K == 1) {
+                                 mu_pp_mean  <- mu_pp_samples[, 1]
+                                 mu_tot_mean <- mu_tot_samples[, 1]
+                                 rr_mean     <- u_grid[, 1]
+                               } else {
+                                 mu_pp_mean  <- rowSums(t(t(mu_pp_samples)  * w)) / sum_w
+                                 mu_tot_mean <- rowSums(t(t(mu_tot_samples) * w)) / sum_w
+                                 rr_centered <- sweep(u_grid, 2, colMeans(u_grid))
+                                 rr_mean     <- drop(rr_centered %*% w) / sum_w
+                               }
+                               
+                               # Delta-method SEs using analytical var_rr (consistent across K)
+                               SE_rr  <- sqrt(var_rr)
+                               SEeta <- sqrt(var_rr + XVX)         # η-uncertainty — conservative delta
+                               SEpp  <- mu_pp_mean  * SEeta
+                               SEtot <- mu_tot_mean * SEeta
+                               
+                               ypred  <- mu_tot_mean
+                               mupred <- mu_pp_mean
                              } else {
                                ## now do regional model variant
                                W <- self$get_region_data()$W
+                               
+                               # ── SPDE-specific setup: replace grid-based W with mesh-based W ──
+                               spde_data_obj <- NULL
+                               if (is_spde) {
+                                 spde_data_obj <- self$build_spde_data()
+                                 W <- spde_data_obj$W_mesh   # n_regions × n_v, replaces grid W on the model side
+                               }
+                               
                                add_offset <- FALSE
-                               if(!is.null(popdens)){
-                                 if(popdens %in% colnames(self$grid_data)){
-                                   W <- W %*% Matrix::Diagonal(x = as.data.frame(self$grid_data[,popdens])[,1])
-                                 } else if(popdens %in% colnames(self$region_data)){
-                                   W <- Matrix::Diagonal(x = as.data.frame(self$region_data[,popdens])[,1]) %*% W
-                                 } else if (length(data$popd) == (ncol(W) * data$nT)){
+                               pop_in_W   <- FALSE
+                               
+                               if (!is.null(popdens)) {
+                                 if (popdens %in% colnames(self$grid_data)) {
+                                   if (is_spde) {
+                                     pop_at_mesh <- private$evaluate_covariates_at(
+                                       spde_data_obj$mesh$loc[, 1:2], popdens
+                                     )[, 1]
+                                     W <- W %*% Matrix::Diagonal(x = pop_at_mesh)
+                                   } else {
+                                     W <- W %*% Matrix::Diagonal(x = as.data.frame(self$grid_data[, popdens])[,1])
+                                   }
+                                   pop_in_W <- TRUE
+                                 } else if (popdens %in% colnames(self$region_data)) {
+                                   W <- Matrix::Diagonal(x = as.data.frame(self$region_data[, popdens])[,1]) %*% W
+                                   pop_in_W <- TRUE
+                                 } else if (length(data$popd) == (ncol(W) * data$nT)) {
                                    add_offset <- TRUE
                                  } else {
-                                   stop("popdens not in grid or region, or is time varying and should be mapped to the grid.")
+                                   stop("popdens not in grid/region, or is time varying with SPDE.")
                                  }
                                }
-                               # parse HSGP models
                                
-                               if(is_hsgp) form <- gsub("hsgp_","",form)
-                               if(is_hsgp){
-                                 type <- 2L
-                               } else {
-                                 type <- I(data$nT > 1)*1
-                               }
-                               form <- gsub("~","",form)
-                               if(is_hsgp){
-                                 if(data$nT == 1){
-                                   ptr <- regionModel_hsgp__new(
-                                     form,
-                                     as.matrix(data$x_grid),
-                                     c('x','y'),
-                                     data$X,
-                                     data$y,
-                                     iter_sampling,
-                                     m,
-                                     L
-                                   )
-                                   if(is.null(start_theta)){
-                                     theta_start <- c(log(runif(2,0,0.3)))
-                                   } else {
-                                     theta_start <- start_theta
-                                   }
-                                 } else {
-                                   form <- gsub("\\)", ",t)", form)
-                                   gcsize <- nrow(data$x_grid)
-                                   gcmat <- data$x_grid
-                                   for(t in 1:(data$nT-1)) gcmat <- rbind(gcmat,data$x_grid)
-                                   gcmat <- cbind(gcmat, data.frame(t = rep(1:data$nT, each = gcsize)))
-                                   
-                                   ptr <- regionModel_hsgp__new(
-                                     form,
-                                     as.matrix(gcmat),
-                                     c('x','y','t'),
-                                     data$X,
-                                     data$y,
-                                     iter_sampling,
-                                     m,
-                                     L
-                                   )
-                                   if(is.null(start_theta)){
-                                     theta_start <- c(log(runif(4,0,0.3)))
-                                   } else {
-                                     theta_start <- start_theta
-                                   }
+                               if (is_spde) {
+                                 X_v <- matrix(1, nrow = nrow(spde_data_obj$mesh$loc), ncol = 1)
+                                 if (!is.null(covs)) {
+                                   aug_cov <- private$evaluate_covariates_at(spde_data_obj$mesh$loc[, 1:2], covs)
+                                   for (i in 1:ncol(aug_cov)) X_v <- cbind(X_v, aug_cov[, i])
                                  }
+                                 offset <- rep(0, nrow(spde_data_obj$mesh$loc))   # always zero now
+                                 if (add_offset) stop("Time-varying popdens not yet supported with SPDE.")
                                } else {
-                                 if(data$nT == 1){
-                                   ptr <- regionModel__new(
-                                     form,
-                                     as.matrix(data$x_grid),
-                                     c('x','y'),
-                                     data$X,
-                                     data$y,
-                                     iter_sampling,
-                                     0
+                                 X_v <- data$X
+                                 offset <- if (add_offset) log(data$popd) else rep(0, nrow(X_v))
+                               }
+                               
+                               # parse model class
+                               if (is_hsgp) form <- gsub("hsgp_","", form)
+                               if (is_spde) form <- gsub("spde_","", form)
+                               if (is_hsgp && is_spde) stop("Model cannot be both HSGP and SPDE")
+                               form <- gsub("~","", form)
+                               
+                               if (is_hsgp) {
+                                 type <- 2L
+                               } else if (is_spde) {
+                                 type <- 3L
+                               } else {
+                                 type <- I(data$nT > 1) * 1
+                               }
+                               
+                               # Covariates evaluated at mesh vertices for SPDE; X stays as the design matrix
+                               # the C++ side multiplies against the fitted random effects (n_v × niter). The
+                               # user-side responsibility is to supply X_v of dim (n_v × p). For now we evaluate
+                               # covariates at vertices using the same column logic as data$X on the grid.
+                               if (is_hsgp) {
+                                 if (data$nT == 1) {
+                                   if(length(m) != 2)stop("m must be length 2")
+                                   ptr <- regionModel_hsgp__new(
+                                     form, as.matrix(data$x_grid), c('x','y'),
+                                     data$X, data$y, iter_sampling, m, L
                                    )
-                                   if(is.null(start_theta)){
-                                     theta_start <- c(log(runif(2,0,0.3)))
-                                   } else {
-                                     theta_start <- start_theta
-                                   }
+                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3))) else start_theta
+                                 } else {
+                                   if(length(m) != 3)stop("m must be length 3")
+                                   form  <- gsub("\\)", ",t)", form)
+                                   gcsize <- nrow(data$x_grid)
+                                   gcmat  <- data$x_grid
+                                   for (t in 1:(data$nT-1)) gcmat <- rbind(gcmat, data$x_grid)
+                                   gcmat  <- cbind(gcmat, data.frame(t = rep(1:data$nT, each = gcsize)))
+                                   ptr <- regionModel_hsgp__new(
+                                     form, as.matrix(gcmat), c('x','y','t'),
+                                     data$X, data$y, iter_sampling, m, L
+                                   )
+                                   theta_start <- if (is.null(start_theta)) c(log(runif(4,0,0.3))) else start_theta
+                                 }
+                               } else if (is_spde) {
+                                 if (data$nT > 1) stop("Spatio-temporal SPDE not yet implemented")
+                                 ptr <- regionModel_spde__new(
+                                   form,
+                                   as.matrix(spde_data_obj$mesh$loc[, 1:2]),
+                                   c('x','y'),
+                                   X_v,                  # covariates at mesh vertices
+                                   data$y,               # region-level counts (length n_regions)
+                                   iter_sampling,
+                                   spde_data_obj$A_loc,  # n_v × n_v identity (model-side projector)
+                                   spde_data_obj$C,
+                                   spde_data_obj$G,
+                                   2L                    # alpha = 2 → ν = 1 in 2D
+                                 )
+                                 theta_start <- if (is.null(start_theta)) c(log(c(1.0, 0.3))) else start_theta
+                               } else {
+                                 if (data$nT == 1) {
+                                   ptr <- regionModel__new(
+                                     form, as.matrix(data$x_grid), c('x','y'),
+                                     data$X, data$y, iter_sampling, 0
+                                   )
+                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3))) else start_theta
                                  } else {
                                    ptr <- regionModel_ar__new(
-                                     form,
-                                     as.matrix(data$x_grid),
-                                     c('x','y'),
-                                     data$X,
-                                     data$y,
-                                     iter_sampling,
-                                     data$nT
+                                     form, as.matrix(data$x_grid), c('x','y'),
+                                     data$X, data$y, iter_sampling, data$nT
                                    )
-                                   if(is.null(start_theta)){
-                                     theta_start <- c(log(runif(2,0,0.3)),0.3)
-                                   } else {
-                                     theta_start <- start_theta
-                                   }
-                                   
+                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3)), 0.3) else start_theta
                                  }
                                }
                                
-                               if(packageVersion(pkg = "glmmrBase") >= "1.2.0"){
-                                  regionModel__set_theta(ptr, theta_start, type)
+                               if (packageVersion(pkg = "glmmrBase") >= "1.2.0") {
+                                 regionModel__set_theta(ptr, theta_start, type)
                                } else {
                                  regionModel__set_theta(ptr, exp(theta_start), type)
                                }
                                
                                regionModel__set_weights(ptr, W@i, W@p, W@x, nrow(W), ncol(W), type)
-                               if(add_offset){
-                                 regionModel__set_offset(ptr, log(data$popd), type)
-                                 offset <- log(data$popd)
-                               } else {
-                                 offset <- rep(0, nrow(data$X))
-                               }
-                               
+                               regionModel__set_offset(ptr, offset, type)
                                regionModel__fit(ptr, tol, max_iter, hist, k0, type)
-                               
-                               # Information matrix for beta (already computed in nr_beta)
+                               print("checkpoint 1")
                                I_beta <- regionModel__information_matrix(ptr, se == "average", type)
                                V_beta <- solve(I_beta)
-                               M <- I_beta
-                               # Information matrix for theta
+                               M      <- I_beta
                                M_theta <- regionModel__information_matrix_theta(ptr, type)
                                V_theta <- solve(M_theta)
-                               u <- regionModel__u(ptr, type)  # n x K
-                               beta <- regionModel__get_beta(ptr, type)
-                               theta <- regionModel__get_theta(ptr, type)
-                               cov_par_names <- c("tau_sq (log)","lambda (log)")
-                               if(data$nT > 1 & !is_hsgp)cov_par_names <- c(cov_par_names, "rho")
-                               if(data$nT > 1 & is_hsgp)cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
-                               res <- data.frame(par = c(paste0("beta",1:length(beta)),cov_par_names,paste0("d",1:nrow(u))),
-                                                 est = c(beta,theta,rowMeans(u)),
-                                                 SE=c(sqrt(diag(V_beta)),sqrt(diag(V_theta)),rep(NA,nrow(u))),
-                                                 t = NA,
-                                                 p = NA,
-                                                 lower = NA,
-                                                 upper = NA)
-                               
-                               res$t <- res$est/res$SE
-                               res$p <- 2*(1-stats::pnorm(abs(res$t)))
-                               res$lower <- res$est - qnorm(1-0.05/2)*res$SE
-                               res$upper <- res$est + qnorm(1-0.05/2)*res$SE
-                               fit <- list(
-                                 coefficients = res,
-                                 converged = TRUE,
-                                 aic = NA,
-                                 Rsq = list(NA, NA),
-                                 iter = NA
-                               )
-                               X <- data$X  # n x p matrix
-                               n <- nrow(X)
-                               p <- ncol(X)
-                               m <- nrow(W)  # number of regions
-                               K <- ncol(u)  # number of samples
-                               
-                               w <- regionModel__get_weights(ptr, type)
-                               sum_w <- sum(w)
-                               xb <- drop(X %*% beta + offset)  # n-vector
-                               XVX <- rowSums((X %*% V_beta) * X)  # n-vector
-                               mu_samples <- matrix(0, n, K)
-                               for (k in 1:K) {
-                                 mu_samples[, k] <- exp(xb + u[, k])
-                               }
-                               
-                               if (K < 200) {
-                                 # ── Laplace branch ──
-                                 zu_var <- regionModel__get_zu_var(ptr, type)
-                                 mu_mean <- rowMeans(u) #mu_samples[, 1]
-                                 # Grid-level: delta method with diagonal
-                                 var_from_u    <- (mu_mean ^ 2) * zu_var
-                                 var_from_beta <- XVX * (mu_mean ^ 2)
-                                 SEpp <- sqrt(var_from_beta + var_from_u)
+                               u_model <- regionModel__u(ptr, TRUE, type)             # n_eval × K  (n_eval = n_cells or n_v)
+                               beta    <- regionModel__get_beta(ptr, type)
+                               theta   <- regionModel__get_theta(ptr, type)
+                               print("checkpoint 2")
+                               # ── For SPDE, lift to grid for prediction; for grid models, u_model is already at grid ──
+                               if (is_spde) {
+                                 # Grid centroids — used for both covariate evaluation and offset
+                                 grid_centroids <- as.data.frame(
+                                   sf::st_coordinates(sf::st_centroid(self$grid_data))
+                                 )
                                  
-                                 # Region-level aggregation of the mode
-                                 if (data$nT > 1) {
-                                   n_A <- ncol(W)
-                                   n_R <- nrow(W)
-                                   T_periods <- length(mu_mean) / n_A
-                                   mu_r_mean <- numeric(n_R * T_periods)
-                                   for (t in 1:T_periods) {
-                                     idx_in  <- ((t - 1) * n_A + 1):(t * n_A)
-                                     idx_out <- ((t - 1) * n_R + 1):(t * n_R)
-                                     mu_r_mean[idx_out] <- as.numeric(W %*% mu_mean[idx_in])
-                                   }
-                                 } else {
-                                   mu_r_mean <- as.numeric(W %*% mu_mean)
+                                 # Project u from mesh to grid via A_pred (n_grid × n_v)
+                                 u_s <- regionModel__u(ptr, FALSE, type)              # n_v × K
+                                 u   <- as.matrix(spde_data_obj$A_pred %*% u_s)        # n_grid × K
+                                 
+                                 # Build X_pr at grid cells
+                                 X_pr <- matrix(1, nrow = nrow(spde_data_obj$A_pred), ncol = 1)
+                                 if (!is.null(covs)) {
+                                   aug_cov <- private$evaluate_covariates_at(grid_centroids, covs)
+                                   X_pr    <- cbind(X_pr, aug_cov)
                                  }
                                  
-                                 # Region-level var from random effects:
-                                 #   Var(sum_k W_jk * mu_k) ≈ sum_k W_jk^2 * mu_k^2 * zu_var_k
-                                 # This is a diagonal approximation — ignores cross-cell covariance
-                                 # within a region, so will under-estimate. See note below.
-                                 mu_sq_var <- (mu_mean ^ 2) * zu_var  # n-vector
-                                 W_sq <- W
-                                 W_sq@x <- W@x ^ 2                    # assumes W is dgCMatrix; adjust if dense
-                                 if (data$nT > 1) {
-                                   var_from_u_r <- numeric(n_R * T_periods)
-                                   for (t in 1:T_periods) {
-                                     idx_in  <- ((t - 1) * n_A + 1):(t * n_A)
-                                     idx_out <- ((t - 1) * n_R + 1):(t * n_R)
-                                     var_from_u_r[idx_out] <- as.numeric(W_sq %*% mu_sq_var[idx_in])
-                                   }
-                                 } else {
-                                   var_from_u_r <- as.numeric(W_sq %*% mu_sq_var)
-                                 }
-                                 
-                                 # Region-level var from beta: g_r = X^T (W[r,] * mu_mean)
-                                 var_from_beta_r <- numeric(m)
-                                 for (r in 1:m) {
-                                   g_r <- drop(t(X) %*% (W[r, ] * mu_mean))
-                                   var_from_beta_r[r] <- drop(t(g_r) %*% V_beta %*% g_r)
-                                 }
-                                 SEtot <- sqrt(var_from_beta_r + var_from_u_r)
-                                 
-                                 ypred <- mu_r_mean
-                                 
-                                 # mupred: same construction but without the offset (as in the MC branch)
-                                 xb_no_off <- drop(X %*% beta)
-                                 mupred    <- exp(xb_no_off + u[, 1])
-                                 
-                                 # Relative risk
-                                 rr_mean <- u[, 1]
-                                 var_rr  <- zu_var
-                                 SE_rr   <- sqrt(var_rr + XVX)
+                                 # Grid-level offset.
+                                 # If popdens was absorbed into W_mesh during fitting, we already account
+                                 # for it via W_out scaling below; offset stays zero at the grid level.
+                                 # If popdens is time-varying, that case needs separate handling and isn't
+                                 # supported with SPDE yet.
+                                 offset <- rep(0, nrow(X_pr))
                                  
                                } else {
-                                 mu_mean <- rowSums(t(t(mu_samples) * w)) / sum_w
-                                 mu_sq_mean <- rowSums(t(t(mu_samples^2) * w)) / sum_w
-                                 var_from_u <- rowSums(t(t((mu_samples - mu_mean)^2) * w)) / sum_w
-                                 var_from_beta <- XVX * mu_sq_mean
-                                 SEpp <- sqrt(var_from_beta + var_from_u)
-                                 # Check if AR1 model
-                                 if (data$nT > 1) {
-                                   # AR1 case: apply W separately per time period
-                                   n_A <- ncol(W)
-                                   n_R <- nrow(W)
-                                   T_periods <- nrow(mu_samples) / n_A
-                                   mu_r_samples <- matrix(0, n_R * T_periods, K)
-                                   
-                                   for (t in 1:T_periods) {
-                                     row_start <- (t - 1) * n_A + 1
-                                     row_end <- t * n_A
-                                     mu_samples_t <- mu_samples[row_start:row_end, , drop = FALSE]  # n_A x K
-                                     out_start <- (t - 1) * n_R + 1
-                                     out_end <- t * n_R
-                                     mu_r_samples[out_start:out_end, ] <- as.matrix(W %*% mu_samples_t)  # n_R x K
-                                   }
-                                 } else {
-                                   # Standard spatial case
-                                   mu_r_samples <- as.matrix(W %*% mu_samples)  # n_R x K
-                                 }
-                                 mu_r_mean <- rowSums(t(t(mu_r_samples) * w)) / sum_w
-                                 var_from_u_r <- rowSums(t(t((mu_r_samples - mu_r_mean)^2) * w)) / sum_w
-                                 var_from_beta_r <- rep(0, m)
-                                 for (k in 1:K) {
-                                   lambda_k <- mu_samples[, k]
-                                   for (r in 1:m) {
-                                     g_r <- drop(t(X) %*% (W[r, ] * lambda_k))  # p-vector
-                                     var_from_beta_r[r] <- var_from_beta_r[r] + w[k] * drop(t(g_r) %*% V_beta %*% g_r)
-                                   }
-                                 }
-                                 var_from_beta_r <- var_from_beta_r / sum_w
-                                 SEtot <- sqrt(var_from_beta_r + var_from_u_r)
-                                 ypred <- mu_r_mean
-                                 mu_samples <- matrix(0, n, K)
-                                 xb <- drop(X %*% beta) 
-                                 for (k in 1:K) {
-                                   mu_samples[, k] <- exp(xb + u[, k])
-                                 }
-                                 mupred <- rowSums(t(t(mu_samples) * w)) / sum_w
-                                 # Relative risk samples: RR = exp(u)
-                                 rr_samples <- u  # n x K matrix
-                                 rr_mean <- rowSums(t(t(rr_samples) * w)) / sum_w
-                                 var_rr <- rowSums(t(t((rr_samples - rr_mean)^2) * w)) / sum_w
-                                 SE_rr <- sqrt(var_rr + XVX)
+                                 u      <- u_model
+                                 X_pr   <- data$X
+                                 # offset comes through from upstream as already grid-sized
                                }
+                               
+                               # From here, the code is SPDE-agnostic ------------------------------------
+                               n <- nrow(X_pr); p <- ncol(X_pr)
+                               K <- ncol(u)
+                               m <- nrow(self$get_region_data()$W)   # or wherever W_out comes from
+                               
+                               stopifnot(nrow(u) == n)               # cheap guard against the bug class
+                               
+                               cov_par_names <- c("tau_sq (log)","lambda (log)")
+                               if (data$nT > 1 && !is_hsgp && !is_spde) cov_par_names <- c(cov_par_names, "rho")
+                               if (data$nT > 1 &&  is_hsgp)             cov_par_names <- c(cov_par_names, "lambda_2 (log)", "lambda_t (log)")
+                               
+                               res <- data.frame(
+                                 par   = c(paste0("beta",1:length(beta)), cov_par_names, paste0("d",1:nrow(u))),
+                                 est   = c(beta, theta, rowMeans(u)),
+                                 SE    = c(sqrt(diag(V_beta)), sqrt(diag(V_theta)), rep(NA, nrow(u))),
+                                 t = NA, p = NA, lower = NA, upper = NA
+                               )
+                               res$t <- res$est / res$SE
+                               res$p <- 2 * (1 - stats::pnorm(abs(res$t)))
+                               res$lower <- res$est - qnorm(1 - 0.05/2) * res$SE
+                               res$upper <- res$est + qnorm(1 - 0.05/2) * res$SE
+                               fit <- list(coefficients = res, converged = TRUE, aic = NA, Rsq = list(NA, NA), iter = NA)
+                               print("checkpoint 3")
+                               # ── Output slice operates on grid-level (X_pr, u) for all model types ──
+                               n <- nrow(X_pr); p <- ncol(X_pr); m <- nrow(W); K <- ncol(u)
+                               
+                               # W for output aggregation (region-from-grid). For SPDE this is the *original*
+                               # grid-based W from get_region_data(), not the mesh-based W used in fitting.
+                               W_out <- self$get_region_data()$W
+                               if (!is.null(popdens)) {
+                                 if (popdens %in% colnames(self$grid_data)) {
+                                   W_out <- W_out %*% Matrix::Diagonal(x = as.data.frame(self$grid_data[, popdens])[,1])
+                                 } else if (popdens %in% colnames(self$region_data)) {
+                                   W_out <- Matrix::Diagonal(x = as.data.frame(self$region_data[, popdens])[,1]) %*% W_out
+                                 }
+                               }
+                               print("checkpoint 3b")
+                               w <- regionModel__get_weights(ptr, type)
+                               sum_w <- sum(w)
+                               xb    <- drop(X_pr %*% beta + offset)
+                               XVX   <- rowSums((X_pr %*% V_beta) * X_pr)
+                               print("checkpoint 4")
+                               mu_samples <- matrix(0, n, K)
+                               for (k in 1:K) mu_samples[, k] <- exp(xb + u[, k])
+                               
+                               # ── Output slice (unified MC path) ─────────────────────────────────────────────
+                               n <- nrow(X_pr); p <- ncol(X_pr); m <- nrow(W); K <- ncol(u)
+                               
+                               # W for region-from-grid output (SPDE: original grid-based W; grid models: same as fitting W)
+                               W_out <- self$get_region_data()$W
+                               # if (is_spde && !is.null(popdens)) {
+                               #   if (popdens %in% colnames(self$grid_data)) {
+                               #     W_out <- W_out %*% Matrix::Diagonal(x = as.data.frame(self$grid_data[, popdens])[,1])
+                               #   } else if (popdens %in% colnames(self$region_data)) {
+                               #     W_out <- Matrix::Diagonal(x = as.data.frame(self$region_data[, popdens])[,1]) %*% W_out
+                               #   }
+                               # }
+                               
+                               w     <- regionModel__get_weights(ptr, type)
+                               sum_w <- sum(w)
+                               
+                               # ── Grid-level Var(η) — single source of truth for β + u uncertainty ─────────
+                               zu_var_grid <- if (is_spde) {
+                                 regionModel_spde__zu_variance_full(ptr, spde_data_obj$A_pred, X_pr)
+                               } else {
+                                 regionModel__zu_variance_full(ptr, type)   # grid/HSGP: ZA is internal projector
+                               }
+                               print("checkpoint 5")
+                               # ── MC samples at grid level (Jensen mean-centered per sample) ───────────────
+                               # NB: offset must be sized to nrow(X_pr). For SPDE the current code sets
+                               # `offset <- rep(0, nrow(X_v))` (mesh-sized) — that's a pre-existing size bug
+                               # in the no-offset path; here we treat `offset` as already grid-sized.
+                               xb         <- drop(X_pr %*% beta + offset)
+                               xb_no_off  <- drop(X_pr %*% beta)
+                               mu_samples       <- matrix(0, n, K)
+                               mu_samples_noff  <- matrix(0, n, K)
+                               for (k in 1:K) {
+                                 uk_c <- u[, k] - mean(u[, k])
+                                 mu_samples[, k]      <- exp(xb        + uk_c)
+                                 mu_samples_noff[, k] <- exp(xb_no_off + uk_c)
+                               }
+                               
+                               # ── Grid-level posterior summaries ───────────────────────────────────────────
+                               mu_mean <- rowSums(t(t(mu_samples)      * w)) / sum_w
+                               mupred  <- rowSums(t(t(mu_samples_noff) * w)) / sum_w
+                               SEpp    <- mu_mean * sqrt(zu_var_grid)              # delta on Var(η)
+                               
+                               # Log-relative-risk (= η minus its spatial mean across samples)
+                               u_centered <- u - matrix(colMeans(u), n, K, byrow = TRUE)
+                               rr_mean    <- rowSums(t(t(u_centered) * w)) / sum_w
+                               SE_rr      <- sqrt(zu_var_grid)
+                               
+                               # ── Region-level aggregation (kept as MC; β contribution still needs V_β) ────
+                               if (data$nT > 1) {
+                                 n_A <- ncol(W_out); n_R <- nrow(W_out)
+                                 T_periods <- nrow(mu_samples) / n_A
+                                 mu_r_samples <- matrix(0, n_R * T_periods, K)
+                                 for (t in 1:T_periods) {
+                                   idx_in  <- ((t - 1) * n_A + 1):(t * n_A)
+                                   idx_out <- ((t - 1) * n_R + 1):(t * n_R)
+                                   mu_r_samples[idx_out, ] <- as.matrix(W_out %*% mu_samples[idx_in, , drop = FALSE])
+                                 }
+                               } else {
+                                 mu_r_samples <- as.matrix(W_out %*% mu_samples)
+                               }
+                               mu_r_mean    <- rowSums(t(t(mu_r_samples) * w)) / sum_w
+                               var_from_u_r <- rowSums(t(t((mu_r_samples - mu_r_mean)^2) * w)) / sum_w
+                               
+                               var_from_beta_r <- numeric(m)
+                               for (k in 1:K) {
+                                 for (r in 1:m) {
+                                   g_r <- drop(t(X_pr) %*% (W_out[r, ] * mu_samples[, k]))
+                                   var_from_beta_r[r] <- var_from_beta_r[r] + w[k] * drop(t(g_r) %*% V_beta %*% g_r)
+                                 }
+                               }
+                               var_from_beta_r <- var_from_beta_r / sum_w
+                               SEtot <- sqrt(var_from_beta_r + var_from_u_r)
+                               ypred <- mu_r_mean
+                               print("checkpoint 6")
                                ll <- regionModel__log_likelihood(ptr, type)
                              }
 
@@ -1373,10 +1453,10 @@ grid <- R6::R6Class("grid",
                                          covs = covs,
                                          vcov = M,
                                          vcov_theta = M_theta,
-                                         P = ncol(X),
+                                         P = length(covs + 1),
                                          var_par_family = FALSE,
                                          y=data$y,
-                                         X = X,
+                                         X = data$X,
                                          y_predicted  = ypred,
                                          mu_predicted = mupred,
                                          rr = rr_mean,
@@ -1780,38 +1860,9 @@ grid <- R6::R6Class("grid",
                                warning("st_crs(self$grid_data)!=st_crs(new_geom) setting equal")
                              }
                              
-                             
-                             # tmp <- sf::st_intersection(new_geom,self$grid_data[,zcols])
-                             # tmp_len <- lengths(sf::st_intersects(new_geom,self$grid_data))
-                             # tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
                              vals <- matrix(nrow=nrow(new_geom),ncol=length(zcols))
                              if(verbose)cat("Overlaying geographies\n")
                              grid_area <- as.numeric(sf::st_area(self$grid_data[1,]))
-                             # tmp <- sf::st_intersection(new_geom,self$grid_data[,c(popdens,zcols)])
-                             # tmp_len <- lengths(sf::st_intersects(new_geom,self$grid_data))
-                             # tmp_len <- 1 - tmp_len[1] + cumsum(tmp_len)
-                             # 
-                             # for(i in 1:nrow(new_geom)){
-                             #   if(i < nrow(new_geom)){
-                             #     idx_range <- tmp_len[i]:(tmp_len[i+1]-1)
-                             #   } else {
-                             #     idx_range <- tmp_len[i]:nrow(tmp)
-                             #   }
-                             #   tmp_range <- tmp[idx_range,]
-                             #   
-                             #   w <- as.numeric(sf::st_area(tmp_range))/grid_area
-                             #   for(j in 1:length(zcols)){
-                             #     if(weight_type == "sum"){
-                             #       vals[i,j] <- sum(as.data.frame(tmp_range)[,zcols[j]]*w)
-                             #     } else if(weight_type == "area"){
-                             #       vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],w =w)
-                             #     } else {
-                             #       w <- w*as.data.frame(tmp_range)[,popdens]
-                             #       vals[i,j] <- weighted.mean(as.data.frame(tmp_range)[,zcols[j]],w =w)
-                             #     }
-                             #   }
-                             #   if(verbose)cat("\r",progress_bar(i,nrow(new_geom)))
-                             # }
                              tmp <- suppressWarnings(sf::st_intersection(new_geom,self$grid_data[,c(popdens,zcols)]))
                              rnames <- rownames(tmp)
                              rnames <- gsub("\\..*","",rnames)
@@ -1858,6 +1909,80 @@ grid <- R6::R6Class("grid",
                              yrange <- range(x_grid[,2])
                              std_val <- max(diff(xrange),diff(yrange))
                              return(std_val)
+                           },
+                           #' @description
+                            #' A short description...
+                            #' 
+                           build_spde_data = function(max_edge = NULL, cutoff = NULL, offset = NULL) {
+                             
+                             is_aggregated <- !is.null(self$region_data)
+                             
+                             # ── Mesh seed locations and boundary ───────────────────────────────────────
+                             if (is_aggregated) {
+                               mesh_loc <- sf::st_coordinates(sf::st_centroid(sf::st_geometry(self$region_data)))
+                               bb       <- sf::st_bbox(self$region_data)
+                             } else {
+                               mesh_loc <- as.matrix(unique(sf::st_coordinates(self$point_data)))
+                               bb <- c(xmin = min(mesh_loc[,1]), xmax = max(mesh_loc[,1]),
+                                       ymin = min(mesh_loc[,2]), ymax = max(mesh_loc[,2]))
+                             }
+                             
+                             # ── Default mesh args ──────────────────────────────────────────────────────
+                             if (is.null(max_edge)) {
+                               span     <- min(diff(range(mesh_loc[,1])), diff(range(mesh_loc[,2])))   # ~20000
+                               h        <- span / 20                                                    # ~1000 m
+                               max_edge <- c(h, 5 * h)                                                  # c(1000, 5000)
+                             }
+                             if (is.null(cutoff)) cutoff   <- h / 2 
+                             if (is.null(offset)) offset   <- c(h, 5 * h)
+                             
+                             mesh <- fmesher::fm_mesh_2d(
+                               loc      = mesh_loc,
+                               boundary = self$boundary,
+                               max.edge = max_edge,
+                               cutoff   = cutoff,
+                               offset   = offset
+                             )
+                             fem    <- fmesher::fm_fem(mesh)
+                             C_diag <- Matrix::diag(fem$c0)
+                             G      <- Matrix::drop0(as(as(fem$g1, "generalMatrix"), "CsparseMatrix"))
+                             n_v    <- nrow(mesh$loc)
+                             
+                             # ── A_loc and W_mesh: branch on aggregation ────────────────────────────────
+                             W_mesh <- NULL
+                             if (is_aggregated) {
+                               # Aggregated: model evaluates at vertices, A_loc = I(n_v)
+                               A_loc <- Matrix::sparseMatrix(i = 1:n_v, j = 1:n_v, x = 1,
+                                                             dims = c(n_v, n_v))
+                               
+                               vert_sf <- sf::st_as_sf(
+                                 data.frame(x = mesh$loc[,1], y = mesh$loc[,2]),
+                                 coords = c("x","y"), crs = sf::st_crs(self$region_data)
+                               )
+                               rid  <- sf::st_intersects(vert_sf, self$region_data)
+                               rid  <- vapply(rid, function(z) if (length(z)) z[1] else NA_integer_, integer(1))
+                               keep <- !is.na(rid)
+                               W_mesh <- Matrix::sparseMatrix(
+                                 i = rid[keep], j = which(keep), x = C_diag[keep],
+                                 dims = c(nrow(self$region_data), n_v)
+                               )
+                             } else {
+                               # LGCP: augmented rows = events (barycentric) ++ vertices (identity)
+                               aug_loc <- rbind(as.matrix(sf::st_coordinates(self$point_data)), mesh$loc[, 1:2])
+                               aug_loc <- unique(aug_loc)
+                               A_loc   <- Matrix::drop0(fmesher::fm_basis(mesh, loc = aug_loc))
+                             }
+                             
+                             # ── A_pred: prediction projector to grid centroids ─────────────────────────
+                             A_pred <- NULL
+                             if (!is.null(self$grid_data)) {
+                               grid_xy <- sf::st_coordinates(sf::st_centroid(self$grid_data))
+                               A_pred <- Matrix::drop0(fmesher::fm_basis(mesh, loc = grid_xy))
+                             }
+                             
+                             list(mesh = mesh, A_loc = A_loc, C = C_diag, G = G,
+                                  W_mesh = W_mesh, A_pred = A_pred, n_v = n_v,
+                                  is_aggregated = is_aggregated)
                            },
                            #' @description 
                            #' Returns summary data of the region/grid intersections
@@ -2307,6 +2432,51 @@ grid <- R6::R6Class("grid",
                                                          prior_linpred_sd=as.array(self$priors$prior_linpred_sd)))
                         }
                         return(datlist)
+                      },
+                      #' @description 
+                      #' Interpolates covariate values at coordinates, used typically for SPDE models
+                      #' @param coords n x 2 matrix of prediction coordinates. 
+                      #' @param covs Vector of strings naming columns in grid data
+                      #' @return Matrix of interpolated covariate values.
+                      evaluate_covariates_at = function(coords, covs) {
+                        
+                        if (is.null(covs) || length(covs) == 0) {
+                          return(matrix(0, nrow(coords), 0))
+                        }
+                        
+                        grid_cols <- colnames(self$grid_data)
+                        missing   <- setdiff(covs, grid_cols)
+                        if (length(missing) > 0) {
+                          stop("Covariate(s) not found in grid_data: ", paste(missing, collapse = ", "))
+                        }
+                        
+                        query <- if (is.data.frame(coords)) {
+                          as.matrix(coords[, c("x", "y")])
+                        } else {
+                          as.matrix(coords)[, 1:2, drop = FALSE]
+                        }
+                        
+                        grid_xy <- if (inherits(self$grid_data, "sf")) {
+                          sf::st_coordinates(sf::st_centroid(sf::st_geometry(self$grid_data)))
+                        } else {
+                          as.matrix(self$grid_data[, c("x", "y")])
+                        }
+                        
+                        nn_idx <- if (requireNamespace("nabor", quietly = TRUE)) {
+                          nabor::knn(grid_xy, query, k = 1)$nn.idx[, 1]
+                        } else if (requireNamespace("FNN", quietly = TRUE)) {
+                          FNN::get.knnx(grid_xy, query, k = 1)$nn.index[, 1]
+                        } else {
+                          apply(query, 1, function(p) {
+                            which.min((grid_xy[, 1] - p[1])^2 + (grid_xy[, 2] - p[2])^2)
+                          })
+                        }
+                        
+                        # Drop sf geometry before subsetting so we get a plain data frame
+                        gd  <- if (inherits(self$grid_data, "sf")) sf::st_drop_geometry(self$grid_data) else self$grid_data
+                        out <- as.matrix(gd[nn_idx, covs, drop = FALSE])
+                        colnames(out) <- covs
+                        out
                       }
                     ))
 

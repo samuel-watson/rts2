@@ -63,6 +63,51 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// regionModel_spde__new
+SEXP regionModel_spde__new(const std::string& formula_, const Eigen::ArrayXXd& data_, const std::vector<std::string>& colnames_, const Eigen::MatrixXd& X_, const Eigen::ArrayXd& y_, const int niter_, const Eigen::SparseMatrix<double>& A_loc_, const Eigen::VectorXd& C_diag_, const Eigen::SparseMatrix<double>& G_, const int alpha_);
+RcppExport SEXP _rts2_regionModel_spde__new(SEXP formula_SEXP, SEXP data_SEXP, SEXP colnames_SEXP, SEXP X_SEXP, SEXP y_SEXP, SEXP niter_SEXP, SEXP A_loc_SEXP, SEXP C_diag_SEXP, SEXP G_SEXP, SEXP alpha_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string& >::type formula_(formula_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXXd& >::type data_(data_SEXP);
+    Rcpp::traits::input_parameter< const std::vector<std::string>& >::type colnames_(colnames_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::MatrixXd& >::type X_(X_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::ArrayXd& >::type y_(y_SEXP);
+    Rcpp::traits::input_parameter< const int >::type niter_(niter_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::SparseMatrix<double>& >::type A_loc_(A_loc_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::VectorXd& >::type C_diag_(C_diag_SEXP);
+    Rcpp::traits::input_parameter< const Eigen::SparseMatrix<double>& >::type G_(G_SEXP);
+    Rcpp::traits::input_parameter< const int >::type alpha_(alpha_SEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel_spde__new(formula_, data_, colnames_, X_, y_, niter_, A_loc_, C_diag_, G_, alpha_));
+    return rcpp_result_gen;
+END_RCPP
+}
+// regionModel__zu_variance_full
+SEXP regionModel__zu_variance_full(SEXP xp, int type);
+RcppExport SEXP _rts2_regionModel__zu_variance_full(SEXP xpSEXP, SEXP typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel__zu_variance_full(xp, type));
+    return rcpp_result_gen;
+END_RCPP
+}
+// regionModel_spde__zu_variance_full
+SEXP regionModel_spde__zu_variance_full(SEXP xp, SEXP A_pred_, SEXP X_pred_);
+RcppExport SEXP _rts2_regionModel_spde__zu_variance_full(SEXP xpSEXP, SEXP A_pred_SEXP, SEXP X_pred_SEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type A_pred_(A_pred_SEXP);
+    Rcpp::traits::input_parameter< SEXP >::type X_pred_(X_pred_SEXP);
+    rcpp_result_gen = Rcpp::wrap(regionModel_spde__zu_variance_full(xp, A_pred_, X_pred_));
+    return rcpp_result_gen;
+END_RCPP
+}
 // regionModel__set_weights
 void regionModel__set_weights(SEXP xp, Rcpp::IntegerVector i, Rcpp::IntegerVector p, Rcpp::NumericVector x, int nrow, int ncol, int type);
 RcppExport SEXP _rts2_regionModel__set_weights(SEXP xpSEXP, SEXP iSEXP, SEXP pSEXP, SEXP xSEXP, SEXP nrowSEXP, SEXP ncolSEXP, SEXP typeSEXP) {
@@ -144,26 +189,15 @@ BEGIN_RCPP
 END_RCPP
 }
 // regionModel__u
-SEXP regionModel__u(SEXP xp, int type);
-RcppExport SEXP _rts2_regionModel__u(SEXP xpSEXP, SEXP typeSEXP) {
+SEXP regionModel__u(SEXP xp, bool scaled, int type);
+RcppExport SEXP _rts2_regionModel__u(SEXP xpSEXP, SEXP scaledSEXP, SEXP typeSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< bool >::type scaled(scaledSEXP);
     Rcpp::traits::input_parameter< int >::type type(typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(regionModel__u(xp, type));
-    return rcpp_result_gen;
-END_RCPP
-}
-// regionModel__get_zu_var
-SEXP regionModel__get_zu_var(SEXP xp, int type);
-RcppExport SEXP _rts2_regionModel__get_zu_var(SEXP xpSEXP, SEXP typeSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
-    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
-    rcpp_result_gen = Rcpp::wrap(regionModel__get_zu_var(xp, type));
+    rcpp_result_gen = Rcpp::wrap(regionModel__u(xp, scaled, type));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -283,14 +317,16 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_regionModel__new", (DL_FUNC) &_rts2_regionModel__new, 7},
     {"_rts2_regionModel_ar__new", (DL_FUNC) &_rts2_regionModel_ar__new, 7},
     {"_rts2_regionModel_hsgp__new", (DL_FUNC) &_rts2_regionModel_hsgp__new, 8},
+    {"_rts2_regionModel_spde__new", (DL_FUNC) &_rts2_regionModel_spde__new, 10},
+    {"_rts2_regionModel__zu_variance_full", (DL_FUNC) &_rts2_regionModel__zu_variance_full, 2},
+    {"_rts2_regionModel_spde__zu_variance_full", (DL_FUNC) &_rts2_regionModel_spde__zu_variance_full, 3},
     {"_rts2_regionModel__set_weights", (DL_FUNC) &_rts2_regionModel__set_weights, 7},
     {"_rts2_regionModel__set_theta", (DL_FUNC) &_rts2_regionModel__set_theta, 3},
     {"_rts2_regionModel__set_offset", (DL_FUNC) &_rts2_regionModel__set_offset, 3},
     {"_rts2_regionModel__fit", (DL_FUNC) &_rts2_regionModel__fit, 6},
     {"_rts2_regionModel__information_matrix", (DL_FUNC) &_rts2_regionModel__information_matrix, 3},
     {"_rts2_regionModel__information_matrix_theta", (DL_FUNC) &_rts2_regionModel__information_matrix_theta, 2},
-    {"_rts2_regionModel__u", (DL_FUNC) &_rts2_regionModel__u, 2},
-    {"_rts2_regionModel__get_zu_var", (DL_FUNC) &_rts2_regionModel__get_zu_var, 2},
+    {"_rts2_regionModel__u", (DL_FUNC) &_rts2_regionModel__u, 3},
     {"_rts2_regionModel__get_beta", (DL_FUNC) &_rts2_regionModel__get_beta, 2},
     {"_rts2_regionModel__get_weights", (DL_FUNC) &_rts2_regionModel__get_weights, 2},
     {"_rts2_regionModel__log_likelihood", (DL_FUNC) &_rts2_regionModel__log_likelihood, 2},

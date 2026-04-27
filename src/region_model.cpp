@@ -3,9 +3,14 @@
 #include "region_model.h"
 
 template<typename cov>
-MatrixXd rts::regionModel<cov>::u() const
+MatrixXd rts::regionModel<cov>::u(bool scaled) const
 {
-  return scaled_u_;
+  if(scaled ){
+    return scaled_u_;
+  } else { 
+    return u_;
+  }
+  
 }
 
 template<typename cov>
@@ -34,6 +39,13 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
   MatrixXd Phi     = covariance.ZPhi();
   VectorXd xb_full = X * beta + offset;
   
+  // ── Poisson marginalisation correction (Jensen) ──
+  // E_{u|y}[exp(eta)] ≈ exp(eta_bar + 0.5 sigma2_i),
+  // sigma2_i = (Phi diag(Lambda) Phi^T)_ii
+  ArrayXd Lambda = covariance.LambdaSPD();
+  MatrixXd PhiL = (Phi.array().rowwise() * Lambda.transpose().sqrt()).matrix();
+  ArrayXd sigma2_i = PhiL.array().square().rowwise().sum();
+  
   double wsum = 0.0;
   for(int k = 0; k < K; ++k) wsum += u_weight_(k);
   
@@ -46,7 +58,7 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
     u_bar /= wsum;
     u_bar.array() -= u_bar.mean();
     
-    ArrayXd eta_s    = xb_full.array() + u_bar.array();
+    ArrayXd eta_s    = xb_full.array() + u_bar.array() - 0.5 * sigma2_i;;
     ArrayXd lambda_s = eta_s.exp();
     
     VectorXd lambda_r(n_regions * T);
@@ -102,8 +114,8 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
     VectorXd zu_k = scaled_u_.col(k);
     zu_k.array() -= zu_k.mean();                // per-sample centering, matches nr_beta
     
-    ArrayXd eta_sk    = xb_full.array() + zu_k.array();
-    ArrayXd lambda_sk = eta_sk.exp();
+    ArrayXd eta_sk    = xb_full.array() + zu_k.array() - 0.5 * sigma2_i;;
+    ArrayXd lambda_sk = eta_sk.exp(); 
     
     VectorXd lambda_rk(n_regions * T);
     for(int t = 0; t < T; ++t){
@@ -128,6 +140,115 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::information_matrix(bool
     bread.noalias() += wk * (tilde_Xk.transpose() * WtXk);
     
     // score: g_k = tilde_Xk' (y - λ_rk)
+    VectorXd gk = tilde_Xk.transpose() * (y.matrix() - lambda_rk);
+    g_mat.col(k) = gk;
+    g_bar.noalias() += wk * gk;
+  }
+  
+  MatrixXd meat = MatrixXd::Zero(P_, P_);
+  for(int k = 0; k < K; ++k){
+    double wk  = u_weight_(k) / wsum;
+    VectorXd d = g_mat.col(k) - g_bar;
+    meat.noalias() += wk * (d * d.transpose());
+  }
+  
+  return bread - meat;
+}
+
+template<>
+inline MatrixXd rts::regionModel<glmmr::spdeCovariance>::information_matrix(bool monte_carlo)
+{
+  const int P_        = beta.size();
+  const int nv        = covariance.Q();
+  const int n_regions = weights.rows();
+  const int n_cells   = weights.cols();
+  const int K         = scaled_u_.cols();
+  
+  const SparseMatrix<double>& ZA = covariance.ZA_;   // n_cells × nv
+  
+  // Posterior mean of cell-level effects
+  double wsum = 0.0;
+  for(int k = 0; k < K; ++k) wsum += u_weight_(k);
+  
+  VectorXd u_bar_cell = VectorXd::Zero(n_cells);
+  for(int k = 0; k < K; ++k) u_bar_cell += u_weight_(k) * scaled_u_.col(k);
+  u_bar_cell /= wsum;
+  u_bar_cell.array() -= u_bar_cell.mean();
+  
+  // ── Poisson marginalisation correction (Jensen) ──
+  // E_{u|y}[exp(eta)] ≈ exp(eta_bar + 0.5 sigma^2_i) where
+  // sigma^2_i = (ZA Q^{-1} ZA^T)_ii  approximated via Hutchinson on the prior
+  ArrayXd  sigma2_i = covariance.diag_ZA_Qinv_ZAt_hutch();
+  VectorXd xb_full  = X * beta + offset;
+  ArrayXd  eta_s    = xb_full.array() + u_bar_cell.array() - 0.5 * sigma2_i;
+  ArrayXd  lambda_s = eta_s.exp();
+  
+  if (!monte_carlo) {
+    // -------------------------------------------------------------
+    // Plug-in (Laplace / GLS) marginal information at corrected mean
+    //   M_β = X̃' diag(λ_r) X̃  -  X̃' diag(λ_r) Ã (Ã' diag(λ_r) Ã + Q)^{-1} Ã' diag(λ_r) X̃
+    // with X̃ = diag(1/λ_r) * weights * diag(λ_s) * X,
+    //      Ã = diag(1/λ_r) * weights * diag(λ_s) * ZA
+    // -------------------------------------------------------------
+    VectorXd lambda_r = weights * lambda_s.matrix();
+    ArrayXd  inv_lr   = lambda_r.array().inverse();
+    
+    MatrixXd lsX = (X.array().colwise() * lambda_s).matrix();
+    MatrixXd BX  = weights * lsX;
+    MatrixXd tilde_X = (BX.array().colwise() * inv_lr).matrix();          // n_regions × P
+    
+    SparseMatrix<double> Lam_s_ZA = lambda_s.matrix().asDiagonal() * ZA;
+    SparseMatrix<double> BA_sp    = weights * Lam_s_ZA;                   // n_regions × nv (sparse)
+    SparseMatrix<double> tilde_A  = inv_lr.matrix().asDiagonal() * BA_sp; // n_regions × nv (sparse)
+    
+    VectorXd Wr = lambda_r;
+    MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+    MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;                   // P × P
+    
+    // X̃' diag(Wr) Ã   (P × nv, kept dense since P is small)
+    MatrixXd WtX_dense = WrtildeX;                                         // n_regions × P
+    MatrixXd XtWA      = MatrixXd(tilde_A.transpose() * WtX_dense).transpose();  // P × nv
+    
+    // Posterior precision  P_post = Ã' diag(Wr) Ã + Q   (sparse)
+    SparseMatrix<double> Wr_tildeA = Wr.asDiagonal() * tilde_A;
+    SparseMatrix<double> AtWA      = SparseMatrix<double>(tilde_A.transpose()) * Wr_tildeA;
+    SparseMatrix<double> P_post    = AtWA + covariance.Q_mat;
+    P_post.makeCompressed();
+    
+    // Reuse cached chol_P (refactor at this W)
+    covariance.refactor_P(Wr);
+    MatrixXd solve_XtWA_t = covariance.chol_P.solve(MatrixXd(XtWA.transpose()));  // nv × P
+    
+    return XtWX - XtWA * solve_XtWA_t;
+  }
+  
+  // -------------------------------------------------------------
+  // Louis-identity Monte Carlo information (β-block)
+  // J_ββ = Σ_k w_k  X̃_k' diag(λ_r_k) X̃_k  -  Σ_k w_k (g_k - ḡ)(g_k - ḡ)'
+  // g_k  = X̃_k' (y - λ_r_k)
+  // -------------------------------------------------------------
+  MatrixXd bread = MatrixXd::Zero(P_, P_);
+  MatrixXd g_mat(P_, K);
+  VectorXd g_bar = VectorXd::Zero(P_);
+  
+  for(int k = 0; k < K; ++k){
+    VectorXd zu_k = scaled_u_.col(k);
+    zu_k.array() -= zu_k.mean();                                     // per-sample centering, matches nr_beta
+    
+    ArrayXd eta_sk    = xb_full.array() + zu_k.array() - 0.5 * sigma2_i;
+    ArrayXd lambda_sk = eta_sk.exp();
+    VectorXd lambda_rk = weights * lambda_sk.matrix();
+    ArrayXd  inv_lr_k  = lambda_rk.array().inverse();
+    
+    MatrixXd lsX_k = (X.array().colwise() * lambda_sk).matrix();
+    MatrixXd BX_k  = weights * lsX_k;
+    MatrixXd tilde_Xk = (BX_k.array().colwise() * inv_lr_k).matrix();
+    
+    double wk = u_weight_(k) / wsum;
+    
+    MatrixXd WtXk = (tilde_Xk.array().colwise() * lambda_rk.array()).matrix();
+    bread.noalias() += wk * (tilde_Xk.transpose() * WtXk);
+    
     VectorXd gk = tilde_Xk.transpose() * (y.matrix() - lambda_rk);
     g_mat.col(k) = gk;
     g_bar.noalias() += wk * gk;
@@ -312,6 +433,18 @@ inline MatrixXd rts::regionModel<glmmr::hsgpCovariance>::lambda_r()
   return lr;
 }
 
+template<>
+inline MatrixXd rts::regionModel<glmmr::spdeCovariance>::lambda_r()
+{
+  MatrixXd lr(weights.rows(), u_.cols());
+  for(int i = 0; i < u_.cols(); i++){
+    ArrayXd eta_s    = (X * beta + offset).array() + scaled_u_.col(i).array();
+    ArrayXd lambda_s = eta_s.exp();
+    lr.col(i) = weights * lambda_s.matrix();
+  }
+  return lr;
+}
+
 // ── nr_beta ──
 template<>
 inline void rts::regionModel<glmmr::hsgpCovariance>::nr_beta()
@@ -385,6 +518,67 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_beta()
     Rcpp::Rcout << "beta: " << beta.transpose() << std::endl;
     Rcpp::Rcout << "y range: [" << y.minCoeff() << ", " << y.maxCoeff() << "]" << std::endl;
     Rcpp::stop("nr_beta (HSGP): NaN/Inf in ll_beta");
+  }
+}
+
+template<>
+inline void rts::regionModel<glmmr::spdeCovariance>::nr_beta()
+{
+  int niter_    = u_.cols();
+  int n_regions = weights.rows();
+  int n_cells   = weights.cols();
+  
+  MatrixXd zd(X.rows(), niter_);
+  for(int i = 0; i < niter_; i++){
+    zd.col(i) = (X * beta + offset).array() + scaled_u_.col(i).array();
+  }
+  
+  if(niter_ > 1){
+    for(int i = 0; i < niter_; i++){
+      double zu_mean = scaled_u_.col(i).mean();
+      zd.col(i).array() -= zu_mean;
+    }
+  }
+  
+  MatrixXd XtWXm = MatrixXd::Zero(beta.size(), beta.size());
+  VectorXd score = VectorXd::Zero(beta.size());
+  
+  for(int i = 0; i < niter_; ++i){
+    ArrayXd  lambda_s = zd.col(i).array().exp();
+    VectorXd lambda_r = weights * lambda_s.matrix();
+    VectorXd resid_r  = (y / lambda_r.array() - 1.0).matrix();
+    
+    // B = weights * diag(lambda_s) * X
+    MatrixXd lsX = (X.array().colwise() * lambda_s).matrix();
+    MatrixXd B   = weights * lsX;
+    
+    score.noalias() += u_weight_(i) * B.transpose() * resid_r;
+    
+    ArrayXd  inv_lr   = lambda_r.array().inverse();
+    MatrixXd inv_lr_B = (B.array().colwise() * inv_lr).matrix();
+    XtWXm.noalias()  += u_weight_(i) * B.transpose() * inv_lr_B;
+  }
+  
+  M = XtWXm;
+  Eigen::LLT<MatrixXd> llt(XtWXm);
+  gradients.head(X.cols()) = score;
+  VectorXd bincr = llt.solve(score);
+  beta += bincr;
+  ll_beta = log_likelihood().mean();
+  
+  if(beta.hasNaN()){
+    Rcpp::Rcout << "DIAGNOSTIC: NaN in beta" << std::endl;
+    Rcpp::stop("nr_beta (SPDE): NaN detected");
+  }
+  if(std::isnan(ll_beta) || std::isinf(ll_beta)){
+    Rcpp::Rcout << "DIAGNOSTIC: NaN/Inf in ll_beta" << std::endl;
+    Rcpp::Rcout << "lambda_r range: [" << lambda_r().minCoeff()
+                << ", " << lambda_r().maxCoeff() << "]" << std::endl;
+    Rcpp::Rcout << "lambda_r has zeros: "
+                << ((lambda_r().array() <= 0).any() ? "yes" : "no") << std::endl;
+    Rcpp::Rcout << "beta: " << beta.transpose() << std::endl;
+    Rcpp::Rcout << "y range: [" << y.minCoeff() << ", " << y.maxCoeff() << "]" << std::endl;
+    Rcpp::stop("nr_beta (SPDE): NaN/Inf in ll_beta");
   }
 }
 
@@ -626,6 +820,155 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::usample(const int niter_)
     if(ess < 2.0){
       Rcpp::Rcout << "WARNING: Very low ESS = " << ess
                   << " / " << u_weight_.size() << std::endl;
+    }
+  }
+}
+
+template<>
+inline void rts::regionModel<glmmr::spdeCovariance>::usample(const int niter_)
+{
+  const int n_regions = weights.rows();
+  const int n_cells   = weights.cols();
+  const int nv        = covariance.Q();
+  
+  // Cached prior structure
+  if(!covariance.chol_Q_current) covariance.refactor_Q();
+  auto& chol_Q = covariance.chol_Q;
+  const SparseMatrix<double>& ZA = covariance.ZA_;          // n_cells × nv
+  
+  ArrayXd xb = (X * beta + offset).array();
+  
+  // ── IRLS for posterior mode in u-space ──
+  // P = C^T C + Q,   C = diag(1/sqrt(lambda_r)) * weights * diag(lambda_s) * ZA
+  // Woodbury:  P^{-1} y = Q^{-1} y - Y K^{-1} C Q^{-1} y,
+  //            Y = Q^{-1} C^T,  K = I + C Y   (n_regions × n_regions dense)
+  VectorXd b = u_mean_;
+  if(b.size() != nv){ b.resize(nv); b.setZero(); }
+  VectorXd bnew(nv);
+  double diff = 1.0;
+  int itero = 0;
+  
+  SparseMatrix<double> C_sp;
+  MatrixXd Y_dense;          // nv × n_regions  = Q^{-1} C^T
+  MatrixXd K_mat;
+  LLT<MatrixXd> llt_K;
+  
+  while(diff > 1e-6 && itero < 20){
+    ArrayXd  eta_s    = xb + (ZA * b).array();
+    ArrayXd  lambda_s = eta_s.exp();
+    VectorXd lambda_r = weights * lambda_s.matrix();
+    VectorXd resid_r  = (y / lambda_r.array() - 1.0).matrix();
+    ArrayXd  inv_sqrt_lr = lambda_r.array().sqrt().inverse();
+    
+    // B = weights * diag(lambda_s) * ZA   (n_regions × nv, sparse)
+    SparseMatrix<double> Lam_s_ZA = lambda_s.matrix().asDiagonal() * ZA;
+    SparseMatrix<double> B_sp     = weights * Lam_s_ZA;
+    C_sp = inv_sqrt_lr.matrix().asDiagonal() * B_sp;
+    
+    VectorXd score_u = B_sp.transpose() * resid_r;
+    VectorXd Cb      = C_sp * b;
+    VectorXd yb      = SparseMatrix<double>(C_sp.transpose()) * Cb + score_u;
+    
+    // Woodbury setup (refresh each IRLS step since lambda_s changes)
+    Y_dense = chol_Q.solve(MatrixXd(C_sp.transpose()));      // nv × n_regions
+    K_mat   = MatrixXd::Identity(n_regions, n_regions) + C_sp * Y_dense;
+    llt_K.compute(K_mat);
+    
+    VectorXd Qinv_yb = chol_Q.solve(yb);
+    VectorXd Cy_yb   = C_sp * Qinv_yb;
+    bnew             = Qinv_yb - Y_dense * llt_K.solve(Cy_yb);
+    
+    diff = (b - bnew).array().abs().maxCoeff();
+    itero++;
+    b.swap(bnew);
+  }
+  u_mean_ = b;
+  
+  // log det P = log det Q + log det K  (matrix determinant lemma)
+  double log_det_K = 2.0 * llt_K.matrixL().toDenseMatrix()
+                      .diagonal().array().log().sum();
+  double log_det_Q = -covariance.log_determinant();          // log_determinant returns log det D = -log det Q
+  log_det_P_       = log_det_Q + log_det_K;
+  
+  // ── Posterior variance diagonals ──
+  // Var(u) diag = diag(Q^{-1}) - diag(Y K^{-1} Y^T)
+  u_var_diag_ = covariance.diag_Qinv_hutch().matrix();
+  MatrixXd Kinv_Yt = llt_K.solve(Y_dense.transpose());
+  ArrayXd  corr_u  = (Y_dense.array() * Kinv_Yt.transpose().array()).rowwise().sum();
+  u_var_diag_     -= corr_u.matrix();
+  
+  // Var(ZA u) diag at cells  ≈  diag_ZA_Qinv_ZAt - diag( (ZA Y) K^{-1} (ZA Y)^T )
+  ArrayXd  diag_prior = covariance.diag_ZA_Qinv_ZAt_hutch();
+  MatrixXd ZA_Y       = ZA * Y_dense;
+  MatrixXd Kinv_ZAYt  = llt_K.solve(ZA_Y.transpose());
+  ArrayXd  corr_zu    = (ZA_Y.array() * Kinv_ZAYt.transpose().array()).rowwise().sum();
+  zu_var_             = (diag_prior - corr_zu).matrix();
+  
+  // ── Resize storage ──
+  if(u_.cols() != niter_){
+    u_.resize(nv, niter_);
+    u_solve_.resize(nv, niter_);
+    scaled_u_.resize(n_cells, niter_);
+    u_weight_.resize(niter_);
+    u_loglik_.resize(niter_);
+  }
+  
+  if(niter_ == 1){
+    // Laplace
+    u_.col(0)    = u_mean_;
+    u_loglik_(0) = 0.0;
+    scaled_u_    = ZA * u_;
+    u_weight_(0) = 1.0;
+  } else {
+    // ── Sample from N(u_mean, P^{-1}) via one-block construction ──
+    // eps = L_Q z1 + C^T z2 ~ N(0, P);  u_offset = P^{-1} eps ~ N(0, P^{-1})
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::normal_distribution<double> d(0.0, 1.0);
+    
+    MatrixXd Z1(nv,        niter_);
+    MatrixXd Z2(n_regions, niter_);
+    for(int i = 0; i < Z1.size(); ++i) Z1.data()[i] = d(gen);
+    for(int i = 0; i < Z2.size(); ++i) Z2.data()[i] = d(gen);
+    
+    // v1 = P^T_perm * L_Q * z1   ~ N(0, Q),  using Q = P^T L L^T P
+    MatrixXd LZ1 = chol_Q.matrixL() * Z1;
+    MatrixXd v1  = chol_Q.permutationPinv() * LZ1;
+    MatrixXd v2  = SparseMatrix<double>(C_sp.transpose()) * Z2;
+    MatrixXd eps = v1 + v2;
+    
+    // u_offset = P^{-1} eps via Woodbury (reuse Y_dense, llt_K)
+    MatrixXd Qinv_eps = chol_Q.solve(eps);
+    MatrixXd C_Qe     = C_sp * Qinv_eps;
+    MatrixXd u_offset = Qinv_eps - Y_dense * llt_K.solve(C_Qe);
+    
+    // Proposal log-density (up to const):  -0.5 (u-u_mean)^T P (u-u_mean) = -0.5 eps^T u_offset
+    u_loglik_ = -0.5 * (eps.array() * u_offset.array()).colwise().sum().matrix();
+    
+    u_       = u_offset.colwise() + u_mean_;
+    scaled_u_ = ZA * u_;
+    
+    // ── Importance weights ──
+    // log f(u|θ) = 0.5 log det Q - 0.5 u^T Q u  (const drops in normalisation)
+    u_weight_.setZero();
+    ArrayXd ll = log_likelihood();
+    const SparseMatrix<double>& Q_mat = covariance.Q_mat;
+    for(int i = 0; i < u_.cols(); i++){
+      double uQu     = u_.col(i).dot(Q_mat * u_.col(i));
+      double llprior = -0.5 * uQu;
+      u_weight_(i)   = ll(i) + llprior - u_loglik_(i);
+    }
+    u_weight_ -= u_weight_.maxCoeff();
+    u_weight_  = u_weight_.exp();
+    u_weight_ *= 1.0 / u_weight_.sum();
+    
+    if(u_mean_.hasNaN()){
+      Rcpp::Rcout << "DIAGNOSTIC: NaN in u_mean_" << std::endl;
+      Rcpp::stop("usample (SPDE): NaN detected in u_mean_");
+    }
+    double ess = 1.0 / (u_weight_ * u_weight_).sum();
+    if(ess < 2.0){
+      Rcpp::Rcout << "WARNING: Very low ESS = " << ess << " / " << u_weight_.size() << std::endl;
     }
   }
 }
@@ -1243,6 +1586,110 @@ inline void rts::regionModel<glmmr::hsgpCovariance>::nr_theta()
   }
 }
 
+template<>
+inline void rts::regionModel<glmmr::spdeCovariance>::nr_theta()
+{
+  const int npars  = covariance.npar();   // {log sigma^2, log lambda}
+  const int n_iter = u_.cols();
+  const int nv     = covariance.Q();
+  
+  // Refresh prior structure at current parameters
+  if(!covariance.chol_Q_current) covariance.refactor_Q();
+  
+  // Common random numbers across gradient and Hessian traces this iteration
+  covariance.refresh_probes();
+  
+  // ── Prior gradient ──
+  // ∂log f(u|θ)/∂θ_j = 0.5 tr(Q^{-1} ∂Q/∂θ_j) - 0.5 u^T (∂Q/∂θ_j) u
+  //   ∂Q/∂log σ²  = -Q   ⇒ tr term = -nv/2,   u^T ∂Q u = -u^T Q u
+  //   ∂Q/∂log λ : one Hutchinson trace + analytic quadratic form
+  double tr_dQ_lambda = covariance.trace_Qinv_dQ_log_lambda_hutch(/*K=*/30);
+  
+  VectorXd grad = VectorXd::Zero(npars);
+  // Deterministic trace contribution
+  grad(0) =  0.5 * (-static_cast<double>(nv));
+  grad(1) =  0.5 * tr_dQ_lambda;
+  
+  // MC quadratic form contribution
+  if(n_iter == 1){
+    // Laplace: u^T A u  →  u_mean^T A u_mean + tr(A * Var(u))
+    // For SPDE we approximate using the posterior mode only; tr term contributes
+    // to consistency but is dropped here matching the HSGP "second moment" treatment.
+    // (If you want the trace correction, add it via Hutchinson on Var(u).)
+    VectorXd u0 = u_.col(0);
+    grad(0) += 0.5 * covariance.quad_form_Q(u0);            // -(-u^T Q u)/2 = +u^T Q u / 2
+    grad(1) -= 0.5 * covariance.quad_form_dQ_log_lambda(u0);
+  } else {
+    for(int i = 0; i < n_iter; i++){
+      VectorXd ui = u_.col(i);
+      double w_i  = u_weight_(i);
+      grad(0) += 0.5 * w_i * covariance.quad_form_Q(ui);
+      grad(1) -= 0.5 * w_i * covariance.quad_form_dQ_log_lambda(ui);
+    }
+  }
+  
+  // ── Expected Hessian (prior Fisher information) ──
+  // I_jl = 0.5 tr(Q^{-1} ∂Q/∂θ_j Q^{-1} ∂Q/∂θ_l)
+  // Analytic: I(σ²,σ²) = nv/2,  I(σ²,λ) = -0.5 tr(Q^{-1} ∂Q/∂log λ)
+  // Hutchinson: I(λ,λ) = 0.5 tr(Q^{-1} Qλ Q^{-1} Qλ)
+  double I_lambda_lambda = 0.5 * covariance.trace_Qinv_dQ_Qinv_dQ_lambda(/*K=*/30);
+  
+  MatrixXd Hess(npars, npars);
+  Hess(0, 0) = 0.5 * static_cast<double>(nv);
+  Hess(0, 1) = -0.5 * tr_dQ_lambda;
+  Hess(1, 0) = Hess(0, 1);
+  Hess(1, 1) = I_lambda_lambda;
+  
+  // ── Newton-Raphson step with Levenberg damping and clamp ──
+  covariance.infomat_theta = Hess;
+  bool logpars = covariance.all_log_re();
+  VectorXd logtheta(npars);
+  if(logpars){
+    logtheta = Map<VectorXd>(covariance.parameters_.data(), npars);
+  } else {
+    for(int j = 0; j < npars; j++) logtheta(j) = log(covariance.parameters_[j]);
+  }
+  
+  double lambda_damp = 1e-4 * Hess.diagonal().array().abs().maxCoeff();
+  MatrixXd Hess_reg  = Hess;
+  Hess_reg.diagonal().array() += lambda_damp;
+  
+  VectorXd step;
+  Eigen::LLT<MatrixXd> llt_H(Hess_reg);
+  if(llt_H.info() == Eigen::Success){
+    step = llt_H.solve(grad);
+  } else {
+    step = grad.array() / Hess.diagonal().array().abs().max(1e-6);
+  }
+  
+  double max_step = 1.0;
+  if(n_iter > 1 && step.array().abs().maxCoeff() > max_step)
+    step *= max_step / step.array().abs().maxCoeff();
+  
+  logtheta += step;
+  
+  if(logpars){
+    dblvec newpars(logtheta.data(), logtheta.data() + logtheta.size());
+    covariance.update_parameters(newpars);
+  } else {
+    covariance.update_parameters(logtheta.array().exp());
+  }
+  
+  gradients.tail(npars) = grad.array();
+  
+  // ── ll_theta at new parameters ──
+  // log f(u|θ) = 0.5 log det Q - 0.5 u^T Q u + const
+  // log_determinant() returns log det D = -log det Q (matching base class convention)
+  double log_det_Q = -covariance.log_determinant();
+  double ll_det    = 0.5 * log_det_Q;
+  
+  ll_theta = 0.0;
+  for(int i = 0; i < n_iter; i++){
+    double qf = covariance.quad_form_Q(u_.col(i));
+    ll_theta += u_weight_(i) * (ll_det - 0.5 * qf);
+  }
+}
+
 template<typename cov>
 void rts::regionModel<cov>::nr_theta(){
   ArrayXd  tmp(u_.cols());
@@ -1335,11 +1782,9 @@ void rts::regionModel<cov>::fit(const double tol, const int max_iter, const int 
     if(trace > 0)Rcpp::Rcout << "TIMING STEP 3 (nr theta): " << ms_double.count() << "ms" << std::endl;
     if(trace > 0)Rcpp::Rcout << "\nBeta: " << beta.transpose() << "\ntheta: ";
     if(trace > 0)for(const auto& i: covariance.parameters_) Rcpp::Rcout << " " << i;
-#ifdef GLMMR13
     if constexpr (std::is_same_v<cov, glmmr::ar1Covariance>){
       if(trace>0) Rcpp::Rcout << "\nRho: " << covariance.rho;
     }
-#endif
     
     if(niter > 1){
       if(trace > 0)Rcpp::Rcout << "\nu: " << u_.topRows(5).rowwise().mean().transpose();
@@ -1439,6 +1884,313 @@ SEXP regionModel_hsgp__new(const std::string& formula_,
   return ptr;
 }
 
+// [[Rcpp::export]]
+SEXP regionModel_spde__new(const std::string& formula_,
+                           const Eigen::ArrayXXd& data_,
+                           const std::vector<std::string>& colnames_,
+                           const Eigen::MatrixXd& X_,
+                           const Eigen::ArrayXd& y_,
+                           const int niter_,
+                           const Eigen::SparseMatrix<double>& A_loc_,
+                           const Eigen::VectorXd& C_diag_,
+                           const Eigen::SparseMatrix<double>& G_,
+                           const int alpha_ = 2)
+{
+  using namespace rts;
+  Rcpp::XPtr<regionModel<glmmr::spdeCovariance>> ptr(
+      new regionModel<glmmr::spdeCovariance>(
+          formula_, data_, colnames_, X_, y_, niter_, A_loc_, C_diag_, G_),
+          true
+  );
+  // After spde_data, Q is known; resize gradients accordingly
+  ptr->gradients = Eigen::ArrayXd::Zero(ptr->X.cols() + ptr->covariance.npar());
+  return ptr;
+}
+
+template<>
+inline Eigen::VectorXd rts::regionModel<glmmr::ar1Covariance>::zu_variance_full()
+{
+  using Eigen::MatrixXd; using Eigen::VectorXd; using Eigen::ArrayXd;
+  
+  const int n_A       = weights.cols();         // cells per period
+  const int n_regions = weights.rows();
+  const int n_cells   = X.rows();               // = n_A * T
+  const int T         = n_cells / n_A;
+  const int Pdim      = X.cols();
+  const int K         = u_.cols();
+  
+  MatrixXd ZL = covariance.ZL();                // n_cells × n_u (stacked by time)
+  const int nu = ZL.cols();
+  
+  // ── Posterior-mean cell-level intensities (stacked) ──
+  double wsum = 0.0; for(int k = 0; k < K; ++k) wsum += u_weight_(k);
+  ArrayXd xb = (X * beta + offset).array();
+  ArrayXd lambda_s_bar = ArrayXd::Zero(n_cells);
+  for(int k = 0; k < K; ++k){
+    ArrayXd lk = (xb + scaled_u_.col(k).array() - scaled_u_.col(k).mean()).exp();
+    lambda_s_bar += (u_weight_(k) / wsum) * lk;
+  }
+  
+  // λ_r per period (length n_regions * T)
+  VectorXd lambda_r_bar(n_regions * T);
+  for(int t = 0; t < T; ++t){
+    VectorXd lst = lambda_s_bar.segment(t * n_A, n_A).matrix();
+    lambda_r_bar.segment(t * n_regions, n_regions) = weights * lst;
+  }
+  ArrayXd inv_lr = lambda_r_bar.array().inverse();
+  
+  // ── tilde_X (n_regions*T × P) and tilde_ZL (n_regions*T × n_u) ──
+  // Both are weights·diag(λ_s)·M applied per period, then row-scaled by 1/λ_r
+  MatrixXd lsX  = (X.array().colwise()  * lambda_s_bar).matrix();   // n_cells × P
+  MatrixXd lsZL = (ZL.array().colwise() * lambda_s_bar).matrix();   // n_cells × n_u
+  
+  MatrixXd tilde_X (n_regions * T, Pdim);
+  MatrixXd tilde_ZL(n_regions * T, nu);
+  for(int t = 0; t < T; ++t){
+    tilde_X .middleRows(t * n_regions, n_regions) = weights * lsX .middleRows(t * n_A, n_A);
+    tilde_ZL.middleRows(t * n_regions, n_regions) = weights * lsZL.middleRows(t * n_A, n_A);
+  }
+  tilde_X .array().colwise() *= inv_lr;
+  tilde_ZL.array().colwise() *= inv_lr;
+  
+  // ── Schur ──
+  VectorXd Wr       = lambda_r_bar;
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;
+  
+  MatrixXd Wr_tildeZL = (tilde_ZL.array().colwise() * Wr.array()).matrix();
+  MatrixXd A_mat = tilde_ZL.transpose() * Wr_tildeZL;
+  A_mat.diagonal().array() += 1.0;
+  Eigen::LLT<MatrixXd> llt_A(A_mat);
+  
+  MatrixXd B     = tilde_ZL.transpose() * WrtildeX;
+  MatrixXd AinvB = llt_A.solve(B);
+  MatrixXd Schur = XtWX - B.transpose() * AinvB;
+  Eigen::LLT<MatrixXd> llt_Schur(Schur);
+  
+  // ── Var(η) at cells (stacked) ──
+  // For AR1 the "evaluation projector" at cell i is row i of ZL, exactly as in dense.
+  // ZL is n_cells × n_u; the stacking is implicit in ZL's rows.
+  MatrixXd Ainv_ZLT = llt_A.solve(ZL.transpose());                  // n_u × n_cells
+  VectorXd term1(n_cells);
+  for(int i = 0; i < n_cells; ++i){
+    term1(i) = ZL.row(i).dot(Ainv_ZLT.col(i));
+  }
+  
+  MatrixXd Bt_Ainv_ZLT = B.transpose() * Ainv_ZLT;                  // P × n_cells
+  MatrixXd diff_t      = X.transpose() - Bt_Ainv_ZLT;               // P × n_cells
+  MatrixXd Sdiff       = llt_Schur.solve(diff_t);
+  VectorXd term_beta   = (diff_t.array() * Sdiff.array()).colwise().sum();
+  
+  return term1 + term_beta;
+}
+
+template<>
+inline VectorXd rts::regionModel<glmmr::spdeCovariance>::zu_variance_full(
+    const Eigen::SparseMatrix<double>& A_pred,
+    const Eigen::MatrixXd& X_pred)
+{
+  using Eigen::MatrixXd; using Eigen::VectorXd; using Eigen::ArrayXd;
+  using Eigen::SparseMatrix;
+  
+  const int n_pred = A_pred.rows();
+  const int K      = u_.cols();
+  const SparseMatrix<double>& ZA = covariance.ZA_;   // mesh-side, used only for λ̄_s
+  
+  // ── Posterior-mean cell-level intensities (mesh side, Jensen-centered) ──
+  double wsum = 0.0; for(int k = 0; k < K; ++k) wsum += u_weight_(k);
+  ArrayXd xb = (X * beta + offset).array();
+  ArrayXd lambda_s_bar = ArrayXd::Zero(X.rows());
+  for(int k = 0; k < K; ++k){
+    ArrayXd lk = (xb + scaled_u_.col(k).array() - scaled_u_.col(k).mean()).exp();
+    lambda_s_bar += (u_weight_(k) / wsum) * lk;
+  }
+  VectorXd lambda_r_bar = weights * lambda_s_bar.matrix();
+  ArrayXd  inv_lr       = lambda_r_bar.array().inverse();
+  
+  // ── Region-level working design + posterior precision (unchanged) ──
+  MatrixXd lsX     = (X.array().colwise() * lambda_s_bar).matrix();
+  MatrixXd tilde_X = ((weights * lsX).array().colwise() * inv_lr).matrix();
+  
+  SparseMatrix<double> Lam_s_ZA = lambda_s_bar.matrix().asDiagonal() * ZA;
+  SparseMatrix<double> tilde_A  = inv_lr.matrix().asDiagonal() * (weights * Lam_s_ZA);
+  
+  VectorXd Wr = lambda_r_bar;
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;
+  
+  covariance.refactor_P(Wr);
+  auto& chol_P = covariance.chol_P;
+  
+  MatrixXd B     = MatrixXd(tilde_A.transpose() * WrtildeX);     // nv × P
+  MatrixXd PinvB = chol_P.solve(B);                              // nv × P
+  MatrixXd Schur = XtWX - B.transpose() * PinvB;                 // P × P  ( = V_β⁻¹ )
+  Eigen::LLT<MatrixXd> llt_Schur(Schur);
+  
+  // ── Evaluate at prediction points via A_pred, X_pred ──
+  // term1_i = (A_pred P⁻¹ A_predᵀ)_ii
+  MatrixXd Pinv_ApT = chol_P.solve(MatrixXd(A_pred.transpose())); // nv × n_pred
+  VectorXd term1 = VectorXd::Zero(n_pred);
+  for(int j = 0; j < A_pred.outerSize(); ++j){
+    for(SparseMatrix<double>::InnerIterator it(A_pred, j); it; ++it){
+      term1(it.row()) += it.value() * Pinv_ApT(j, it.row());
+    }
+  }
+  
+  // c_pred (n_pred × P) = A_pred * PinvB ;  diff = X_pred − c_pred
+  MatrixXd c_pred = A_pred * PinvB;
+  MatrixXd diff_t = (X_pred - c_pred).transpose();                 // P × n_pred
+  MatrixXd Sdiff  = llt_Schur.solve(diff_t);                       // P × n_pred
+  VectorXd term_beta = (diff_t.array() * Sdiff.array()).colwise().sum().transpose();
+  
+  return term1 + term_beta;   // length n_pred = Var(η) at grid points
+}
+
+template<>
+inline Eigen::VectorXd rts::regionModel<glmmr::hsgpCovariance>::zu_variance_full()
+{
+  using Eigen::MatrixXd; using Eigen::VectorXd; using Eigen::ArrayXd;
+  
+  const int n_cells = X.rows();
+  const int K       = u_.cols();
+  
+  MatrixXd Phi = covariance.ZPhi();              // n_cells × M
+  ArrayXd  Lambda = covariance.LambdaSPD();      // length M
+  const int Mdim = Phi.cols();
+  
+  // ── Posterior-mean cell-level intensities (Jensen-centered per sample) ──
+  double wsum = 0.0; for(int k = 0; k < K; ++k) wsum += u_weight_(k);
+  ArrayXd xb = (X * beta + offset).array();
+  ArrayXd lambda_s_bar = ArrayXd::Zero(n_cells);
+  for(int k = 0; k < K; ++k){
+    ArrayXd lk = (xb + scaled_u_.col(k).array() - scaled_u_.col(k).mean()).exp();
+    lambda_s_bar += (u_weight_(k) / wsum) * lk;
+  }
+  VectorXd lambda_r_bar = weights * lambda_s_bar.matrix();
+  ArrayXd  inv_lr       = lambda_r_bar.array().inverse();
+  
+  // ── Region-level working design (same construction as SPDE version) ──
+  MatrixXd lsX     = (X.array().colwise() * lambda_s_bar).matrix();
+  MatrixXd tilde_X = ((weights * lsX).array().colwise() * inv_lr).matrix();          // n_regions × P
+  
+  MatrixXd Lam_s_Phi = (lambda_s_bar.matrix().asDiagonal() * Phi);                   // n_cells × M
+  MatrixXd tilde_Phi = (inv_lr.matrix().asDiagonal() * (weights * Lam_s_Phi));       // n_regions × M
+  
+  VectorXd Wr       = lambda_r_bar;
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;                                // P × P
+  
+  // A = tilde_Phi' diag(Wr) tilde_Phi + diag(1/Lambda)
+  MatrixXd Wr_tildePhi = (tilde_Phi.array().colwise() * Wr.array()).matrix();
+  MatrixXd A_mat = tilde_Phi.transpose() * Wr_tildePhi;
+  A_mat.diagonal().array() += 1.0 / Lambda;
+  Eigen::LLT<MatrixXd> llt_A(A_mat);
+  
+  MatrixXd B     = tilde_Phi.transpose() * WrtildeX;                                  // M × P
+  MatrixXd AinvB = llt_A.solve(B);                                                    // M × P
+  MatrixXd Schur = XtWX - B.transpose() * AinvB;                                      // P × P  (= V_β⁻¹)
+  Eigen::LLT<MatrixXd> llt_Schur(Schur);
+  
+  // ── Evaluate Var(η) at cells: A_pred = Phi (dense), X_pred = X ──
+  // term1_i = (Phi A⁻¹ Phiᵀ)_ii
+  MatrixXd Ainv_PhiT = llt_A.solve(Phi.transpose());                                  // M × n_cells
+  VectorXd term1(n_cells);
+  for(int i = 0; i < n_cells; ++i){
+    term1(i) = Phi.row(i).dot(Ainv_PhiT.col(i));
+  }
+  
+  // c_i = (B' A⁻¹ Phiᵀ)_:,i  ;  diff = X - c
+  MatrixXd Bt_Ainv_PhiT = B.transpose() * Ainv_PhiT;                                  // P × n_cells
+  MatrixXd diff_t       = X.transpose() - Bt_Ainv_PhiT;                                // P × n_cells
+  MatrixXd Sdiff        = llt_Schur.solve(diff_t);                                     // P × n_cells
+  VectorXd term_beta    = (diff_t.array() * Sdiff.array()).colwise().sum();
+  
+  return term1 + term_beta;
+}
+
+template<>
+inline Eigen::VectorXd rts::regionModel<glmmr::Covariance>::zu_variance_full()
+{
+  using Eigen::MatrixXd; using Eigen::VectorXd; using Eigen::ArrayXd;
+  
+  const int n_cells = X.rows();
+  const int K       = u_.cols();
+  
+  MatrixXd ZL = covariance.ZL();                  // n_cells × n_u
+  const int Mdim = ZL.cols();
+  
+  // ── Posterior-mean cell-level intensities ──
+  double wsum = 0.0; for(int k = 0; k < K; ++k) wsum += u_weight_(k);
+  ArrayXd xb = (X * beta + offset).array();
+  ArrayXd lambda_s_bar = ArrayXd::Zero(n_cells);
+  for(int k = 0; k < K; ++k){
+    ArrayXd lk = (xb + scaled_u_.col(k).array() - scaled_u_.col(k).mean()).exp();
+    lambda_s_bar += (u_weight_(k) / wsum) * lk;
+  }
+  VectorXd lambda_r_bar = weights * lambda_s_bar.matrix();
+  ArrayXd  inv_lr       = lambda_r_bar.array().inverse();
+  
+  // ── Region-level working design ──
+  MatrixXd lsX     = (X.array().colwise() * lambda_s_bar).matrix();
+  MatrixXd tilde_X = ((weights * lsX).array().colwise() * inv_lr).matrix();
+  
+  MatrixXd Lam_s_ZL = (lambda_s_bar.matrix().asDiagonal() * ZL);
+  MatrixXd tilde_ZL = (inv_lr.matrix().asDiagonal() * (weights * Lam_s_ZL));
+  
+  VectorXd Wr       = lambda_r_bar;
+  MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
+  MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;
+  
+  // A = tilde_ZL' diag(Wr) tilde_ZL + I
+  MatrixXd Wr_tildeZL = (tilde_ZL.array().colwise() * Wr.array()).matrix();
+  MatrixXd A_mat = tilde_ZL.transpose() * Wr_tildeZL;
+  A_mat.diagonal().array() += 1.0;
+  Eigen::LLT<MatrixXd> llt_A(A_mat);
+  
+  MatrixXd B     = tilde_ZL.transpose() * WrtildeX;
+  MatrixXd AinvB = llt_A.solve(B);
+  MatrixXd Schur = XtWX - B.transpose() * AinvB;
+  Eigen::LLT<MatrixXd> llt_Schur(Schur);
+  
+  // ── Var(η) at cells: A_pred = ZL, X_pred = X ──
+  MatrixXd Ainv_ZLT = llt_A.solve(ZL.transpose());
+  VectorXd term1(n_cells);
+  for(int i = 0; i < n_cells; ++i){
+    term1(i) = ZL.row(i).dot(Ainv_ZLT.col(i));
+  }
+  
+  MatrixXd Bt_Ainv_ZLT = B.transpose() * Ainv_ZLT;
+  MatrixXd diff_t      = X.transpose() - Bt_Ainv_ZLT;
+  MatrixXd Sdiff       = llt_Schur.solve(diff_t);
+  VectorXd term_beta   = (diff_t.array() * Sdiff.array()).colwise().sum();
+  
+  return term1 + term_beta;
+}
+
+using namespace Rcpp;
+
+// [[Rcpp::export]]
+SEXP regionModel__zu_variance_full(SEXP xp, int type)
+{
+  if(type == 2){          // HSGP
+    XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    return wrap(ptr->zu_variance_full());
+  } else {                // dense (type 0 or 1)
+    XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+    return wrap(ptr->zu_variance_full());
+  }
+}
+
+// [[Rcpp::export]]
+SEXP regionModel_spde__zu_variance_full(SEXP xp,
+                                        SEXP A_pred_,
+                                        SEXP X_pred_)
+{
+  XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+  Eigen::SparseMatrix<double> A_pred = as<Eigen::SparseMatrix<double>>(A_pred_);
+  Eigen::MatrixXd            X_pred = as<Eigen::MatrixXd>(X_pred_);
+  return wrap(ptr->zu_variance_full(A_pred, X_pred));
+}
 
 // [[Rcpp::export]]
 void regionModel__set_weights(SEXP xp, 
@@ -1449,7 +2201,6 @@ void regionModel__set_weights(SEXP xp,
                               int ncol, 
                               int type = 0) {
   
-  // Build triplet list from CSC components
   std::vector<Eigen::Triplet<double>> triplets;
   triplets.reserve(x.size());
   
@@ -1461,23 +2212,24 @@ void regionModel__set_weights(SEXP xp,
   
   Eigen::SparseMatrix<double> W(nrow, ncol);
   W.setFromTriplets(triplets.begin(), triplets.end());
+  
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->weights = W;
     ptr->init_beta();
   } else if (type == 1) {
-#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->weights = W;
     ptr->init_beta();
-#endif
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
-    // build sparse matrix W from CSC ...
+    ptr->weights = W;
+    ptr->init_beta();
+  } else {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     ptr->weights = W;
     ptr->init_beta();
   }
-  
 }
 
 // [[Rcpp::export]]
@@ -1486,18 +2238,16 @@ void regionModel__set_theta(SEXP xp, std::vector<double> theta, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->covariance.update_parameters_extern(theta);
   } else if (type == 1){
-#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     double rho = theta.back();
     theta.pop_back();
     ptr->covariance.update_parameters_extern(theta);
     ptr->covariance.update_rho(rho);
-#else 
-    Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-    ptr->covariance.update_parameters(theta);
-#endif
-  } else  {
+  } else  if (type == 2){
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    ptr->covariance.update_parameters_extern(theta);
+  } else if (type == 3){
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     ptr->covariance.update_parameters_extern(theta);
   }
 }
@@ -1508,12 +2258,13 @@ void regionModel__set_offset(SEXP xp, Eigen::VectorXd offset, int type = 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->set_offset(offset);
   } else if (type == 1){
-#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->set_offset(offset);
-#endif
-  } else  {
+  } else  if (type == 2){
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    ptr->set_offset(offset);
+  } else if (type == 3){
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     ptr->set_offset(offset);
   }
 }
@@ -1524,153 +2275,121 @@ void regionModel__fit(SEXP xp, double tol, int max_iter, int hist, int k0, int t
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
   } else if (type == 1) {
-#ifdef GLMMR13
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
-#endif
-  } else  {
+  } else if (type == 2){
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    ptr->fit(tol, max_iter, hist, k0);
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     ptr->fit(tol, max_iter, hist, k0);
   }
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__information_matrix(SEXP xp, bool mc = true, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix(mc));
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix(mc));
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix(mc));
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->information_matrix(mc));
   }
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->information_matrix(mc));
-#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__information_matrix_theta(SEXP xp, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->covariance.infomat_theta);
   }
-#else
-  return Rcpp::wrap(Eigen::MatrixXd::Identity(2,2));
-#endif
 }
 
 // [[Rcpp::export]]
-SEXP regionModel__u(SEXP xp, int type = 0){
-#ifdef GLMMR13
+SEXP regionModel__u(SEXP xp, bool scaled = true, int type = 0){
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-    return Rcpp::wrap(ptr->u());
-  } 
-  else if (type == 1){
+    return Rcpp::wrap(ptr->u(scaled));
+  } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
-    return Rcpp::wrap(ptr->u());
-  } else  {
+    return Rcpp::wrap(ptr->u(scaled));
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
-    return Rcpp::wrap(ptr->u());
-  } 
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->u());
-#endif
-}
-
-// [[Rcpp::export]]
-SEXP regionModel__get_zu_var(SEXP xp, int type = 0){
-#ifdef GLMMR13
-  if(type == 0) {
-    Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-    return Rcpp::wrap(ptr->zu_var());
-  } 
-  else if (type == 1){
-    Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
-    return Rcpp::wrap(ptr->zu_var());
-  } else  {
-    Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
-    return Rcpp::wrap(ptr->zu_var());
-  } 
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->zu_var());
-#endif
+    return Rcpp::wrap(ptr->u(scaled));
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->u(scaled));
+  }
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_beta(SEXP xp, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
   } else if (type ==1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->beta);
   }
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->beta);
-#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_weights(SEXP xp, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
   } else if (type == 1){
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->sampling_weights());
   }
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->sampling_weights());
-#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__log_likelihood(SEXP xp, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
-  } else if (type ==1) {
+  } else if (type == 1) {
     Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->total_log_likelihood());
   }
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->total_log_likelihood());
-#endif
 }
 
 // [[Rcpp::export]]
 SEXP regionModel__get_theta(SEXP xp, int type = 0){
-#ifdef GLMMR13
   if(type == 0) {
     Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.parameters_);
@@ -1679,14 +2398,13 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
     std::vector<double> theta = ptr->covariance.parameters_;
     theta.push_back(ptr->covariance.rho);
     return Rcpp::wrap(theta);
-  } else  {
+  } else if (type == 2) {
     Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.get_parameters_extern());
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    return Rcpp::wrap(ptr->covariance.get_parameters_extern());
   }
-#else
-  Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
-  return Rcpp::wrap(ptr->covariance.parameters_);
-#endif
 }
 
 

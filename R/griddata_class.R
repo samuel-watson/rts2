@@ -893,6 +893,7 @@ grid <- R6::R6Class("grid",
                            #' @param m Number of basis functions per dimension for HSGP approximation. If spatio-temporal model then three values are required.
                            #' @param L Multiplicative boundary extension for HSGP approximation.
                            #' @param se Either "average" for a Monte Carlo averaged standard error, or "point" for standard errors evaluated at the posterior mode of the random effects.
+                           #' @param mesh_args If using spde, then a list with any of `max_edge`, `cutoff`, and `offset` specified, see help for `build_spde_data` function.
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
@@ -942,6 +943,7 @@ grid <- R6::R6Class("grid",
                                               m = c(10,10),
                                               L = 1.2,
                                               se = "average",
+                                              mesh_args = NULL,
                                               trace = 1){
                              
                              # some checks at the beginning
@@ -949,6 +951,15 @@ grid <- R6::R6Class("grid",
                              if(is.null(popdens)){
                                self$grid_data$intercept <- 1
                                popdens <- "intercept"
+                             }
+                             
+                             if(!is.null(mesh_args)){
+                               if(!is("mesh_args",list))stop("mesh_args should be a list if using SPDE")
+                               if(! "max_edge" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(max_edge = NULL))
+                               if(! "cutoff" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(cutoff = NULL))
+                               if(! "offset" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(offset = NULL))
+                             } else {
+                               mesh_args <- list(max_edge = NULL, cutoff = NULL, offset = NULL)
                              }
                              
                              bb <- sf::st_bbox(self$boundary)
@@ -1009,7 +1020,8 @@ grid <- R6::R6Class("grid",
                                  if (data$nT > 1) stop("Spatio-temporal SPDE not yet implemented for non-aggregated LGCP")
                                  
                                  events <- sf::st_coordinates(self$point_data)[, 1:2, drop = FALSE]
-                                 spde   <- self$build_spde_data()
+                                 spde   <- do.call(self$build_spde_data, mesh_args)
+                                 #spde   <- self$build_spde_data()
                                  n_v    <- spde$n_v
                                  n_e    <- nrow(events)
                                  vertex_coords <- spde$mesh$loc[, 1:2]
@@ -1170,7 +1182,8 @@ grid <- R6::R6Class("grid",
                                # ── SPDE-specific setup: replace grid-based W with mesh-based W ──
                                spde_data_obj <- NULL
                                if (is_spde) {
-                                 spde_data_obj <- self$build_spde_data()
+                                 #spde_data_obj <- self$build_spde_data()
+                                 spde_data_obj <- do.call(self$build_spde_data, mesh_args)
                                  W <- spde_data_obj$W_mesh   # n_regions × n_v, replaces grid W on the model side
                                }
                                
@@ -1918,8 +1931,12 @@ grid <- R6::R6Class("grid",
                              return(std_val)
                            },
                            #' @description
-                            #' A short description...
-                            #' 
+                          #' Builds the mesh and relevant matrices for SPDE estimation
+                          #' 
+                          #' @param max_edge The largest allowed triangle edge length. One or two values.
+                          #' @param cutoff The minimum allowed distance between points. Point at most as far apart as this are replaced by a single vertex prior to the mesh refinement step.
+                          #' @param offset The automatic extension distance. One or two values, for an inner and an optional outer extension. If negative, interpreted as a factor relative to the approximate data diameter 
+                            #' @return A list with A, C, G, and W matrices.
                            build_spde_data = function(max_edge = NULL, cutoff = NULL, offset = NULL) {
                              
                              is_aggregated <- !is.null(self$region_data)

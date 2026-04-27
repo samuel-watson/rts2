@@ -954,7 +954,7 @@ grid <- R6::R6Class("grid",
                              }
                              
                              if(!is.null(mesh_args)){
-                               if(!is("mesh_args",list))stop("mesh_args should be a list if using SPDE")
+                               if(!is(mesh_args,"list"))stop("mesh_args should be a list if using SPDE")
                                if(! "max_edge" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(max_edge = NULL))
                                if(! "cutoff" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(cutoff = NULL))
                                if(! "offset" %in% names(mesh_args)) mesh_args <- append(mesh_args, list(offset = NULL))
@@ -1021,6 +1021,7 @@ grid <- R6::R6Class("grid",
                                  
                                  events <- sf::st_coordinates(self$point_data)[, 1:2, drop = FALSE]
                                  spde   <- do.call(self$build_spde_data, mesh_args)
+                                 
                                  #spde   <- self$build_spde_data()
                                  n_v    <- spde$n_v
                                  n_e    <- nrow(events)
@@ -1185,6 +1186,7 @@ grid <- R6::R6Class("grid",
                                  #spde_data_obj <- self$build_spde_data()
                                  spde_data_obj <- do.call(self$build_spde_data, mesh_args)
                                  W <- spde_data_obj$W_mesh   # n_regions × n_v, replaces grid W on the model side
+                                 spde0  <<- spde_data_obj
                                }
                                
                                add_offset <- FALSE
@@ -1210,7 +1212,6 @@ grid <- R6::R6Class("grid",
                                    stop("popdens not in grid/region, or is time varying with SPDE.")
                                  }
                                }
-                               
                                if (is_spde) {
                                  X_v <- matrix(1, nrow = nrow(spde_data_obj$mesh$loc), ncol = 1)
                                  if (!is.null(covs)) {
@@ -1936,8 +1937,9 @@ grid <- R6::R6Class("grid",
                           #' @param max_edge The largest allowed triangle edge length. One or two values.
                           #' @param cutoff The minimum allowed distance between points. Point at most as far apart as this are replaced by a single vertex prior to the mesh refinement step.
                           #' @param offset The automatic extension distance. One or two values, for an inner and an optional outer extension. If negative, interpreted as a factor relative to the approximate data diameter 
-                            #' @return A list with A, C, G, and W matrices.
-                           build_spde_data = function(max_edge = NULL, cutoff = NULL, offset = NULL) {
+                          #' @param integrate Logical. If TRUE uses fm_int to generate quadrature weights, otherwise uses node to region mapping.   
+                          #' @return A list with A, C, G, and W matrices.
+                           build_spde_data = function(max_edge = NULL, cutoff = NULL, offset = NULL, integrate = TRUE) {
                              
                              is_aggregated <- !is.null(self$region_data)
                              
@@ -1972,6 +1974,7 @@ grid <- R6::R6Class("grid",
                                cutoff   = cutoff,
                                offset   = offset
                              )
+                             mesh$crs <- fmesher::fm_crs(self$region_data) 
                              fem    <- fmesher::fm_fem(mesh)
                              C_diag <- Matrix::diag(fem$c0)
                              G      <- Matrix::drop0(as(as(fem$g1, "generalMatrix"), "CsparseMatrix"))
@@ -1980,21 +1983,52 @@ grid <- R6::R6Class("grid",
                              # ── A_loc and W_mesh: branch on aggregation ────────────────────────────────
                              W_mesh <- NULL
                              if (is_aggregated) {
-                               # Aggregated: model evaluates at vertices, A_loc = I(n_v)
                                A_loc <- Matrix::sparseMatrix(i = 1:n_v, j = 1:n_v, x = 1,
                                                              dims = c(n_v, n_v))
                                
-                               vert_sf <- sf::st_as_sf(
-                                 data.frame(x = mesh$loc[,1], y = mesh$loc[,2]),
-                                 coords = c("x","y"), crs = sf::st_crs(self$region_data)
-                               )
-                               rid  <- sf::st_intersects(vert_sf, self$region_data)
-                               rid  <- vapply(rid, function(z) if (length(z)) z[1] else NA_integer_, integer(1))
-                               keep <- !is.na(rid)
-                               W_mesh <- Matrix::sparseMatrix(
-                                 i = rid[keep], j = which(keep), x = C_diag[keep],
-                                 dims = c(nrow(self$region_data), n_v)
-                               )
+                               if (integrate) {
+                                 # Quadrature-consistent W: integrate basis functions over each region
+                                 ips <- fmesher::fm_int(
+                                   mesh,
+                                   samplers  = self$region_data,
+                                   int.args  = list(method = "stable")
+                                 )
+                                 
+                                 # ips is an sf with $weight and a region grouping column.
+                                 # The grouping column name varies by fmesher version — typically `.block`.
+                                 region_idx <- if (".block" %in% names(ips)) ips$.block else ips$block
+                                 
+                                 # Basis values at integration points: n_ips × n_v
+                                 ips_xy <- sf::st_coordinates(ips)
+                                 A_ips  <- fmesher::fm_basis(mesh, loc = ips_xy)
+                                 
+                                 # W_mesh[r, k] = sum over ips i in region r of (weight_i * A_ips[i, k])
+                                 # Equivalent to: (Diagonal(weight) %*% A_ips) row-summed by region_idx
+                                 weighted_A <- Matrix::Diagonal(x = ips$weight) %*% A_ips
+                                 
+                                 # Aggregate rows by region using a region-indicator matrix
+                                 R_indicator <- Matrix::sparseMatrix(
+                                   i = region_idx,
+                                   j = seq_along(region_idx),
+                                   x = 1,
+                                   dims = c(nrow(self$region_data), length(region_idx))
+                                 )
+                                 W_mesh <- R_indicator %*% weighted_A
+                                 W_mesh <- Matrix::drop0(W_mesh)
+                                 
+                               } else {
+                                 vert_sf <- sf::st_as_sf(
+                                   data.frame(x = mesh$loc[,1], y = mesh$loc[,2]),
+                                   coords = c("x","y"), crs = sf::st_crs(self$region_data)
+                                 )
+                                 rid  <- sf::st_intersects(vert_sf, self$region_data)
+                                 rid  <- vapply(rid, function(z) if (length(z)) z[1] else NA_integer_, integer(1))
+                                 keep <- !is.na(rid)
+                                 W_mesh <- Matrix::sparseMatrix(
+                                   i = rid[keep], j = which(keep), x = C_diag[keep],
+                                   dims = c(nrow(self$region_data), n_v)
+                                 )
+                               }
                              } else {
                                # LGCP: augmented rows = events (barycentric) ++ vertices (identity)
                                aug_loc <- rbind(as.matrix(sf::st_coordinates(self$point_data)), mesh$loc[, 1:2])
@@ -2008,7 +2042,7 @@ grid <- R6::R6Class("grid",
                                grid_xy <- sf::st_coordinates(sf::st_centroid(self$grid_data))
                                A_pred <- Matrix::drop0(fmesher::fm_basis(mesh, loc = grid_xy))
                              }
-                             print(c(sum_C = sum(C_diag), domain_area = sum(sf::st_area(self$boundary))))
+                             print(mesh$n)
                              list(mesh = mesh, A_loc = A_loc, C = C_diag, G = G,
                                   W_mesh = W_mesh, A_pred = A_pred, n_v = n_v,
                                   is_aggregated = is_aggregated)

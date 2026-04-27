@@ -2019,11 +2019,29 @@ inline VectorXd rts::regionModel<glmmr::spdeCovariance>::zu_variance_full(
   MatrixXd WrtildeX = (tilde_X.array().colwise() * Wr.array()).matrix();
   MatrixXd XtWX     = tilde_X.transpose() * WrtildeX;
   
-  covariance.refactor_P(Wr);
+  // Form P_region = tilde_A^T diag(Wr) tilde_A + Q
+  SparseMatrix<double> WrtA_sp = Wr.asDiagonal() * tilde_A;   // n_R × nv, sparse
+  SparseMatrix<double> P_region = SparseMatrix<double>(tilde_A.transpose() * WrtA_sp)
+    + covariance.Q_mat;
+  
+  // Factorise (pattern matches Q's pattern + tilde_A's column-wise outer product;
+  // not identical to refactor_P's pattern, so use a fresh solver)
+  Eigen::SimplicialLLT<SparseMatrix<double>, Eigen::Lower, Eigen::AMDOrdering<int>> chol_P_region;
+  chol_P_region.compute(P_region);
+  if (chol_P_region.info() != Eigen::Success) {
+    Rcpp::stop("region-level P factorisation failed: Wr range [%.3e, %.3e], "
+                 "Q diag range [%.3e, %.3e]",
+                 Wr.minCoeff(), Wr.maxCoeff(),
+                 covariance.Q_mat.diagonal().minCoeff(),
+                 covariance.Q_mat.diagonal().maxCoeff());
+  }
+  
+  // Replace your current uses of chol_P with chol_P_region
+  MatrixXd B     = MatrixXd(tilde_A.transpose() * WrtildeX);     // nv × P
+  MatrixXd PinvB = chol_P_region.solve(B);
   auto& chol_P = covariance.chol_P;
   
-  MatrixXd B     = MatrixXd(tilde_A.transpose() * WrtildeX);     // nv × P
-  MatrixXd PinvB = chol_P.solve(B);                              // nv × P
+  
   MatrixXd Schur = XtWX - B.transpose() * PinvB;                 // P × P  ( = V_β⁻¹ )
   Eigen::LLT<MatrixXd> llt_Schur(Schur);
   

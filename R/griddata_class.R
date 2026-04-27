@@ -167,12 +167,22 @@ grid <- R6::R6Class("grid",
                           #' Reproject coordinates of spatial data in the object to a new CRS
                           #' 
                           #' @param crs target coordinate reference system passed to `st_transform`
+                          #' @param scale_factor A scale factor to multiply existing geometry by.
                           #' @return None, called for effects
-                           transform = function(crs){
-                             if(!is.null(self$boundary))self$boundary <- sf::st_transform(self$boundary, crs = crs)
-                             if(!is.null(self$point_data)) self$point_data <- sf::st_transform(self$point_data, crs = crs)
-                             if(!is.null(self$grid_data)) self$grid_data <- sf::st_transform(self$grid_data, crs = crs)
-                             if(!is.null(self$region_data)) self$region_data <- sf::st_transform(self$region_data, crs = crs)
+                           transform = function(crs, scale_factor){
+                             if(!missing(crs) & !missing(scale_factor))stop("set only one of crs or scale factor")
+                             if(!missing(crs)){
+                               if(!is.null(self$boundary))self$boundary <- sf::st_transform(self$boundary, crs = crs)
+                               if(!is.null(self$point_data)) self$point_data <- sf::st_transform(self$point_data, crs = crs)
+                               if(!is.null(self$grid_data)) self$grid_data <- sf::st_transform(self$grid_data, crs = crs)
+                               if(!is.null(self$region_data)) self$region_data <- sf::st_transform(self$region_data, crs = crs)
+                             } else {
+                               if(!is.null(self$boundary))sf::st_geometry(self$boundary) <- sf::st_geometry(self$boundary) * scale_factor 
+                               if(!is.null(self$point_data)) sf::st_geometry(self$point_data) <- sf::st_geometry(self$point_data) * scale_factor 
+                               if(!is.null(self$grid_data)) sf::st_geometry(self$grid_data) <- sf::st_geometry(self$grid_data) * scale_factor 
+                               if(!is.null(self$region_data)) sf::st_geometry(self$region_data) <- sf::st_geometry(self$region_data) * scale_factor 
+                             }
+                             
                            },
                            #' @description
                            #' Plots the grid data
@@ -941,8 +951,9 @@ grid <- R6::R6Class("grid",
                                popdens <- "intercept"
                              }
                              
-                             ## in this new version we are just going to use glmmrBase to fit the model!
-                             # generate formula
+                             bb <- sf::st_bbox(self$boundary)
+                             span <- min(bb[3] - bb[1], bb[4] - bb[2])
+                             if(is.null(start_theta)) start_theta <- log(c(rnorm(1,1,0.05), span/5))
                              
                              data <- private$prepare_data(1,
                                       model,
@@ -999,7 +1010,6 @@ grid <- R6::R6Class("grid",
                                  
                                  events <- sf::st_coordinates(self$point_data)[, 1:2, drop = FALSE]
                                  spde   <- self$build_spde_data()
-                                 spde0 <<- spde
                                  n_v    <- spde$n_v
                                  n_e    <- nrow(events)
                                  vertex_coords <- spde$mesh$loc[, 1:2]
@@ -1024,7 +1034,7 @@ grid <- R6::R6Class("grid",
                                    spde_form <- as.formula("count ~ (1 | spde_matern1log(x, y))")
                                  }
                                 
-                                 start_cov <- if (is.null(start_theta)) log(c(1.0, 0.3)) else start_theta
+                                 start_cov <- start_theta
                                  
                                  mod <- glmmrBase::Model$new(
                                    formula    = spde_form,
@@ -1047,6 +1057,14 @@ grid <- R6::R6Class("grid",
                                    start_cov <- if (is_hsgp & data$nT > 1) log(runif(4)) else log(runif(2 + I(data$nT > 1) * 1))
                                  } else {
                                    start_cov <- start_theta
+                                 }
+                                 
+                                 if(length(start_theta) == 2 & data$nT > 1){
+                                   if(is_hsgp){
+                                     start_theta <- c(start_theta, start_theta[2], log(diff(range(data$nT))/4), log(runif(1)))
+                                   } else {
+                                     start_theta <- c(start_theta, log(runif(1)))
+                                   }
                                  }
                                }
                                
@@ -1073,7 +1091,6 @@ grid <- R6::R6Class("grid",
                                popd  <- private$stack_variable(popdens)
                                beta  <- fit$coefficients$est[1:ncol(X)]
                                u_obs <- mod$u(scaled = TRUE)  
-                               
                                if (packageVersion(pkg = "glmmrBase") >= "1.2.0") {
                                  w <- glmmrBase:::Model__get_importance_weights(ptr, mtype)
                                } else {
@@ -1105,7 +1122,7 @@ grid <- R6::R6Class("grid",
                                     print(e)
                                     return(rep(1,nrow(spde$A_pred)))
                                   })
-                                 u <-  u_grid  <- as.matrix(spde$A_pred %*% mod$u(FALSE))
+                                 u <-  u_grid  #<- as.matrix(spde$A_pred %*% mod$u(FALSE))
                                } else if (is_hsgp) {
                                  u_grid  <- u_obs                                           # obs = grid
                                  var_rr  <- glmmrBase:::Model_hsgp__re_var(ptr)             # or dense equivalent
@@ -1219,7 +1236,7 @@ grid <- R6::R6Class("grid",
                                      form, as.matrix(data$x_grid), c('x','y'),
                                      data$X, data$y, iter_sampling, m, L
                                    )
-                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3))) else start_theta
+                                   theta_start <- start_theta
                                  } else {
                                    if(length(m) != 3)stop("m must be length 3")
                                    form  <- gsub("\\)", ",t)", form)
@@ -1231,7 +1248,9 @@ grid <- R6::R6Class("grid",
                                      form, as.matrix(gcmat), c('x','y','t'),
                                      data$X, data$y, iter_sampling, m, L
                                    )
-                                   theta_start <- if (is.null(start_theta)) c(log(runif(4,0,0.3))) else start_theta
+                                   if(length(start_theta) == 2 & data$nT > 1){
+                                     theta_start <- c(start_theta, start_theta[2], log(diff(range(data$nT))/4), log(runif(1)))
+                                   }
                                  }
                                } else if (is_spde) {
                                  if (data$nT > 1) stop("Spatio-temporal SPDE not yet implemented")
@@ -1247,33 +1266,27 @@ grid <- R6::R6Class("grid",
                                    spde_data_obj$G,
                                    2L                    # alpha = 2 → ν = 1 in 2D
                                  )
-                                 theta_start <- if (is.null(start_theta)) c(log(c(1.0, 0.3))) else start_theta
+                                 theta_start <- start_theta
                                } else {
                                  if (data$nT == 1) {
                                    ptr <- regionModel__new(
                                      form, as.matrix(data$x_grid), c('x','y'),
                                      data$X, data$y, iter_sampling, 0
                                    )
-                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3))) else start_theta
+                                   theta_start <- start_theta
                                  } else {
                                    ptr <- regionModel_ar__new(
                                      form, as.matrix(data$x_grid), c('x','y'),
                                      data$X, data$y, iter_sampling, data$nT
                                    )
-                                   theta_start <- if (is.null(start_theta)) c(log(runif(2,0,0.3)), 0.3) else start_theta
+                                   if(length(start_theta) == 2) start_theta <- c(start_theta, log(runif(1)))
                                  }
                                }
                                
-                               if (packageVersion(pkg = "glmmrBase") >= "1.2.0") {
-                                 regionModel__set_theta(ptr, theta_start, type)
-                               } else {
-                                 regionModel__set_theta(ptr, exp(theta_start), type)
-                               }
-                               
+                               regionModel__set_theta(ptr, theta_start, type)
                                regionModel__set_weights(ptr, W@i, W@p, W@x, nrow(W), ncol(W), type)
                                regionModel__set_offset(ptr, offset, type)
                                regionModel__fit(ptr, tol, max_iter, hist, k0, type)
-                               print("checkpoint 1")
                                I_beta <- regionModel__information_matrix(ptr, se == "average", type)
                                V_beta <- solve(I_beta)
                                M      <- I_beta
@@ -1282,7 +1295,6 @@ grid <- R6::R6Class("grid",
                                u_model <- regionModel__u(ptr, TRUE, type)             # n_eval × K  (n_eval = n_cells or n_v)
                                beta    <- regionModel__get_beta(ptr, type)
                                theta   <- regionModel__get_theta(ptr, type)
-                               print("checkpoint 2")
                                # ── For SPDE, lift to grid for prediction; for grid models, u_model is already at grid ──
                                if (is_spde) {
                                  # Grid centroids — used for both covariate evaluation and offset
@@ -1297,7 +1309,7 @@ grid <- R6::R6Class("grid",
                                  # Build X_pr at grid cells
                                  X_pr <- matrix(1, nrow = nrow(spde_data_obj$A_pred), ncol = 1)
                                  if (!is.null(covs)) {
-                                   aug_cov <- private$evaluate_covariates_at(grid_centroids, covs)
+                                   aug_cov <- private$evaluate_covariates_at(sf::st_coordinates(sf::st_centroid(self$grid_data)), covs)
                                    X_pr    <- cbind(X_pr, aug_cov)
                                  }
                                  
@@ -1336,7 +1348,6 @@ grid <- R6::R6Class("grid",
                                res$lower <- res$est - qnorm(1 - 0.05/2) * res$SE
                                res$upper <- res$est + qnorm(1 - 0.05/2) * res$SE
                                fit <- list(coefficients = res, converged = TRUE, aic = NA, Rsq = list(NA, NA), iter = NA)
-                               print("checkpoint 3")
                                # ── Output slice operates on grid-level (X_pr, u) for all model types ──
                                n <- nrow(X_pr); p <- ncol(X_pr); m <- nrow(W); K <- ncol(u)
                                
@@ -1350,12 +1361,10 @@ grid <- R6::R6Class("grid",
                                    W_out <- Matrix::Diagonal(x = as.data.frame(self$region_data[, popdens])[,1]) %*% W_out
                                  }
                                }
-                               print("checkpoint 3b")
                                w <- regionModel__get_weights(ptr, type)
                                sum_w <- sum(w)
                                xb    <- drop(X_pr %*% beta + offset)
                                XVX   <- rowSums((X_pr %*% V_beta) * X_pr)
-                               print("checkpoint 4")
                                mu_samples <- matrix(0, n, K)
                                for (k in 1:K) mu_samples[, k] <- exp(xb + u[, k])
                                
@@ -1381,7 +1390,6 @@ grid <- R6::R6Class("grid",
                                } else {
                                  regionModel__zu_variance_full(ptr, type)   # grid/HSGP: ZA is internal projector
                                }
-                               print("checkpoint 5")
                                # ── MC samples at grid level (Jensen mean-centered per sample) ───────────────
                                # NB: offset must be sized to nrow(X_pr). For SPDE the current code sets
                                # `offset <- rep(0, nrow(X_v))` (mesh-sized) — that's a pre-existing size bug
@@ -1432,7 +1440,6 @@ grid <- R6::R6Class("grid",
                                var_from_beta_r <- var_from_beta_r / sum_w
                                SEtot <- sqrt(var_from_beta_r + var_from_u_r)
                                ypred <- mu_r_mean
-                               print("checkpoint 6")
                                ll <- regionModel__log_likelihood(ptr, type)
                              }
 
@@ -1453,7 +1460,7 @@ grid <- R6::R6Class("grid",
                                          covs = covs,
                                          vcov = M,
                                          vcov_theta = M_theta,
-                                         P = length(covs + 1),
+                                         P = length(covs)+1,
                                          var_par_family = FALSE,
                                          y=data$y,
                                          X = data$X,
@@ -1727,8 +1734,8 @@ grid <- R6::R6Class("grid",
                                
                                if ("rr" %in% type) {
                                  if (is_sampler) {
-                                   self$grid_data$rr       <- exp(apply(fit$re.samps, 1, mean))
-                                   self$grid_data$rr_sd    <- exp(apply(fit$re.samps, 1, sd))
+                                   self$grid_data$rr <- apply(exp(fit$re.samps), 1, mean)
+                                   self$grid_data$rr_sd <- apply(exp(fit$re.samps), 1, sd)
                                    self$grid_data$rr_lower <- apply(exp(fit$re.samps), 1, quantile, probs = alpha/2)
                                    self$grid_data$rr_upper <- apply(exp(fit$re.samps), 1, quantile, probs = 1 - alpha/2)
                                  } else {
@@ -1927,14 +1934,19 @@ grid <- R6::R6Class("grid",
                                        ymin = min(mesh_loc[,2]), ymax = max(mesh_loc[,2]))
                              }
                              
+                             span     <- min(diff(range(mesh_loc[,1])), diff(range(mesh_loc[,2])))   # ~20000
+                             if (span < 10) {
+                               warning("Domain span (", round(span, 2), ") is small. SPDE precision matrix ",
+                                       "may be ill-conditioned. Consider rescaling coordinates by a factor of ",
+                                       round(50 / span), " using self$transform(scale_factor = a) for numerical stability.")
+                             }
                              # ── Default mesh args ──────────────────────────────────────────────────────
                              if (is.null(max_edge)) {
-                               span     <- min(diff(range(mesh_loc[,1])), diff(range(mesh_loc[,2])))   # ~20000
-                               h        <- span / 20                                                    # ~1000 m
-                               max_edge <- c(h, 5 * h)                                                  # c(1000, 5000)
+                               h        <- span / 18                                                    # ~1000 m
+                               max_edge <- c(h, 1.5 * h)                                                  # c(1000, 5000)
                              }
-                             if (is.null(cutoff)) cutoff   <- h / 2 
-                             if (is.null(offset)) offset   <- c(h, 5 * h)
+                             if (is.null(cutoff)) cutoff   <- h  
+                             if (is.null(offset)) offset   <- c(h, 2 * h)
                              
                              mesh <- fmesher::fm_mesh_2d(
                                loc      = mesh_loc,
@@ -1979,7 +1991,7 @@ grid <- R6::R6Class("grid",
                                grid_xy <- sf::st_coordinates(sf::st_centroid(self$grid_data))
                                A_pred <- Matrix::drop0(fmesher::fm_basis(mesh, loc = grid_xy))
                              }
-                             
+                             print(c(sum_C = sum(C_diag), domain_area = sum(sf::st_area(self$boundary))))
                              list(mesh = mesh, A_loc = A_loc, C = C_diag, G = G,
                                   W_mesh = W_mesh, A_pred = A_pred, n_v = n_v,
                                   is_aggregated = is_aggregated)

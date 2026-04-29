@@ -1,6 +1,7 @@
 #' The 'rts2' package.
 #'
-#' @description A DESCRIPTION OF THE PACKAGE
+#' @description Fitting of Log Gaussian Cox Process models using maximum likelihood including spectral and SPDE approximations 
+#' to the latent field, as well as Bayesian model fitting through Stan.
 #'
 #' @docType package
 #' @name rts2-package

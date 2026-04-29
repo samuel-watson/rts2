@@ -44,17 +44,13 @@ grid <- R6::R6Class("grid",
                            region_data = NULL,
                            #' @field priors list of prior distributions for the analysis
                            priors = NULL,
-                           #' @field bobyqa_control list of control parameters for the BOBYQA algorithm, must contain named
-                           #' elements any or all of `npt`, `rhobeg`, `rhoend`, `covrhobeg`, `covrhoend`. 
-                           #' Only has an effect for the HSGP and NNGP approximations. The latter two parameters control the 
-                           #' covariance parameter optimisation, while the former control the linear predictor. 
-                           bobyqa_control = NULL,
                            #' @field boundary sf object showing the boundary of the area of interest
                            boundary = NULL,
                            #' @description
                            #' Create a new grid object
                            #'
-                           #' Produces a regular grid over an area of interest as an sf object, see details for information on initialisation.
+                           #' Produces a regular grid over an area of interest as an sf object, see details for information on initialisation. If the model is 
+                           #' fit using maximum likelihood with SPDE approximation the grid is only used for prediction and interpolation of covariates.
                            #'
                            #' @param poly An sf object containing either one polygon describing the area of interest or multiple polygons
                            #' representing survey or census regions in which the case data counts are aggregated
@@ -866,8 +862,7 @@ grid <- R6::R6Class("grid",
                            #' counts must be in self$region_data. See `lgcp_bayes()` for Bayesian approaches to model fitting and more details on the model.
                            #' 
                            #' Model fitting uses a fast stochastic maximum likelihood algorithms, which have three steps:
-                           #'  1. Sample random effects using MCMC. The argument  
-                           #'     `mcmc_sampling` specifies the iterations for this step. 
+                           #'  1. Sample random effects. The argument `iter_sampling` specifies the iterations for this step. 
                            #'  2. Fit fixed effect parameters using a Newton-Raphson step.
                            #'  3. Fit covariance parameters using a Newton-Raphson step. 
                            #'     
@@ -880,8 +875,8 @@ grid <- R6::R6Class("grid",
                            #' include. For temporally-varying covariates only the stem is required and not
                            #' the individual column names for each time period (e.g. `dayMon` and not `dayMon1`,
                            #' `dayMon2`, etc.) For regional models, covariates should be mapped to the grid currently (see add_covariates)
-                           #' @param model Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Add `hsgp_` for hsgp approximation. Other functions 
-                           #' from glmmrBase will work, but may be less relevant to spatial models.
+                           #' @param model Either "fexp", "sqexp", "matern1", or "matern2" for exponential, squared exponential, and matern with shape of 1 or 2, respectively. Add `hsgp_` or `spde_` for hsgp or 
+                           #' spde approximation, respectively. For example `spde_matern1` or `hsgp_fexp`. SPDE is not yet available for spatio-temporal models.
                            #' @param iter_sampling integer. Number of random effects samples to draw on each iteration.
                            #' @param max_iter Integer. Maximum number of iterations.
                            #' @param tol Scalar. The tolerance for the Bayes Factor convergence criterion.
@@ -893,30 +888,25 @@ grid <- R6::R6Class("grid",
                            #' @param m Number of basis functions per dimension for HSGP approximation. If spatio-temporal model then three values are required.
                            #' @param L Multiplicative boundary extension for HSGP approximation.
                            #' @param se Either "average" for a Monte Carlo averaged standard error, or "point" for standard errors evaluated at the posterior mode of the random effects.
-                           #' @param mesh_args If using spde, then a list with any of `max_edge`, `cutoff`, and `offset` specified, see help for `build_spde_data` function.
+                           #' @param mesh_args If using spde, then a list with any of `max_edge`, `cutoff`, and `offset` specified, see help for `build_spde_data` function, which returns data in the appropriate format.
                            #' @return Optionally, an `rtsFit` model fit object. This fit is stored internally and can be retrieved with `model_fit()`
                            #' @seealso points_to_grid, add_covariates
                            #' @examples
-                           #' # a simple example with completely random points
-                           #' b1 <- sf::st_sf(sf::st_sfc(sf::st_polygon(list(cbind(c(0,3,3,0,0),c(0,0,3,3,0))))))
-                           #' g1 <- grid$new(b1,0.5)
-                           #' dp <- data.frame(y=runif(10,0,3),x=runif(10,0,3))
-                           #' dp <- create_points(dp,pos_vars = c('y','x'))
-                           #' cov1 <- grid$new(b1,0.8)
-                           #' cov1$grid_data$cov <- runif(nrow(cov1$grid_data))
-                           #' g1$add_covariates(cov1$grid_data,
-                           #'                   zcols="cov")
-                           #' g1$points_to_grid(dp)
-                           #' 
-                           #' # an example using real data
-                           #' 
-                           #' \donttest{
-                           #' g1$lgcp_ml(popdens="cov",iter_sampling = 50)
-                           #' g1$model_fit()
-                           #' g1$extract_preds("rr")
+                           #' # a simple example with simulated points using SPDE approximation
+                           #' boundary <- st_set_crs(boundary, 4326)
+                           #' g1 <- grid$new(boundary,cellsize=0.008)
+                           #' g1$points_to_grid(point_data = create_points(example_points,
+                           #'                                              pos_vars = c("Y","X")))
+                           #' msoa <- sf::st_transform(birmingham_crime,crs = 4326)
+                           #' g1$add_covariates(msoa,
+                           #'                   zcols="pop",
+                           #'                   weight_type="area")
+                           #' set.seed(2345)
+                           #' fit_spde <- g1$lgcp_ml("pop", model = "hsgp_matern1")
+                           #' g1$extract_preds(type = c("rr"), popdens = "pop")
                            #' g1$plot("rr")
-                           #' g1$hotspots(threshold = 2, stat = "rr")
                            #' 
+                           #' \dontrun{
                            #' # this example uses real aggregated spatial data
                            #' # note that the full dataset has 12 time periods
                            #' # and can be used as a spatio-temporal example by removing
@@ -926,11 +916,19 @@ grid <- R6::R6Class("grid",
                            #'  example_data$y <- birmingham_crime$t12 # spatial
                            #'  example_data <- sf::st_transform(example_data, crs = 4326)
                            #'  g2 <- grid$new(example_data,cellsize=0.006)
+                           #'  set.seed(123)
                            #'  g2$lgcp_ml(popdens = "pop", model = "hsgp_matern1", L = 1.5, m = c(15,15))
                            #'  g2$extract_preds("rr")
                            #'  g2$plot("rr")
+                           #'  
+                           #'  #SPDE verison rescale to more stable coordinates
+                           #' g2$transform(scale_factor = 50)
+                           #' set.seed(101)
+                           #' fitt <- suppressWarnings(g2$lgcp_ml("pop", model = "spde_matern1")) # use default mesh args
+                           #' g2$extract_preds("rr")
+                           #' g2$plot("rr")
                            #' }
-                           #' 
+                           #' @md
                            lgcp_ml = function(popdens=NULL,
                                               covs=NULL,
                                               model = "fexp",
@@ -1387,14 +1385,6 @@ grid <- R6::R6Class("grid",
                                
                                # W for region-from-grid output (SPDE: original grid-based W; grid models: same as fitting W)
                                W_out <- self$get_region_data()$W
-                               # if (is_spde && !is.null(popdens)) {
-                               #   if (popdens %in% colnames(self$grid_data)) {
-                               #     W_out <- W_out %*% Matrix::Diagonal(x = as.data.frame(self$grid_data[, popdens])[,1])
-                               #   } else if (popdens %in% colnames(self$region_data)) {
-                               #     W_out <- Matrix::Diagonal(x = as.data.frame(self$region_data[, popdens])[,1]) %*% W_out
-                               #   }
-                               # }
-                               
                                w     <- regionModel__get_weights(ptr, type)
                                sum_w <- sum(w)
                                
@@ -1415,7 +1405,7 @@ grid <- R6::R6Class("grid",
                                for (k in 1:K) {
                                  uk_c <- u[, k] - mean(u[, k])
                                  mu_samples[, k]      <- exp(xb        + uk_c)
-                                 mu_samples_noff[, k] <- exp(xb_no_off + uk_c)
+                                 mu_samples_noff[, k] <- exp(xb_no_off + uk_c) * as.numeric(sf::st_area(self$grid_data[1,]))
                                }
                                
                                # ── Grid-level posterior summaries ───────────────────────────────────────────
@@ -1503,6 +1493,7 @@ grid <- R6::R6Class("grid",
                            #' @param t.lag integer. Extract predictions for previous time periods.
                            #' @param popdens character string. Name of the column in `grid_data` with the
                            #' population density data
+                           #' @param level Scalar. The function returns the `level`% prediction interval.
                            #' @return NULL
                            #' @details
                            #' **EXTRACTING PREDICTIONS**
@@ -2496,11 +2487,6 @@ grid <- R6::R6Class("grid",
                         }
                         return(datlist)
                       },
-                      #' @description 
-                      #' Interpolates covariate values at coordinates, used typically for SPDE models
-                      #' @param coords n x 2 matrix of prediction coordinates. 
-                      #' @param covs Vector of strings naming columns in grid data
-                      #' @return Matrix of interpolated covariate values.
                       evaluate_covariates_at = function(coords, covs) {
                         
                         if (is.null(covs) || length(covs) == 0) {

@@ -319,19 +319,18 @@ g2$hotspots(threshold = 2, stat = "rr")
 
 # a simple example with simulated points using SPDE approximation
 boundary <- st_set_crs(boundary, 4326)
-g1 <- grid$new(boundary,cellsize=0.008)
+g1 <- grid$new(boundary,cellsize=0.01)
 g1$points_to_grid(point_data = create_points(example_points,
                                              pos_vars = c("Y","X")))
+\donttest{
 msoa <- sf::st_transform(birmingham_crime,crs = 4326)
-g1$add_covariates(msoa,
-                  zcols="pop",
-                  weight_type="area")
+g1$add_covariates(msoa,zcols="pop",weight_type="area")
 set.seed(2345)
 fit_spde <- g1$lgcp_ml("pop", model = "hsgp_matern1")
 g1$extract_preds(type = c("rr"), popdens = "pop")
 g1$plot("rr")
 
-\dontrun{
+
 # this example uses real aggregated spatial data
 # note that the full dataset has 12 time periods
 # and can be used as a spatio-temporal example by removing
@@ -980,19 +979,18 @@ Optionally, an \code{rtsFit} model fit object. This fit is stored internally and
 \if{html}{\out{<div class="r example copy">}}
 \preformatted{# a simple example with simulated points using SPDE approximation
 boundary <- st_set_crs(boundary, 4326)
-g1 <- grid$new(boundary,cellsize=0.008)
+g1 <- grid$new(boundary,cellsize=0.01)
 g1$points_to_grid(point_data = create_points(example_points,
                                              pos_vars = c("Y","X")))
+\donttest{
 msoa <- sf::st_transform(birmingham_crime,crs = 4326)
-g1$add_covariates(msoa,
-                  zcols="pop",
-                  weight_type="area")
+g1$add_covariates(msoa,zcols="pop",weight_type="area")
 set.seed(2345)
 fit_spde <- g1$lgcp_ml("pop", model = "hsgp_matern1")
 g1$extract_preds(type = c("rr"), popdens = "pop")
 g1$plot("rr")
 
-\dontrun{
+
 # this example uses real aggregated spatial data
 # note that the full dataset has 12 time periods
 # and can be used as a spatio-temporal example by removing

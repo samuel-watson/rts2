@@ -2318,6 +2318,8 @@ SEXP regionModel__information_matrix(SEXP xp, bool mc = true, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->information_matrix(mc));
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2335,6 +2337,8 @@ SEXP regionModel__information_matrix_theta(SEXP xp, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.infomat_theta);
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2352,6 +2356,8 @@ SEXP regionModel__u(SEXP xp, bool scaled = true, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->u(scaled));
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2369,6 +2375,8 @@ SEXP regionModel__get_beta(SEXP xp, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->beta);
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2386,6 +2394,8 @@ SEXP regionModel__get_weights(SEXP xp, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->sampling_weights());
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2403,6 +2413,8 @@ SEXP regionModel__log_likelihood(SEXP xp, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->total_log_likelihood());
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 
@@ -2422,6 +2434,8 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
   } else if (type == 3) {
     Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
     return Rcpp::wrap(ptr->covariance.get_parameters_extern());
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
   }
 }
 

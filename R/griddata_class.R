@@ -894,19 +894,18 @@ grid <- R6::R6Class("grid",
                            #' @examples
                            #' # a simple example with simulated points using SPDE approximation
                            #' boundary <- st_set_crs(boundary, 4326)
-                           #' g1 <- grid$new(boundary,cellsize=0.008)
+                           #' g1 <- grid$new(boundary,cellsize=0.01)
                            #' g1$points_to_grid(point_data = create_points(example_points,
                            #'                                              pos_vars = c("Y","X")))
+                           #' \donttest{
                            #' msoa <- sf::st_transform(birmingham_crime,crs = 4326)
-                           #' g1$add_covariates(msoa,
-                           #'                   zcols="pop",
-                           #'                   weight_type="area")
+                           #' g1$add_covariates(msoa,zcols="pop",weight_type="area")
                            #' set.seed(2345)
                            #' fit_spde <- g1$lgcp_ml("pop", model = "hsgp_matern1")
                            #' g1$extract_preds(type = c("rr"), popdens = "pop")
                            #' g1$plot("rr")
                            #' 
-                           #' \dontrun{
+                           #' 
                            #' # this example uses real aggregated spatial data
                            #' # note that the full dataset has 12 time periods
                            #' # and can be used as a spatio-temporal example by removing
@@ -2511,9 +2510,7 @@ grid <- R6::R6Class("grid",
                           as.matrix(self$grid_data[, c("x", "y")])
                         }
                         
-                        nn_idx <- if (requireNamespace("nabor", quietly = TRUE)) {
-                          nabor::knn(grid_xy, query, k = 1)$nn.idx[, 1]
-                        } else if (requireNamespace("FNN", quietly = TRUE)) {
+                        if (requireNamespace("FNN", quietly = TRUE)) {
                           FNN::get.knnx(grid_xy, query, k = 1)$nn.index[, 1]
                         } else {
                           apply(query, 1, function(p) {

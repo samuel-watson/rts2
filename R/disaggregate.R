@@ -51,7 +51,7 @@ disaggregate_positive <- function(W, y_r, pop, adj, lambda_smooth = 1,
     # Small ridge for numerical stability
     D_qp <- D_qp + 1e-8 * diag(n)
     
-    sol <- solve.QP(Dmat = D_qp, dvec = d_qp, Amat = diag(n), bvec = rep(0, n))
+    sol <- quadprog::solve.QP(Dmat = D_qp, dvec = d_qp, Amat = diag(n), bvec = rep(0, n))
     y_s <- sol$solution
     convergence <- 0
     

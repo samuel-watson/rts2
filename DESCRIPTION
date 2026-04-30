@@ -37,7 +37,8 @@ Imports:
     glmmrBase (>= 1.3.0),
     spdep,
     fmesher,
-    FNN
+    FNN,
+    quadprog
 LinkingTo: 
     BH (>= 1.66.0),
     Rcpp (>= 0.12.0),

@@ -1054,14 +1054,14 @@ grid <- R6::R6Class("grid",
                                    covariance = start_cov,
                                    mean       = c(log(n_e / sum(spde$C)), rep(0,length(covs))),
                                    offset     = aug$log_w
-                                 )$set_trace(1)
+                                 )$set_trace(trace)
                                } else {
                                  mod <- glmmrBase::Model$new(
                                    formula = as.formula(form),
                                    data    = dat,
                                    family  = poisson(),
                                    offset  = log(data$popdens)
-                                 )$set_trace(1)
+                                 )$set_trace(trace)
                                  
                                  if (is.null(start_theta)) {
                                    start_cov <- if (is_hsgp & data$nT > 1) log(runif(4)) else log(runif(2 + I(data$nT > 1) * 1))
@@ -1295,6 +1295,7 @@ grid <- R6::R6Class("grid",
                                }
                                
                                regionModel__set_theta(ptr, theta_start, type)
+                               regionModel__set_trace(ptr, trace, type)
                                regionModel__set_weights(ptr, W@i, W@p, W@x, nrow(W), ncol(W), type)
                                regionModel__set_offset(ptr, offset, type)
                                regionModel__fit(ptr, tol, max_iter, hist, k0, type)

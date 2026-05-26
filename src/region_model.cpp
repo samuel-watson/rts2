@@ -2439,6 +2439,25 @@ SEXP regionModel__get_theta(SEXP xp, int type = 0){
   }
 }
 
+// [[Rcpp::export]]
+void regionModel__set_trace(SEXP xp, int trace, int type = 0){
+  if(type == 0) {
+    Rcpp::XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
+    ptr->trace = trace;
+  } else if (type == 1) {
+    Rcpp::XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
+    ptr->trace = trace;
+  } else if (type == 2) {
+    Rcpp::XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
+    ptr->trace = trace;
+  } else if (type == 3) {
+    Rcpp::XPtr<rts::regionModel<glmmr::spdeCovariance>> ptr(xp);
+    ptr->trace = trace;
+  } else {
+    Rcpp::stop("type must be 0,1,2,or 3");
+  }
+}
+
 
 
 // [[Rcpp::export]]

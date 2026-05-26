@@ -2510,7 +2510,7 @@ grid <- R6::R6Class("grid",
                           as.matrix(self$grid_data[, c("x", "y")])
                         }
                         
-                        if (requireNamespace("FNN", quietly = TRUE)) {
+                        nn_idx <- if (requireNamespace("FNN", quietly = TRUE)) {
                           FNN::get.knnx(grid_xy, query, k = 1)$nn.index[, 1]
                         } else {
                           apply(query, 1, function(p) {

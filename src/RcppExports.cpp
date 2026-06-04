@@ -249,6 +249,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// regionModel__set_trace
+void regionModel__set_trace(SEXP xp, int trace, int type);
+RcppExport SEXP _rts2_regionModel__set_trace(SEXP xpSEXP, SEXP traceSEXP, SEXP typeSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type xp(xpSEXP);
+    Rcpp::traits::input_parameter< int >::type trace(traceSEXP);
+    Rcpp::traits::input_parameter< int >::type type(typeSEXP);
+    regionModel__set_trace(xp, trace, type);
+    return R_NilValue;
+END_RCPP
+}
 // max_dist
 double max_dist(const Eigen::ArrayXXd& x);
 RcppExport SEXP _rts2_max_dist(SEXP xSEXP) {
@@ -331,6 +343,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rts2_regionModel__get_weights", (DL_FUNC) &_rts2_regionModel__get_weights, 2},
     {"_rts2_regionModel__log_likelihood", (DL_FUNC) &_rts2_regionModel__log_likelihood, 2},
     {"_rts2_regionModel__get_theta", (DL_FUNC) &_rts2_regionModel__get_theta, 2},
+    {"_rts2_regionModel__set_trace", (DL_FUNC) &_rts2_regionModel__set_trace, 3},
     {"_rts2_max_dist", (DL_FUNC) &_rts2_max_dist, 1},
     {"_rts2_semivariogram", (DL_FUNC) &_rts2_semivariogram, 5},
     {"_rts2_GridData__NN", (DL_FUNC) &_rts2_GridData__NN, 1},

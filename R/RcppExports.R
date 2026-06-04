@@ -69,6 +69,10 @@ regionModel__get_theta <- function(xp, type = 0L) {
     .Call(`_rts2_regionModel__get_theta`, xp, type)
 }
 
+regionModel__set_trace <- function(xp, trace, type = 0L) {
+    invisible(.Call(`_rts2_regionModel__set_trace`, xp, trace, type))
+}
+
 max_dist <- function(x) {
     .Call(`_rts2_max_dist`, x)
 }

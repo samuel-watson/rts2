@@ -1405,13 +1405,13 @@ grid <- R6::R6Class("grid",
                                for (k in 1:K) {
                                  uk_c <- u[, k] - mean(u[, k])
                                  mu_samples[, k]      <- exp(xb        + uk_c)
-                                 mu_samples_noff[, k] <- exp(xb_no_off + uk_c) * as.numeric(sf::st_area(self$grid_data[1,]))
+                                 mu_samples_noff[, k] <- exp(xb_no_off + uk_c) * (I(is_spde) * as.numeric(sf::st_area(self$grid_data[1,])) + I(!is_spde)*1)
                                }
                                
                                # ── Grid-level posterior summaries ───────────────────────────────────────────
                                mu_mean <- rowSums(t(t(mu_samples)      * w)) / sum_w
                                mupred  <- rowSums(t(t(mu_samples_noff) * w)) / sum_w
-                               SEpp    <- mu_mean * sqrt(zu_var_grid)              # delta on Var(η)
+                               SEpp    <- (I(!is_spde)*mu_mean + I(is_spde)*mupred) * sqrt(zu_var_grid)              # delta on Var(η)
                                
                                # Log-relative-risk (= η minus its spatial mean across samples)
                                u_centered <- u - matrix(colMeans(u), n, K, byrow = TRUE)
@@ -1474,7 +1474,12 @@ grid <- R6::R6Class("grid",
                                          se_pred = list(pp = SEpp, tot = SEtot, rr = SE_rr),
                                          nT = data$nT,
                                          conv_criterion = 0,
-                                         weights = w)
+                                         weights = w, 
+                                         mesh = NULL)
+                             if(is_spde){
+                               if(is.null(self$region_data)) out$mesh <- spde
+                               if(!is.null(self$region_data)) out$mesh <- spde_data_obj
+                             }
                              class(out) <- "rtsFit"
                              private$last_model_fit <- out
                              return(invisible(out))
@@ -1952,11 +1957,11 @@ grid <- R6::R6Class("grid",
                              }
                              # ── Default mesh args ──────────────────────────────────────────────────────
                              if (is.null(max_edge)) {
-                               h        <- span / 18                                                    # ~1000 m
-                               max_edge <- c(h, 1.5 * h)                                                  # c(1000, 5000)
+                               h        <- span / 25                                                    # ~1000 m
+                               max_edge <- c(h, 5 * h)                                                  # c(1000, 5000)
                              }
                              if (is.null(cutoff)) cutoff   <- h  
-                             if (is.null(offset)) offset   <- c(h, 2 * h)
+                             if (is.null(offset)) offset   <- c(h, 4 * h)
                              
                              mesh <- fmesher::fm_mesh_2d(
                                loc      = mesh_loc,
@@ -2033,7 +2038,6 @@ grid <- R6::R6Class("grid",
                                grid_xy <- sf::st_coordinates(sf::st_centroid(self$grid_data))
                                A_pred <- Matrix::drop0(fmesher::fm_basis(mesh, loc = grid_xy))
                              }
-                             print(mesh$n)
                              list(mesh = mesh, A_loc = A_loc, C = C_diag, G = G,
                                   W_mesh = W_mesh, A_pred = A_pred, n_v = n_v,
                                   is_aggregated = is_aggregated)

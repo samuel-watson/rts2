@@ -1912,15 +1912,19 @@ inline Eigen::VectorXd rts::regionModel<glmmr::ar1Covariance>::zu_variance_full(
 {
   using Eigen::MatrixXd; using Eigen::VectorXd; using Eigen::ArrayXd;
   
-  const int n_A       = weights.cols();         // cells per period
+  const int n_A       = weights.cols();
+  const int T         = covariance.Q() / n_A;
+  const int n_cells   = n_A * T;
   const int n_regions = weights.rows();
-  const int n_cells   = X.rows();               // = n_A * T
-  const int T         = n_cells / n_A;
   const int Pdim      = X.cols();
   const int K         = u_.cols();
   
   MatrixXd ZL = covariance.ZL();                // n_cells × n_u (stacked by time)
   const int nu = ZL.cols();
+  
+  if (ZL.rows() != n_cells || X.rows() != n_cells || weights.cols() != n_A)
+    Rcpp::stop("zu_variance_full<ar1>: geometry mismatch — ZL %dx%d, X %d rows, weights.cols %d, expected n_cells=%d n_A=%d",
+               (int)ZL.rows(), (int)ZL.cols(), (int)X.rows(), (int)weights.cols(), n_cells, n_A);
   
   // ── Posterior-mean cell-level intensities (stacked) ──
   double wsum = 0.0; for(int k = 0; k < K; ++k) wsum += u_weight_(k);
@@ -1981,7 +1985,6 @@ inline Eigen::VectorXd rts::regionModel<glmmr::ar1Covariance>::zu_variance_full(
   MatrixXd diff_t      = X.transpose() - Bt_Ainv_ZLT;               // P × n_cells
   MatrixXd Sdiff       = llt_Schur.solve(diff_t);
   VectorXd term_beta   = (diff_t.array() * Sdiff.array()).colwise().sum();
-  
   return term1 + term_beta;
 }
 
@@ -2193,9 +2196,14 @@ SEXP regionModel__zu_variance_full(SEXP xp, int type)
   if(type == 2){          // HSGP
     XPtr<rts::regionModel<glmmr::hsgpCovariance>> ptr(xp);
     return wrap(ptr->zu_variance_full());
-  } else {                // dense (type 0 or 1)
+  } else if(type == 0){                // dense (type 0 or 1)
     XPtr<rts::regionModel<glmmr::Covariance>> ptr(xp);
     return wrap(ptr->zu_variance_full());
+  } else if(type == 1){                // dense (type 0 or 1)
+    XPtr<rts::regionModel<glmmr::ar1Covariance>> ptr(xp);
+    return wrap(ptr->zu_variance_full());
+  } else {
+    throw std::runtime_error("Type not allowed for this function<zu>");
   }
 }
 

@@ -1,7 +1,7 @@
 Package: rts2
 Title: Log-Gaussian Cox Process Models with Approximations
-Version: 1.0.2
-Date: 2026-06-06
+Version: 1.0.4
+Date: 2026-07-19
 Authors@R: 
     person(given = "Sam",
            family = "Watson",
@@ -13,7 +13,7 @@ Description: Supports modelling case data to facilitate. The package provides au
     and predictions and visualisation. Monte Carlo maximum likelihood is the main fitting method with a low-rank approximation for Gaussian processes 
     described by Solin and Särkkä (2020) <doi:10.1007/s11222-019-09886-w> and a stochastic partial differential equation approximation. Bayesian methods 
     are also provided for some methods. Log-Gaussian Cox Processes are described by 
-    Diggle et al. (2013) <doi:10.1214/13-STS441>.. 
+    Diggle et al. (2013) <doi:10.1214/13-STS441>. 
 License: CC BY-SA 4.0 
 Encoding: UTF-8
 LazyData: true

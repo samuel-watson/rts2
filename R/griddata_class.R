@@ -1260,8 +1260,8 @@ grid <- R6::R6Class("grid",
                                      data$X, data$y, iter_sampling, m, L
                                    )
                                    if(length(start_theta) == 2 & data$nT > 1){
-                                     theta_start <- c(start_theta, start_theta[2], log(diff(range(data$nT))/4), log(runif(1)))
-                                   }
+                                     theta_start <- c(start_theta[1], start_theta[2], log(diff(range(1:data$nT))/4), log(runif(1)))
+                                   } else theta_start <- start_theta
                                  }
                                } else if (is_spde) {
                                  if (data$nT > 1) stop("Spatio-temporal SPDE not yet implemented")
@@ -1290,7 +1290,7 @@ grid <- R6::R6Class("grid",
                                      form, as.matrix(data$x_grid), c('x','y'),
                                      data$X, data$y, iter_sampling, data$nT
                                    )
-                                   if(length(start_theta) == 2) start_theta <- c(start_theta, log(runif(1)))
+                                   if(length(start_theta) == 2) theta_start <- c(start_theta, log(runif(1))) else theta_start <- start_theta
                                  }
                                }
                                
